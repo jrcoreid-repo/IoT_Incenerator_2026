@@ -328,7 +328,6 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       <main className="main-content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Caturharjo · Pandak · Bantul</p>
             <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="top-actions">
