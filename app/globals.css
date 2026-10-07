@@ -82,7 +82,10 @@ button { cursor: pointer; }
 .warning-dot { background:var(--warning); box-shadow:0 0 0 4px color-mix(in srgb, var(--warning) 12%, transparent); }
 
 .page-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); gap:16px; }
-.hero-status { grid-column:1 / -1; min-height:115px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 24px; border:1px solid var(--border); border-radius:20px; background:linear-gradient(120deg, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--surface)); box-shadow:var(--shadow); }
+.hero-status { grid-column:1 / -1; min-height:115px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 24px; border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow); transition:.25s ease; }
+.hero-status.status-good { background:linear-gradient(120deg, color-mix(in srgb, #18b981 18%, var(--surface)), var(--surface)); border-color:color-mix(in srgb, #18b981 32%, var(--border)); }
+.hero-status.status-warn { background:linear-gradient(120deg, color-mix(in srgb, #f59e0b 17%, var(--surface)), var(--surface)); border-color:color-mix(in srgb, #f59e0b 32%, var(--border)); }
+.hero-status.status-muted { background:linear-gradient(120deg, color-mix(in srgb, #64748b 14%, var(--surface)), var(--surface)); border-color:color-mix(in srgb, #64748b 26%, var(--border)); }
 .combustion-state { display:flex; align-items:center; gap:10px; font-size:25px; font-weight:800; letter-spacing:-.03em; margin-bottom:7px; }
 .combustion-state.good { color:var(--accent); }
 .combustion-state.warn { color:var(--warning); }
@@ -93,9 +96,19 @@ button { cursor: pointer; }
 .muted { color:var(--muted); font-size:12px; margin-bottom:0; }
 
 .metric-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-.metric-card { min-height:112px; display:flex; align-items:flex-start; gap:13px; padding:17px; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
-.metric-icon { width:36px; height:36px; border-radius:11px; flex:0 0 auto; }
-.metric-label { color:var(--muted); font-size:11px; font-weight:700; }
+.metric-card { --tone: var(--accent); min-height:112px; display:flex; align-items:flex-start; gap:13px; padding:17px; position:relative; overflow:hidden; background:linear-gradient(145deg, color-mix(in srgb, var(--tone) 8%, var(--surface)), var(--surface) 68%); border:1px solid color-mix(in srgb, var(--tone) 20%, var(--border)); border-radius:16px; box-shadow:var(--shadow); transition:transform .2s ease, border-color .2s ease; }
+.metric-card::after { content:""; position:absolute; inset:auto -28px -38px auto; width:92px; height:92px; border-radius:50%; background:color-mix(in srgb, var(--tone) 10%, transparent); }
+.metric-card:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--tone) 42%, var(--border)); }
+.metric-card.tone-orange { --tone:#f97316; }
+.metric-card.tone-amber { --tone:#f59e0b; }
+.metric-card.tone-blue { --tone:#3b82f6; }
+.metric-card.tone-cyan { --tone:#06b6d4; }
+.metric-card.tone-red { --tone:#ef4444; }
+.metric-card.tone-purple { --tone:#8b5cf6; }
+.metric-card.tone-lime { --tone:#84cc16; }
+.metric-card.tone-green { --tone:#10b981; }
+.metric-icon { width:36px; height:36px; border-radius:11px; flex:0 0 auto; background:color-mix(in srgb, var(--tone) 16%, transparent); color:var(--tone); }
+.metric-label { color:color-mix(in srgb, var(--tone) 72%, var(--text)); font-size:11px; font-weight:800; }
 .metric-value { font-size:25px; font-weight:800; letter-spacing:-.04em; margin-top:3px; }
 .metric-value small { font-size:11px; color:var(--muted); margin-left:5px; font-weight:700; }
 .metric-note { display:block; font-size:10px; color:var(--muted); margin-top:2px; }
@@ -215,3 +228,6 @@ button { cursor: pointer; }
   .metric-card { flex-direction:column; }
   .hero-time { display:none; }
 }
+
+.site-footer { margin:22px 0 4px; padding:16px 4px 4px; text-align:center; color:var(--muted); font-size:10px; letter-spacing:.02em; border-top:1px solid var(--border); }
+.site-footer span { display:inline-block; opacity:.82; }
