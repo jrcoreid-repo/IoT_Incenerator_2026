@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JR-AIoT | Monitoring Cerobong",
-  description: "Dashboard pemantauan pembakaran, gas, dan prediksi risiko dioksin/furan."
+  title: "ADI Smart Incinerator | Monitoring Lingkungan",
+  description: "Dashboard ADI Smart Incinerator untuk pemantauan pembakaran, gas, dan kondisi lingkungan di Desa Caturharjo, Pandak, Bantul."
 };
 
 export default function RootLayout({
