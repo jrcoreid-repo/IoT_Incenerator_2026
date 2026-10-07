@@ -120,14 +120,19 @@ function MetricCard({
 }) {
   return (
     <article className={`metric-card tone-${tone}`}>
-      <div className="metric-icon"><Icon size={18} /></div>
-      <div>
+      <div className="metric-card-glow" />
+      <div className="metric-card-head">
+        <div className="metric-icon"><Icon size={18} /></div>
+        <span className="metric-status-dot" />
+      </div>
+      <div className="metric-body">
         <span className="metric-label">{title}</span>
         <div className="metric-value">
           {value}{unit && <small>{unit}</small>}
         </div>
         {note && <span className="metric-note">{note}</span>}
       </div>
+      <div className="metric-accent-line" />
     </article>
   );
 }
@@ -228,7 +233,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           <div className="brand-logo"><Flame size={22} /></div>
           <div>
             <strong>JR-AIoT</strong>
-            <span>Monitoring Cerobong</span>
+            <span>Environmental Monitoring</span>
           </div>
         </div>
 
@@ -257,8 +262,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="top-actions">
-            <span className="live-badge">{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
-            <span className="live-badge"><span className="status-dot" /> DATA LANGSUNG</span>
+            <span className={`mode-badge ${isAdmin ? "admin" : "client"}`}>{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
+            <span className="live-badge"><span className="pulse-dot" /> DATA LANGSUNG</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -268,17 +273,37 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "beranda" && (
           <div className="page-grid">
             <section className={`hero-status status-${status.tone}`}>
-              <div>
-                <p className="section-kicker">Status proses</p>
-                <div className={`combustion-state ${status.tone}`}><Flame size={24} /> {status.text}</div>
-                <p className="muted">Pembaruan otomatis setiap 3 detik · data prototipe simulasi</p>
+              <div className="hero-status-main">
+                <div className="hero-icon-wrap"><Flame size={26} /></div>
+                <div>
+                  <p className="section-kicker">Status pembakaran</p>
+                  <div className={`combustion-state ${status.tone}`}>{status.text}</div>
+                  <p className="muted">Status dihitung dari suhu tungku dan arah perubahan temperatur.</p>
+                </div>
               </div>
-              <div className="hero-time">
-                <span>Data terakhir</span>
-                <strong>{current.waktu}</strong>
+              <div className="hero-side">
+                <div className="hero-mini">
+                  <span>Suhu tungku</span>
+                  <strong>{current.furnace.toFixed(1)}°C</strong>
+                </div>
+                <div className="hero-mini">
+                  <span>Risiko D/F</span>
+                  <strong>{current.furanRisk}/100</strong>
+                </div>
+                <div className="hero-time">
+                  <span>Data terakhir</span>
+                  <strong>{current.waktu}</strong>
+                </div>
               </div>
             </section>
 
+            <div className="section-title-row">
+              <div>
+                <p className="section-kicker">Parameter utama</p>
+                <h2>Kondisi proses & lingkungan</h2>
+              </div>
+              <span className="soft-badge">8 parameter aktif</span>
+            </div>
             <section className="metric-grid">
               <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Thermocouple CH1" tone="orange" />
               <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Thermocouple CH2" tone="amber" />
@@ -302,17 +327,17 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                     <XAxis dataKey="waktu" minTickGap={28} />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="furnace" name="Tungku" stroke="currentColor" strokeWidth={2.5} dot={false} />
-                    <Line type="monotone" dataKey="stack" name="Cerobong" stroke="currentColor" strokeOpacity={0.42} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="furnace" name="Tungku" stroke="#f97316" strokeWidth={2.8} dot={false} />
+                    <Line type="monotone" dataKey="stack" name="Cerobong" stroke="#06b6d4" strokeOpacity={0.95} strokeWidth={2.2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </section>
 
-            <section className="panel ai-card">
+            <section className="panel ai-card colorful-panel">
               <div className="panel-heading">
                 <div><p className="section-kicker">Prediksi risiko</p><h2>Dioksin / Furan</h2></div>
-                <BrainCircuit size={22} />
+                <div className="panel-icon ai"><BrainCircuit size={20} /></div>
               </div>
               <div className="risk-row">
                 <div className={`risk-score risk-${riskLabel(current.furanRisk).toLowerCase()}`}>
@@ -330,7 +355,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </section>
 
             <section className="panel device-summary">
-              <div className="panel-heading"><div><p className="section-kicker">Kesehatan sistem</p><h2>Status perangkat</h2></div><ShieldCheck size={21} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Kesehatan sistem</p><h2>Status perangkat</h2></div><div className="panel-icon device"><ShieldCheck size={19} /></div></div>
               <div className="device-grid">
                 <DevicePill name="JR-AIoT" detail="Gateway · online" />
                 <DevicePill name="ZEH100" detail="Gas sensor · online" />
@@ -356,8 +381,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                     <XAxis dataKey="waktu" minTickGap={24} />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="currentColor" strokeWidth={2.6} dot={false} />
-                    <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="currentColor" strokeOpacity={0.4} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#f97316" strokeWidth={2.8} dot={false} />
+                    <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#06b6d4" strokeOpacity={0.95} strokeWidth={2.2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -372,9 +397,9 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                     <XAxis dataKey="waktu" minTickGap={30} />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="co" name="CO" stroke="currentColor" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="h2" name="H₂" stroke="currentColor" strokeOpacity={0.55} strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="voc" name="VOC" stroke="currentColor" strokeOpacity={0.3} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="co" name="CO" stroke="#ef4444" strokeWidth={2.4} dot={false} />
+                    <Line type="monotone" dataKey="h2" name="H₂" stroke="#8b5cf6" strokeWidth={2.2} dot={false} />
+                    <Line type="monotone" dataKey="voc" name="VOC" stroke="#84cc16" strokeWidth={2.2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -389,7 +414,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                     <XAxis dataKey="waktu" minTickGap={30} />
                     <YAxis domain={[0, 100]} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="furanRisk" name="Risiko D/F" stroke="currentColor" strokeWidth={2.4} dot={false} />
+                    <Line type="monotone" dataKey="furanRisk" name="Risiko D/F" stroke="#14b8a6" strokeWidth={2.6} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -466,7 +491,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           </section>
         )}
         <footer className="site-footer">
-          <span>by Omah Inovasi Universitas Ahmad Dahlan</span>
+          <span className="footer-dot" />
+          <span>by <strong>Omah Inovasi Universitas Ahmad Dahlan</strong></span>
         </footer>
       </main>
 
