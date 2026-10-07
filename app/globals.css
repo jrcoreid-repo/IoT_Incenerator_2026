@@ -145,14 +145,43 @@ h1,h2,h3,p { margin-top: 0; }
 .page-grid {
   display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); gap:18px;
 }
+.project-context {
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:minmax(250px,.85fr) minmax(360px,1.15fr);
+  align-items:center;
+  gap:16px;
+  padding:15px 18px;
+  border:1px solid color-mix(in srgb,var(--accent) 20%,var(--border));
+  border-radius:18px;
+  background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 8%,var(--surface)),var(--surface));
+  box-shadow:var(--shadow-soft);
+}
+.project-context-main {
+  display:flex; align-items:center; gap:12px; min-width:0;
+}
+.project-context-icon {
+  width:39px; height:39px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center;
+  background:color-mix(in srgb,var(--accent) 14%,transparent); color:var(--accent);
+}
+.project-context-label,
+.project-context-funding span {
+  display:block; color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.10em;
+  margin-bottom:3px;
+}
+.project-context-main strong {
+  display:block; font-size:14px; line-height:1.35;
+}
+.project-context-funding {
+  padding-left:16px; border-left:1px solid var(--border);
+}
+.project-context-funding strong {
+  display:block; font-size:12px; line-height:1.45; color:color-mix(in srgb,var(--text) 88%,var(--muted));
+}
 .hero-status {
   grid-column:1 / -1; min-height:150px; display:flex; align-items:center; justify-content:space-between;
   gap:22px; padding:24px 26px; border-radius:24px; box-shadow:var(--shadow);
-  position:relative; overflow:hidden; isolation:isolate; border:1px solid transparent;
-}
-.hero-status::before {
-  content:""; position:absolute; inset:auto -40px -70px auto; width:220px; height:220px; border-radius:50%;
-  background:rgba(255,255,255,.11); z-index:-1; filter:blur(1px);
+  position:relative; overflow:hidden; border:1px solid transparent;
 }
 .hero-status.status-good {
   background:linear-gradient(120deg,#0f766e,#16a34a 58%,#22c55e);
@@ -216,10 +245,10 @@ h1,h2,h3,p { margin-top: 0; }
   box-shadow:0 0 0 5px color-mix(in srgb,var(--tone) 12%,transparent);
 }
 .metric-body { position:relative; z-index:1; margin-top:13px; }
-.metric-label { color:color-mix(in srgb,var(--tone) 74%,var(--text)); font-size:11px; font-weight:900; }
+.metric-label { color:color-mix(in srgb,var(--tone) 74%,var(--text)); font-size:11px; line-height:1.25; font-weight:900; }
 .metric-value { font-size:30px; font-weight:900; letter-spacing:-.055em; margin-top:4px; }
 .metric-value small { font-size:11px; color:var(--muted); margin-left:5px; font-weight:800; }
-.metric-note { display:block; font-size:10px; color:var(--muted); margin-top:3px; }
+.metric-note { display:block; font-size:10px; line-height:1.35; color:var(--muted); margin-top:4px; }
 .metric-accent-line {
   position:absolute; left:0; right:0; bottom:0; height:4px; background:linear-gradient(90deg,var(--tone),color-mix(in srgb,var(--tone) 35%,transparent));
 }
@@ -246,10 +275,6 @@ h1,h2,h3,p { margin-top: 0; }
 }
 .panel-icon.ai { color:#8b5cf6; background:color-mix(in srgb,#8b5cf6 12%,var(--surface)); }
 .panel-icon.device { color:#14b8a6; background:color-mix(in srgb,#14b8a6 12%,var(--surface)); }
-.colorful-panel::after {
-  content:""; position:absolute; width:170px; height:170px; right:-65px; top:-70px; border-radius:50%;
-  background:radial-gradient(circle,rgba(139,92,246,.15),transparent 70%); pointer-events:none;
-}
 .chip { border:1px solid var(--border); border-radius:999px; padding:7px 10px; color:var(--muted); font-size:10px; background:var(--surface-2); }
 .chart-wrap { height:255px; }
 .chart-large { height:400px; }
@@ -393,6 +418,8 @@ h1,h2,h3,p { margin-top: 0; }
   .metric-grid { grid-template-columns:repeat(2,1fr); }
   .device-grid { grid-template-columns:repeat(3,1fr); }
   .page-grid { grid-template-columns:1fr; }
+  .project-context { grid-template-columns:1fr; }
+  .project-context-funding { padding-left:0; padding-top:12px; border-left:0; border-top:1px solid var(--border); }
   .panel, .chart-panel, .ai-card, .device-summary { grid-column:1; }
   .hero-side { grid-template-columns:repeat(3,1fr); }
 }
