@@ -142,7 +142,8 @@ function DevicePill({ name, detail }: { name: string; detail: string }) {
   );
 }
 
-export default function DashboardShell() {
+export default function DashboardShell({ mode = "client" }: { mode?: "client" | "admin" }) {
+  const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [history, setHistory] = useState<Telemetry[]>(() => makeInitialData());
@@ -216,6 +217,8 @@ export default function DashboardShell() {
     window.location.href = "/login";
   }
 
+  const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.id !== "pengaturan");
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -228,7 +231,7 @@ export default function DashboardShell() {
         </div>
 
         <nav className="side-nav">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
@@ -240,8 +243,8 @@ export default function DashboardShell() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="mini-status"><span className="status-dot" /> Sistem terhubung</div>
-          <button onClick={logout} className="logout-button"><LogOut size={17} /> Keluar</button>
+          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "Mode Admin" : "Sistem terhubung"}</div>
+          {isAdmin && <button onClick={logout} className="logout-button"><LogOut size={17} /> Keluar</button>}
         </div>
       </aside>
 
@@ -249,9 +252,10 @@ export default function DashboardShell() {
         <header className="topbar">
           <div>
             <p className="eyebrow">Unit Pembakaran #01</p>
-            <h1>{navItems.find((item) => item.id === tab)?.label}</h1>
+            <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="top-actions">
+            <span className="live-badge">{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
             <span className="live-badge"><span className="status-dot" /> DATA LANGSUNG</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -443,7 +447,7 @@ export default function DashboardShell() {
           </section>
         )}
 
-        {tab === "pengaturan" && (
+        {isAdmin && tab === "pengaturan" && (
           <section className="page-grid">
             <div className="panel full-span settings-panel">
               <div className="panel-heading"><div><p className="section-kicker">Khusus admin</p><h2>Pengaturan ambang sistem</h2></div><Settings size={22} /></div>
@@ -462,7 +466,7 @@ export default function DashboardShell() {
       </main>
 
       <nav className="mobile-nav">
-        {navItems.slice(0, 5).map((item) => {
+        {visibleNavItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "riwayat" ? "Riwayat" : item.id === "perangkat" ? "Device" : item.label.replace("Analisis ", "")}</span></button>;
         })}
