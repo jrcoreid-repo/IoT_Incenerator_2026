@@ -28,7 +28,7 @@ export default function LoginPage() {
       setError(data.message ?? "Gagal masuk.");
       return;
     }
-    window.location.href = "/";
+    window.location.href = "/admin";
   }
 
   return (
@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="brand-mark"><Flame size={24} /></div>
         <p className="eyebrow">JR-AIoT</p>
         <h1>Monitoring Cerobong</h1>
-        <p className="muted">Masuk sebagai admin untuk membuka dashboard pemantauan.</p>
+        <p className="muted">Masuk sebagai admin untuk membuka kontrol dan pengaturan sistem.</p>
 
         <form onSubmit={handleSubmit} className="login-form">
           <label>
