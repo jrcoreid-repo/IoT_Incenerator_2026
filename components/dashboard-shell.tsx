@@ -44,6 +44,8 @@ type Thresholds = {
   riskWarning: number;
 };
 
+type ThresholdDraft = Record<keyof Thresholds, string>;
+
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
   { id: "riwayat", label: "Riwayat & Grafik", icon: History },
@@ -60,6 +62,16 @@ const defaultThresholds: Thresholds = {
   vocWarning: 75,
   riskWarning: 50
 };
+
+function thresholdsToDraft(values: Thresholds): ThresholdDraft {
+  return {
+    activeTemp: String(values.activeTemp),
+    transitionTemp: String(values.transitionTemp),
+    coWarning: String(values.coWarning),
+    vocWarning: String(values.vocWarning),
+    riskWarning: String(values.riskWarning)
+  };
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -155,13 +167,19 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [history, setHistory] = useState<Telemetry[]>(() => makeInitialData());
   const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
+  const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => thresholdsToDraft(defaultThresholds));
+  const [settingsMessage, setSettingsMessage] = useState("");
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("jr-theme") as "light" | "dark" | null;
     const savedThresholds = localStorage.getItem("jr-thresholds");
     if (savedTheme) setTheme(savedTheme);
     if (savedThresholds) {
-      try { setThresholds(JSON.parse(savedThresholds)); } catch {}
+      try {
+        const parsed = JSON.parse(savedThresholds) as Thresholds;
+        setThresholds(parsed);
+        setThresholdDraft(thresholdsToDraft(parsed));
+      } catch {}
     }
   }, []);
 
@@ -216,7 +234,59 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
   function saveThresholds(next: Thresholds) {
     setThresholds(next);
+    setThresholdDraft(thresholdsToDraft(next));
     localStorage.setItem("jr-thresholds", JSON.stringify(next));
+  }
+
+  function updateThresholdDraft(key: keyof Thresholds, raw: string) {
+    setSettingsMessage("");
+
+    // Hanya izinkan angka positif dan desimal. Nilai kosong tetap diizinkan saat mengedit.
+    if (!/^\d*(\.\d*)?$/.test(raw)) return;
+
+    let value = raw;
+
+    // Hilangkan nol di depan: "0200" menjadi "200", tetapi "0.5" tetap valid.
+    if (/^0\d/.test(value)) {
+      value = value.replace(/^0+(?=\d)/, "");
+    }
+
+    // Indeks risiko dibatasi 0–100.
+    if (key === "riskWarning" && value !== "" && Number(value) > 100) {
+      value = "100";
+    }
+
+    setThresholdDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function applyThresholdSettings() {
+    const entries = Object.entries(thresholdDraft) as [keyof Thresholds, string][];
+
+    if (entries.some(([, value]) => value.trim() === "")) {
+      setSettingsMessage("Semua nilai harus diisi sebelum diterapkan.");
+      return;
+    }
+
+    const next = {
+      activeTemp: Number(thresholdDraft.activeTemp),
+      transitionTemp: Number(thresholdDraft.transitionTemp),
+      coWarning: Number(thresholdDraft.coWarning),
+      vocWarning: Number(thresholdDraft.vocWarning),
+      riskWarning: Math.min(100, Number(thresholdDraft.riskWarning))
+    };
+
+    if (Object.values(next).some((value) => !Number.isFinite(value) || value < 0)) {
+      setSettingsMessage("Nilai harus berupa angka 0 atau lebih.");
+      return;
+    }
+
+    saveThresholds(next);
+    setSettingsMessage("Pengaturan berhasil diterapkan.");
+  }
+
+  function resetThresholdSettings() {
+    saveThresholds(defaultThresholds);
+    setSettingsMessage("Nilai awal berhasil dikembalikan.");
   }
 
   async function logout() {
@@ -494,13 +564,32 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <div className="panel-heading"><div><p className="section-kicker">Khusus admin</p><h2>Pengaturan ambang sistem</h2></div><Settings size={22} /></div>
               <p className="muted">Nilai di bawah tersimpan lokal untuk prototipe. Pada versi database, konfigurasi akan disimpan di server.</p>
               <div className="settings-grid">
-                <label>Suhu pembakaran aktif (°C)<input type="number" value={thresholds.activeTemp} onChange={(e) => saveThresholds({ ...thresholds, activeTemp: Number(e.target.value) })} /></label>
-                <label>Suhu transisi (°C)<input type="number" value={thresholds.transitionTemp} onChange={(e) => saveThresholds({ ...thresholds, transitionTemp: Number(e.target.value) })} /></label>
-                <label>Ambang CO (ppm)<input type="number" value={thresholds.coWarning} onChange={(e) => saveThresholds({ ...thresholds, coWarning: Number(e.target.value) })} /></label>
-                <label>Ambang VOC (ppm)<input type="number" value={thresholds.vocWarning} onChange={(e) => saveThresholds({ ...thresholds, vocWarning: Number(e.target.value) })} /></label>
-                <label>Ambang risiko D/F<input type="number" min="0" max="100" value={thresholds.riskWarning} onChange={(e) => saveThresholds({ ...thresholds, riskWarning: Number(e.target.value) })} /></label>
+                <label>
+                  Suhu pembakaran aktif (°C)
+                  <input inputMode="decimal" value={thresholdDraft.activeTemp} onChange={(e) => updateThresholdDraft("activeTemp", e.target.value)} placeholder="Contoh: 180" />
+                </label>
+                <label>
+                  Suhu transisi (°C)
+                  <input inputMode="decimal" value={thresholdDraft.transitionTemp} onChange={(e) => updateThresholdDraft("transitionTemp", e.target.value)} placeholder="Contoh: 90" />
+                </label>
+                <label>
+                  Ambang CO (ppm)
+                  <input inputMode="decimal" value={thresholdDraft.coWarning} onChange={(e) => updateThresholdDraft("coWarning", e.target.value)} placeholder="Contoh: 50" />
+                </label>
+                <label>
+                  Ambang VOC (ppm)
+                  <input inputMode="decimal" value={thresholdDraft.vocWarning} onChange={(e) => updateThresholdDraft("vocWarning", e.target.value)} placeholder="Contoh: 75" />
+                </label>
+                <label>
+                  Ambang risiko D/F (0–100)
+                  <input inputMode="decimal" value={thresholdDraft.riskWarning} onChange={(e) => updateThresholdDraft("riskWarning", e.target.value)} placeholder="Contoh: 50" />
+                </label>
               </div>
-              <button className="secondary-button" onClick={() => saveThresholds(defaultThresholds)}>Kembalikan nilai awal</button>
+              <div className="settings-actions">
+                <button className="primary-button" onClick={applyThresholdSettings}>Terapkan & Simpan</button>
+                <button className="secondary-button" onClick={resetThresholdSettings}>Kembalikan nilai awal</button>
+                {settingsMessage && <span className={`settings-message ${settingsMessage.includes("berhasil") ? "success" : "error"}`}>{settingsMessage}</span>}
+              </div>
             </div>
           </section>
         )}
