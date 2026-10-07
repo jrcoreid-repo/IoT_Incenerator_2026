@@ -108,16 +108,18 @@ function MetricCard({
   value,
   unit,
   icon: Icon,
-  note
+  note,
+  tone = "green"
 }: {
   title: string;
   value: string;
   unit?: string;
   icon: typeof Thermometer;
   note?: string;
+  tone?: "orange" | "amber" | "blue" | "cyan" | "red" | "purple" | "lime" | "green";
 }) {
   return (
-    <article className="metric-card">
+    <article className={`metric-card tone-${tone}`}>
       <div className="metric-icon"><Icon size={18} /></div>
       <div>
         <span className="metric-label">{title}</span>
@@ -265,7 +267,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
         {tab === "beranda" && (
           <div className="page-grid">
-            <section className="hero-status">
+            <section className={`hero-status status-${status.tone}`}>
               <div>
                 <p className="section-kicker">Status proses</p>
                 <div className={`combustion-state ${status.tone}`}><Flame size={24} /> {status.text}</div>
@@ -278,14 +280,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </section>
 
             <section className="metric-grid">
-              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Thermocouple CH1" />
-              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Thermocouple CH2" />
-              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`${current.humidity.toFixed(0)}% RH`} />
-              <MetricCard title="Kelembapan" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Sensor lingkungan" />
-              <MetricCard title="CO" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Normal"} />
-              <MetricCard title="H₂" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="ZEH100" />
-              <MetricCard title="VOC" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Stabil"} />
-              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Pasca-filter" />
+              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Thermocouple CH1" tone="orange" />
+              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Thermocouple CH2" tone="amber" />
+              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`${current.humidity.toFixed(0)}% RH`} tone="blue" />
+              <MetricCard title="Kelembapan" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Sensor lingkungan" tone="cyan" />
+              <MetricCard title="CO" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Normal"} tone="red" />
+              <MetricCard title="H₂" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="ZEH100" tone="purple" />
+              <MetricCard title="VOC" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Stabil"} tone="lime" />
+              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Pasca-filter" tone="green" />
             </section>
 
             <section className="panel chart-panel">
@@ -463,6 +465,9 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </div>
           </section>
         )}
+        <footer className="site-footer">
+          <span>by Omah Inovasi Universitas Ahmad Dahlan</span>
+        </footer>
       </main>
 
       <nav className="mobile-nav">
