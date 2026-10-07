@@ -502,3 +502,171 @@ h1,h2,h3,p { margin-top: 0; }
 @media (max-width: 380px) {
   .metric-grid { grid-template-columns:1fr; }
 }
+
+
+/* Login V2 — ADI Smart Incinerator */
+.login-page-v2 {
+  min-height:100vh;
+  padding:22px;
+  background:
+    linear-gradient(145deg, rgba(4,35,29,.96), rgba(7,58,48,.96)),
+    var(--bg);
+}
+.login-layout-v2 {
+  width:min(1280px,100%);
+  min-height:calc(100vh - 44px);
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);
+  gap:22px;
+}
+.login-showcase {
+  min-width:0;
+  padding:30px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:28px;
+  background:linear-gradient(180deg,rgba(17,65,55,.94),rgba(8,37,31,.96));
+  color:#fff;
+  box-shadow:0 30px 80px rgba(0,0,0,.24);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.login-kicker {
+  margin:0 0 8px;
+  color:#75efd0;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.15em;
+}
+.login-showcase-copy h2 {
+  max-width:690px;
+  margin:0 0 12px;
+  font-size:clamp(29px,3vw,44px);
+  line-height:1.06;
+  letter-spacing:-.045em;
+}
+.login-showcase-copy > p:last-child {
+  max-width:650px;
+  margin:0;
+  color:rgba(255,255,255,.66);
+  font-size:13px;
+  line-height:1.7;
+}
+.login-incinerator-wrap {
+  margin:18px 0;
+  min-height:280px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:22px;
+  background:rgba(255,255,255,.025);
+  overflow:hidden;
+}
+.login-incinerator-svg {
+  display:block;
+  width:100%;
+  max-height:430px;
+}
+.login-feature-row {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.login-feature-row > div {
+  display:grid;
+  grid-template-columns:auto 1fr;
+  column-gap:10px;
+  align-items:center;
+  padding:13px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:15px;
+  background:rgba(255,255,255,.045);
+}
+.login-feature-icon {
+  grid-row:1 / 3;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  color:#05251d;
+  background:linear-gradient(135deg,#2ee6b4,#38bdf8);
+}
+.login-feature-row strong { font-size:11px; }
+.login-feature-row small { color:rgba(255,255,255,.52); font-size:9px; margin-top:2px; }
+
+.login-form-side {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+}
+.login-card-v2 {
+  width:min(460px,100%);
+  border-radius:26px;
+}
+.login-card-v2 h1 {
+  margin-bottom:8px;
+  font-size:31px;
+}
+.login-card-v2 .muted {
+  line-height:1.65;
+}
+.login-access-pill {
+  width:max-content;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin:18px 0 20px;
+  padding:8px 10px;
+  border:1px solid rgba(46,230,180,.16);
+  border-radius:999px;
+  background:rgba(46,230,180,.08);
+  color:#8ff3d8;
+  font-size:10px;
+  font-weight:800;
+}
+.login-card-v2 .login-form { margin-top:0; }
+.login-card-v2 .login-form input { padding:13px 14px; }
+.login-card-v2 .login-form button {
+  margin-top:6px;
+  padding:13px 14px;
+  box-shadow:0 14px 30px rgba(46,230,180,.14);
+}
+
+@media (max-width: 980px) {
+  .login-layout-v2 {
+    grid-template-columns:1fr;
+    min-height:auto;
+  }
+  .login-showcase { padding:22px; }
+  .login-incinerator-wrap { min-height:240px; }
+  .login-form-side { align-items:flex-start; }
+  .login-card-v2 { width:100%; }
+}
+@media (max-width: 640px) {
+  .login-page-v2 { padding:12px; }
+  .login-layout-v2 { gap:12px; }
+  .login-showcase {
+    padding:17px;
+    border-radius:21px;
+  }
+  .login-showcase-copy h2 { font-size:25px; }
+  .login-showcase-copy > p:last-child {
+    font-size:11px;
+    line-height:1.55;
+  }
+  .login-incinerator-wrap {
+    min-height:0;
+    margin:14px 0;
+    border-radius:17px;
+  }
+  .login-feature-row { grid-template-columns:1fr; }
+  .login-feature-row > div { padding:10px 11px; }
+  .login-card-v2 {
+    padding:23px 18px;
+    border-radius:21px;
+  }
+  .login-card-v2 h1 { font-size:25px; }
+}
