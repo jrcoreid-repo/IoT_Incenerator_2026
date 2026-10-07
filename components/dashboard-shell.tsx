@@ -14,6 +14,7 @@ import {
   History,
   Home,
   LogOut,
+  MapPin,
   Moon,
   Settings,
   ShieldCheck,
@@ -231,8 +232,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         <div className="brand">
           <div className="brand-logo"><Flame size={22} /></div>
           <div>
-            <strong>JR-AIoT</strong>
-            <span>Environmental Monitoring</span>
+            <strong>ADI Smart Incinerator</strong>
+            <span>Sistem Pemantauan Lingkungan</span>
           </div>
         </div>
 
@@ -257,7 +258,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       <main className="main-content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Unit Pembakaran #01</p>
+            <p className="eyebrow">Caturharjo · Pandak · Bantul</p>
             <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="top-actions">
@@ -271,6 +272,20 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
         {tab === "beranda" && (
           <div className="page-grid">
+            <section className="project-context">
+              <div className="project-context-main">
+                <div className="project-context-icon"><MapPin size={19} /></div>
+                <div>
+                  <span className="project-context-label">Lokasi pelaksanaan</span>
+                  <strong>Desa Caturharjo, Pandak, Bantul</strong>
+                </div>
+              </div>
+              <div className="project-context-funding">
+                <span>Didanai melalui</span>
+                <strong>Hibah Bestari Direktorat Hiliriset Kemendiktisaintek & Dana LPDP</strong>
+              </div>
+            </section>
+
             <section className={`hero-status status-${status.tone}`}>
               <div className="hero-status-main">
                 <div className="hero-icon-wrap"><Flame size={26} /></div>
@@ -304,14 +319,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <span className="soft-badge">8 parameter aktif</span>
             </div>
             <section className="metric-grid">
-              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Thermocouple CH1" tone="orange" />
-              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Thermocouple CH2" tone="amber" />
-              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`${current.humidity.toFixed(0)}% RH`} tone="blue" />
-              <MetricCard title="Kelembapan" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Sensor lingkungan" tone="cyan" />
-              <MetricCard title="CO" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Normal"} tone="red" />
-              <MetricCard title="H₂" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="ZEH100" tone="purple" />
-              <MetricCard title="VOC" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Stabil"} tone="lime" />
-              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Pasca-filter" tone="green" />
+              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="orange" />
+              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Sensor suhu cerobong" tone="amber" />
+              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`Kelembapan ${current.humidity.toFixed(0)}%`} tone="blue" />
+              <MetricCard title="Kelembapan Udara" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Kondisi udara sekitar" tone="cyan" />
+              <MetricCard title="CO · Karbon Monoksida" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Kondisi normal"} tone="red" />
+              <MetricCard title="H₂ · Hidrogen" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="Pembacaan sensor gas" tone="purple" />
+              <MetricCard title="VOC · Gas Organik" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Kondisi stabil"} tone="lime" />
+              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Kondisi asap terpantau" tone="green" />
             </section>
 
             <section className="panel chart-panel">
@@ -335,7 +350,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
             <section className="panel ai-card colorful-panel">
               <div className="panel-heading">
-                <div><p className="section-kicker">Prediksi risiko</p><h2>Dioksin / Furan</h2></div>
+                <div><p className="section-kicker">Perkiraan risiko</p><h2>Dioksin / Furan</h2></div>
                 <div className="panel-icon ai"><BrainCircuit size={20} /></div>
               </div>
               <div className="risk-row">
@@ -348,7 +363,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 </div>
               </div>
               <div className="ai-insight">
-                <span><BrainCircuit size={16} /> Wawasan AI · simulasi prototipe</span>
+                <span><BrainCircuit size={16} /> Ringkasan kondisi · analisis otomatis</span>
                 <p>{insight}</p>
               </div>
             </section>
@@ -491,7 +506,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         )}
         <footer className="site-footer">
           <span className="footer-dot" />
-          <span>by <strong>Omah Inovasi Universitas Ahmad Dahlan</strong></span>
+          <span><strong>ADI Smart Incinerator</strong> · by Omah Inovasi Universitas Ahmad Dahlan</span>
         </footer>
       </main>
 
