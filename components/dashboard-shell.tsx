@@ -120,7 +120,6 @@ function MetricCard({
 }) {
   return (
     <article className={`metric-card tone-${tone}`}>
-      <div className="metric-card-glow" />
       <div className="metric-card-head">
         <div className="metric-icon"><Icon size={18} /></div>
         <span className="metric-status-dot" />
