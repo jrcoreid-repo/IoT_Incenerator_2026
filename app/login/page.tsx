@@ -42,7 +42,7 @@ export default function LoginPage() {
         <div className="login-simple-brand">
           <div className="login-simple-mark" aria-hidden="true">ADI</div>
           <div>
-            <p className="login-simple-overline">JR-AIoT · Omah Inovasi UAD</p>
+            <p className="login-simple-overline">Sistem Pemantauan Lingkungan</p>
             <h1>ADI Smart Incinerator</h1>
           </div>
         </div>
