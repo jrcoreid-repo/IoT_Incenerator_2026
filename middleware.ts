@@ -1,45 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifySessionToken } from "@/lib/auth";
+import { readSessionToken } from "@/lib/auth";
 
 function preventCache(response: NextResponse) {
   response.headers.set("Cache-Control", "private, no-store, no-cache, max-age=0, must-revalidate");
   response.headers.set("Pragma", "no-cache");
   return response;
 }
-
+function redirect(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return preventCache(NextResponse.redirect(url));
+}
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const session = request.cookies.get("jr_admin")?.value;
-  const signedIn = await verifySessionToken(session);
+  const session = await readSessionToken(request.cookies.get("jr_admin")?.value);
+  const isAdmin = !!session && session.role === "admin" && session.sv === 0 &&
+    session.sub === process.env.ADMIN_USERNAME;
+  const isOperator = !!session && session.role === "operator" && session.sv >= 1;
 
-  // Halaman login hanya untuk pengunjung tanpa sesi sah.
+  // An operator with a revoked session must still be able to access login:
+  // middleware cannot check Node/Redis account state; the server page/API can.
   if (pathname === "/login") {
-    if (signedIn) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/admin";
-      url.search = "";
-      return preventCache(NextResponse.redirect(url));
-    }
-    return preventCache(NextResponse.next());
+    return isAdmin ? redirect(request, "/admin") : preventCache(NextResponse.next());
   }
+  if (!isAdmin && !isOperator) return redirect(request, "/login");
 
-  // Semua halaman dashboard (termasuk URL root) bersifat privat.
-  if (!signedIn) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
-    return preventCache(NextResponse.redirect(url));
+  if (pathname === "/") return redirect(request, isAdmin ? "/admin" : "/dashboard");
+  if (pathname.startsWith("/admin")) {
+    return isAdmin ? preventCache(NextResponse.next()) : redirect(request, "/dashboard");
   }
-
-  // Setelah autentikasi, / selalu menuju dashboard pengelola.
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    url.search = "";
-    return preventCache(NextResponse.redirect(url));
-  }
-
+  if (pathname.startsWith("/dashboard") && isAdmin) return redirect(request, "/admin");
   return preventCache(NextResponse.next());
 }
-
-export const config = { matcher: ["/", "/login", "/admin/:path*"] };
+export const config = { matcher: ["/", "/login", "/admin/:path*", "/dashboard/:path*"] };
