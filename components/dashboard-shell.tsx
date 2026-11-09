@@ -75,7 +75,7 @@ function monitoringPresentation(severity: "normal" | "warning" | "critical" | "u
 
 function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
   if (!live) return <p className="no-data">Peringatan akan aktif setelah pembacaan terbaru tersedia.</p>;
-  if (events.length === 0) return <p className="no-data no-data-normal"><span className="status-label risk-safe">NORMAL</span> Tidak ada ambang internal yang terlampaui pada pembacaan terbaru. Ini bukan jaminan keamanan emisi.</p>;
+  if (events.length === 0) return <p className="no-data no-data-normal"><span className="status-label risk-safe">NORMAL</span> Tidak ada peringatan pada parameter yang terbaca. Pantau pembacaan secara berkala.</p>;
   return (
     <div className="event-list">
       {events.map((event) => (
@@ -273,12 +273,12 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" />
               <article className={"metric-card furan-card risk-border-" + risk.tone}>
                 <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
-                <div className="metric-body"><span className="metric-label">Indeks risiko furan</span>
+                <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
                   <div className="metric-value">{fresh ? formatNumber(lot.furanIndex, 0) : "—"}<small>/100</small></div>
-                  <div className="furan-track" role="meter" aria-label="Indeks risiko furan hasil aturan LoT" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh ? lot.furanIndex ?? 0 : 0}>
+                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh ? lot.furanIndex ?? 0 : 0}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <span className="metric-note">Indeks proses dari aturan LoT, bukan hasil pengukuran furan.</span>
+                  <div className="prediction-note"><strong>HASIL ANALISIS AI</strong><span>Berdasarkan suhu dan gas</span></div>
                 </div>
               </article>
             </section>
@@ -330,9 +330,9 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={false} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Menunggu data sensor gas.</p>}
           </div>
-          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis LoT</p><h2>Indeks risiko furan</h2></div></div>
+          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div></div>
             {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
-              <Line type="monotone" dataKey="furanIndex" name="Indeks LoT (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={false} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Indeks akan dihitung setelah suhu, CO, dan VOC tersedia.</p>}
           </div>
         </section>}
@@ -343,11 +343,11 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <div className="analysis-score-row">
               <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
               <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
-              <div><span>Indeks furan (estimasi)</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh ? formatNumber(lot.furanIndex,0) : "—"} / 100</strong></div>
+              <div><span>Prediksi risiko furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh ? formatNumber(lot.furanIndex,0) : "—"} / 100</strong></div>
               <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 SENSOR</strong></div>
             </div>
             <div className="analysis-copy">
-              <h3>Kesimpulan dari aturan LoT</h3><p>{lot.summary}</p>
+              <h3>Hasil analisis AI</h3><p>{lot.summary}</p>
               <h3>Tindakan yang disarankan</h3>
               <div className="lot-recommendations">
                 {lot.recommendations.map((rec, index) => <p key={index}><span>{String(index+1).padStart(2,"0")}</span>{rec}</p>)}
@@ -355,7 +355,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <h3>Aturan yang terpicu</h3>
               <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{rule.replaceAll("_"," ")}</span>)}</div>
             </div>
-            <div className="prototype-note">Analisis ini menggunakan logika if–else berjenjang, bukan model machine learning. Indeks furan adalah indikator proses yang dihitung dari suhu, CO, VOC dan asap, bukan konsentrasi furan terukur ataupun bukti kepatuhan emisi.</div>
+            <div className="prototype-note">Prediksi risiko furan dihitung melalui analisis berbasis aturan (LoT) dengan mempertimbangkan suhu pembakaran, CO, VOC, dan asap. Gunakan hasil pengukuran lapangan serta uji laboratorium untuk evaluasi emisi resmi.</div>
           </div>
         </section>}
 
