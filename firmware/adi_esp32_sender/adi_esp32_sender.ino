@@ -135,7 +135,6 @@ void sendTelemetry() {
   WiFiClientSecure secureClient;
   if (https) {
     secureClient.setCACert(ADI_TRUSTED_CA_ROOTS);
-    secureClient.setTimeout(HTTP_TIMEOUT_MS);
     // Never use setInsecure(); certificate and hostname must validate.
   }
   HTTPClient http;
