@@ -24,6 +24,8 @@ jobs:
         run: npm run test:sender
       - name: Validate deploy configuration checker
         run: npm run test:deploy
+      - name: Verify adaptive archive chart sampling
+        run: npm run test:history
       - name: Build
         run: npm run build
       - name: Verify protected routes and login
