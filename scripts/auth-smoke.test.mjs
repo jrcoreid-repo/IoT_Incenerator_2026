@@ -208,7 +208,17 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     const reset = await jsonRequest("/api/users/" + operatorName, "PATCH", { action: "reset-password", password: operatorNewPassword }, adminCookie);
     assert.equal(reset.status, 200);
     assert.equal((await request("/api/telemetry", { headers: { cookie: operatorCookie } })).status, 401);
-    redirectTo(await request("/dashboard", { headers: { cookie: operatorCookie } }), "/login");
+    const revokedPage = await request("/dashboard", { headers: { cookie: operatorCookie } });
+    if ([301, 302, 303, 307, 308].includes(revokedPage.status)) {
+      redirectTo(revokedPage, "/login");
+    } else {
+      // Next.js App Router may return HTTP 200 with an RSC redirect in its HTML
+      // after the initial response has already started streaming.
+      assert.equal(revokedPage.status, 200);
+      const html = await revokedPage.text();
+      assert.match(html, /NEXT_REDIRECT|__next-page-redirect|url=\\?\/login/i);
+      assert.doesNotMatch(html, /Manajemen Pengguna|Khusus pengelola/);
+    }
     assert.equal((await jsonRequest("/api/login", "POST", { username: operatorName, password: operatorPassword })).status, 401);
     const newLogin = await jsonRequest("/api/login", "POST", { username: operatorName, password: operatorNewPassword });
     assert.equal(newLogin.status, 200);
