@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createSessionToken } from "@/lib/auth";
 import { clearAccountLoginAttempts, consumeLoginAttempt } from "@/lib/login-rate-limit";
 import { trustedAuthRequest } from "@/lib/request-security";
+import { getOperator, normalizeUsername, verifyPassword } from "@/lib/operator-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,17 +54,37 @@ export async function POST(request: Request) {
       return error("Terlalu banyak percobaan login. Coba lagi nanti.", 429, limited.retryAfter);
     }
 
-    if (!matches(body.username, username) || !matches(body.password, password)) {
-      return error("Nama pengguna atau kata sandi salah.", 401);
+    let role: "admin" | "operator";
+    let subject: string;
+    let version = 0;
+    if (matches(body.username, username) && matches(body.password, password)) {
+      role = "admin";
+      subject = username;
+    } else {
+      // Operator passwords are salted scrypt hashes in persistent storage.
+      // An inactive account never receives a session.
+      const normalized = normalizeUsername(body.username);
+      let operator;
+      try {
+        operator = await getOperator(normalized);
+      } catch {
+        return error("Penyimpanan akun tidak tersedia. Coba lagi nanti.", 503);
+      }
+      if (!operator || !operator.active || !(await verifyPassword(body.password, operator))) {
+        return error("Nama pengguna atau kata sandi salah.", 401);
+      }
+      role = "operator";
+      subject = operator.username;
+      version = operator.sessionVersion;
     }
 
-    const token = await createSessionToken(username, "admin");
+    const token = await createSessionToken(subject, role, version);
     try {
       await clearAccountLoginAttempts(body.username);
     } catch {
       return error("Pelindung login sedang tidak tersedia. Coba lagi nanti.", 503);
     }
-    const response = NextResponse.json({ ok: true }, { headers: NO_STORE });
+    const response = NextResponse.json({ ok: true, role, redirectTo: role === "admin" ? "/admin" : "/dashboard" }, { headers: NO_STORE });
     response.cookies.set("jr_admin", token, {
       httpOnly: true,
       sameSite: "strict",
