@@ -28,8 +28,8 @@ export async function GET(request: Request) {
   try { session = await currentSession(); }
   catch { return error("Penyimpanan autentikasi tidak tersedia.", 503); }
   if (!session) return error("Login diperlukan.", 401);
-  // Large research downloads are restricted to the Admin; Operators see charts.
-  if (session.role !== "admin") return error("Ekspor data hanya untuk Admin.", 403);
+  // Admin and active Operators may analyze and export the same historical data.
+  // currentSession() verifies the signed cookie and, for Operators, account status.
   const parsed = parseArchiveRange(new URL(request.url));
   if ("error" in parsed) return error(parsed.error, 400);
 
