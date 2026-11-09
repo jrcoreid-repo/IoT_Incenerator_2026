@@ -176,8 +176,7 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
       headers: {
         "Content-Type": "application/json",
         Host: lanHost,
-        Origin: "http://untrusted.example",
-        "Sec-Fetch-Site": "same-origin"
+        Origin: "http://untrusted.example"
       },
       body: JSON.stringify({ username: adminName, password: adminPassword })
     });
@@ -194,6 +193,18 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
       body: JSON.stringify({ username: adminName, password: adminPassword })
     });
     assert.equal(crossSiteFetch.status, 403);
+
+    const siblingOrigin = await request("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Host: lanHost,
+        Origin: "http://" + lanHost,
+        "Sec-Fetch-Site": "same-site"
+      },
+      body: JSON.stringify({ username: adminName, password: adminPassword })
+    });
+    assert.equal(siblingOrigin.status, 403);
 
     assert.equal((await jsonRequest("/api/login", "POST", { username: adminName, password: "wrong" })).status, 401);
     assert.equal((await jsonRequest("/api/login", "POST", { username: adminName, password: adminPassword }, "")).status, 200);
