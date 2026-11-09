@@ -22,3 +22,5 @@ jobs:
         run: npm run test:sender
       - name: Build
         run: npm run build
+      - name: Verify protected routes and login
+        run: npm run test:auth
