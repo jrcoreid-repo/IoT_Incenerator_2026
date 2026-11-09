@@ -250,7 +250,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   }, [tab, archiveRange.query, archiveRefresh]);
 
   async function downloadArchiveCsv() {
-    if (!isAdmin || !archiveRange.query) return;
+    if (!archiveRange.query) return;
     setExportBusy(true);
     setArchiveError("");
     try {
@@ -516,15 +516,14 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 onClick={() => setArchiveRefresh(value => value + 1)} disabled={archiveBusy || !archiveRange.query}>
                 <RefreshCcw size={15}/> Muat ulang
               </button>
-              {isAdmin && <button className="primary-button archive-action" type="button"
+              <button className="primary-button archive-action" type="button"
                 onClick={() => void downloadArchiveCsv()} disabled={exportBusy || !archiveRange.query}>
                 <Download size={16}/> {exportBusy ? "Menyusun CSV..." : "Download CSV / Excel"}
-              </button>}
+              </button>
             </div>
             <div className="archive-meta">
               <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
               <span>Grafik: hingga 300 titik · Sampel ringkasan per {archiveBucketSeconds} detik</span>
-              {!isAdmin && <span>Ekspor data tersedia bagi Admin.</span>}
             </div>
             {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
           </div>
