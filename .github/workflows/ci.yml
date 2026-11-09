@@ -4,7 +4,7 @@ on:
   push:
     branches: [dashboard-v1]
   pull_request:
-    branches: [main]
+    branches: [main, dashboard-v1]
 
 jobs:
   build:
