@@ -388,3 +388,21 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .mobile-brand span {font-size:16px;}
   .topbar-heading h1 {font-size:26px;}
 }
+
+/* Light emblem tile preserves contrast for the original dark-green artwork. */
+.brand-logo,.login-simple-mark {
+  background:#eaf6e8;
+  border:1px solid #85b994;
+  border-radius:6px;
+  padding:3px;
+  overflow:hidden;
+}
+.mobile-brand img {
+  background:#eaf6e8;
+  border:1px solid #85b994;
+  border-radius:5px;
+  padding:3px;
+}
+@media(max-width:550px) {
+  .brand-logo,.login-simple-mark {padding:2px;}
+}
