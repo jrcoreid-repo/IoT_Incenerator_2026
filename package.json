@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sender:virtual": "node scripts/virtual-esp32.mjs",
+    "test:sender": "node --test scripts/virtual-esp32.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
