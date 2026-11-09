@@ -54,6 +54,47 @@ Pada `npm run dev`, tanpa Redis data akan disimpan sementara di memori proses No
 
 Halaman umum: `http://localhost:3000`, admin: `http://localhost:3000/login`.
 
+
+## Virtual ESP32 sender (tanpa hardware)
+
+Untuk menguji dashboard dengan data yang *dikirim melalui API yang sama* seperti ESP32 fisik, jalankan dua terminal Windows di folder proyek.
+
+**Terminal 1 — server Next.js**
+
+```cmd
+npm run dev
+```
+
+**Terminal 2 — pengirim ESP32 virtual**
+
+```cmd
+npm run sender:virtual
+```
+
+Sebelum menjalankan sender, isi `TELEMETRY_INGEST_KEY` di `.env.local` dengan string acak minimal 24 karakter. Simpan file lalu restart `npm run dev` jika sebelumnya sudah berjalan. Sender membaca token yang sama dari `.env.local` secara otomatis, dan mengirim pembacaan setiap **3 detik** ke `http://localhost:3000/api/telemetry`. Dashboard melakukan polling setiap **5 detik**. Saat sender terhubung, status **PENGIRIM VIRTUAL TERHUBUNG** muncul.
+
+**Pilih skenario dengan satu perintah:**
+
+```cmd
+npm run sender:virtual -- --scenario cycle
+npm run sender:virtual -- --scenario active
+npm run sender:virtual -- --scenario warning
+npm run sender:virtual -- --scenario critical
+npm run sender:virtual -- --scenario cooling
+npm run sender:virtual -- --scenario cycle --phase-seconds 15
+npm run sender:virtual -- --scenario critical --count 10
+npm run sender:virtual -- --dry-run
+```
+
+Mode `cycle` otomatis berpindah dari **idle → heating → active → warning → critical → cooling**, dengan transisi halus antar tahap. Mode lain mempertahankan satu tahap untuk memeriksa LoT, grafik, dan alarm. Mode `--dry-run` menampilkan JSON tanpa mengirim apa pun.
+
+Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke`). **Nilai tersebut dihasilkan oleh program virtual**, tidak mewakili pengukuran atau tingkat emisi sebenarnya. Indeks risiko furan tetap dihitung di sisi dashboard melalui LoT, bukan dikirim sender.
+
+- **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 90 detik, dan analisis otomatis berhenti.
+- **URL lain:** `npm run sender:virtual -- --url https://domainmu.id/api/telemetry`. Pengiriman non-lokal wajib HTTPS; gunakan token ingest yang sesuai pada server tujuan. Jangan gunakan ini untuk mengirim data uji ke instalasi produksi sungguhan.
+- **Sebelum ESP32 fisik dipasang:** matikan sender virtual, gunakan `deviceId` yang berbeda untuk perangkat asli, lalu kirim JSON dengan skema yang sama.
+- **Uji program sender:** `npm run test:sender` (Node.js 22).
+
 ## Mengirim data dari ESP/gateway
 
 Endpoint:
