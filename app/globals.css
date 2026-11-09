@@ -337,3 +337,54 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .prediction-note {display:flex;flex-direction:column;gap:4px;margin-top:9px;line-height:1.35;}
 .prediction-note strong {font:700 9px/1.4 var(--font-mono);letter-spacing:.06em;color:var(--accent);}
 .prediction-note span {font:500 11px/1.35 var(--font-ui);color:var(--muted);}
+
+/* ADI brand mark: supplied transparent symbol, shared across screens. */
+.brand {min-width:0;}
+.brand-logo {width:68px;height:55px;flex:0 0 68px;background:transparent;border:0;overflow:visible;}
+.brand-logo img {display:block;width:100%;height:100%;object-fit:contain;object-position:center;}
+.brand>div:last-child {min-width:0;}
+.brand strong {overflow-wrap:anywhere;}
+.login-simple-mark {
+  width:78px;height:60px;flex:0 0 78px;
+  border:0;background:transparent;overflow:visible;
+}
+.login-simple-mark img {display:block;width:100%;height:100%;object-fit:contain;}
+.login-simple-brand>div:last-child {min-width:0;}
+.mobile-brand {display:none;}
+
+@media (max-width:850px) {
+  .topbar {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;column-gap:12px;row-gap:12px;
+  }
+  .mobile-brand {
+    grid-column:1 / -1;display:flex;align-items:center;
+    min-width:0;gap:9px;padding-bottom:10px;
+    border-bottom:1px solid var(--border);
+  }
+  .mobile-brand img {display:block;width:52px;height:40px;object-fit:contain;flex:0 0 auto;}
+  .mobile-brand span {
+    font:700 18px/1.1 var(--font-display);
+    letter-spacing:.03em;text-transform:uppercase;
+    overflow-wrap:anywhere;min-width:0;
+  }
+  .topbar-heading {min-width:0;}
+  .topbar-heading h1 {overflow-wrap:anywhere;}
+  .top-actions {width:auto;min-width:0;justify-content:flex-end;}
+  .live-badge {max-width:100%;overflow-wrap:anywhere;white-space:normal;}
+}
+@media (max-width:550px) {
+  .topbar {grid-template-columns:minmax(0,1fr);align-items:start;}
+  .mobile-brand {grid-column:1;}
+  .topbar-heading {grid-column:1;}
+  .top-actions {grid-column:1;width:100%;justify-content:space-between;}
+  .login-simple-brand {align-items:center;}
+  .login-simple-mark {width:68px;height:54px;flex-basis:68px;}
+  .login-simple-brand h1 {font-size:22px;overflow-wrap:anywhere;}
+}
+@media(max-width:360px) {
+  .mobile-brand img {width:45px;height:35px;}
+  .mobile-brand span {font-size:16px;}
+  .topbar-heading h1 {font-size:26px;}
+}
