@@ -113,6 +113,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     riskWarning: String(DEFAULT_THRESHOLDS.riskWarning)
   }));
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [thresholdDraftDirty, setThresholdDraftDirty] = useState(false);
   const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
         if (!active) return;
         const values = result.thresholds;
         setThresholds(values);
-        if (isAdmin && tab !== "pengaturan") {
+        if (isAdmin && !thresholdDraftDirty) {
           setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(values[key])])) as ThresholdDraft);
         }
       } catch {
@@ -143,7 +144,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     void refreshThresholds();
     const timer = window.setInterval(() => { void refreshThresholds(); }, 30000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [isAdmin, tab]);
+  }, [isAdmin, tab, thresholdDraftDirty]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -240,6 +241,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
       if (!response.ok || !result.thresholds) throw new Error(result.message ?? "Gagal menyimpan ambang.");
       setThresholds(result.thresholds);
       setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(result.thresholds![key])])) as ThresholdDraft);
+      setThresholdDraftDirty(false);
       setSettingsMessage("Pengaturan berhasil disimpan di server untuk semua pengguna.");
     } catch (error) {
       setSettingsMessage(error instanceof Error ? error.message : "Server tidak dapat dihubungi.");
@@ -452,6 +454,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 const raw = event.target.value;
                 if (!/^\d*(\.\d*)?$/.test(raw)) return;
                 setThresholdDraft(prev => ({ ...prev, [key]: raw }));
+                setThresholdDraftDirty(true);
                 setSettingsMessage("");
               }} />
             </label>)}</div>
