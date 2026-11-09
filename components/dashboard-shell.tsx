@@ -33,9 +33,10 @@ function formatClock(iso: string | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "medium" });
 }
+const TELEMETRY_OFFLINE_AFTER_MS = 15_000; // Five missed reports at the ESP32 3-second interval.
 type SensorTone = "furnace" | "stack" | "co" | "voc" | "ambient" | "humidity" | "h2" | "smoke";
-function MetricCard({ title, value, unit, icon: Icon, note, tone }: {
-  title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone
+function MetricCard({ title, value, unit, icon: Icon, note, tone, offline = false }: {
+  title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone; offline?: boolean
 }) {
   return (
     <article className={"metric-card sensor-card sensor-tone-" + tone}>
@@ -43,7 +44,7 @@ function MetricCard({ title, value, unit, icon: Icon, note, tone }: {
       <div className="metric-body">
         <span className="metric-label">{title}</span>
         <div className="metric-value">{value}{unit && <small>{unit}</small>}</div>
-        <span className="metric-note">{note ?? (value === "—" ? "Menunggu pembacaan sensor" : "Pembacaan sensor terakhir")}</span>
+        <span className="metric-note">{offline ? (value === "—" ? "OFFLINE · Belum ada pembacaan" : "OFFLINE · Data terakhir, bukan live") : note ?? (value === "—" ? "Menunggu pembacaan sensor" : "Pembacaan sensor terakhir")}</span>
       </div>
     </article>
   );
@@ -157,8 +158,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
       } catch {
         if (active) {
           setApiError("Koneksi ke server telemetry terputus.");
-          setLatest(null);
-          setHistory([]);
+          // Keep the last successful reading visible, marked OFFLINE rather than live.
         }
       } finally {
         working = false;
@@ -180,7 +180,8 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   }, []);
 
   const ageMs = latest ? now - Date.parse(latest.receivedAt) : Infinity;
-  const fresh = !!latest && ageMs >= -5000 && ageMs <= 90000 && !apiError;
+  const fresh = !!latest && ageMs >= -5000 && ageMs <= TELEMETRY_OFFLINE_AFTER_MS && !apiError;
+  const offline = Boolean(apiError) || (!!latest && !fresh);
   const previous = history.length >= 2 ? history[history.length - 2] : null;
   const lot = useMemo(() => evaluateLoT(latest, previous, thresholds, fresh), [latest, previous, thresholds, fresh]);
   const chartData = useMemo(() => history.slice(-120).map((item, index, items) => ({
@@ -191,20 +192,24 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
-  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : apiError ? "SERVER TIDAK TERHUBUNG" : fresh ? (virtualSource ? "PENGIRIM VIRTUAL TERHUBUNG" : "TELEMETRY ONLINE") : latest ? "DATA TIDAK TERBARU" : "MENUNGGU DATA SENSOR";
+  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TIDAK TERBARU" : fresh ? (virtualSource ? "PENGIRIM VIRTUAL TERHUBUNG" : "TELEMETRY ONLINE") : "MENUNGGU DATA SENSOR";
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
   // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
   const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
   const isBurning = hasFurnaceReading && latest?.furnace !== null && latest?.furnace !== undefined && latest.furnace >= thresholds.activeTemp;
-  const burnTone = !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
-  const burnLabel = !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
-  const burnDescription = !hasFurnaceReading
-    ? "Pembacaan suhu tungku belum tersedia atau belum terbaru."
-    : isBurning
-      ? `Suhu tungku mencapai batas aktif ${thresholds.activeTemp}°C. Pantau indikator gas secara terpisah.`
-      : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
-  const risk = riskPresentation(lot.furanIndex, fresh);
-  const monitoring = monitoringPresentation(lot.severity);
+  const burnTone = offline ? "offline" : !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
+  const burnLabel = offline ? "OFFLINE — DATA TIDAK TERBARU" : !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
+  const burnDescription = offline
+    ? apiError
+      ? "Koneksi ke server telemetry terganggu. Nilai yang terlihat adalah data terakhir, bukan pembacaan langsung."
+      : `Tidak ada kiriman telemetry baru selama lebih dari ${TELEMETRY_OFFLINE_AFTER_MS / 1000} detik. Angka yang tampil adalah data terakhir, bukan pembacaan langsung.`
+    : !hasFurnaceReading
+      ? "Pembacaan suhu tungku belum tersedia."
+      : isBurning
+        ? `Suhu tungku mencapai batas aktif ${thresholds.activeTemp}°C. Pantau indikator gas secara terpisah.`
+        : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
+  const risk = offline ? { label: "OFFLINE", tone: "caution" as const } : riskPresentation(lot.furanIndex, fresh);
+  const monitoring = offline ? { label: "OFFLINE", tone: "caution" as const } : monitoringPresentation(lot.severity);
   const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan");
 
   function applyThresholdSettings() {
@@ -238,7 +243,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell" + (offline ? " telemetry-offline" : "")}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-logo" aria-hidden="true"><img src="/adi-logo.png" width={120} height={76} alt="" /></div>
@@ -282,7 +287,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                 <div><p className="section-kicker">Status proses pembakaran</p>
                   <div className="combustion-state">{burnLabel}</div>
                   <p className="muted">{burnDescription}</p>
-                  <span className="burn-legend">Merah = pembakaran berlangsung · Hijau = pembakaran belum aktif</span>
+                  <span className="burn-legend">{offline ? "Kuning = koneksi/data terputus · Status pembakaran tidak dapat dipastikan" : "Merah = pembakaran berlangsung · Hijau = pembakaran belum aktif"}</span>
                 </div>
               </div>
               <div className="hero-side">
@@ -293,10 +298,10 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
             </section>
             <div className="section-title-row"><div><p className="section-kicker">Telemetry / Sensor</p><h2>Parameter utama</h2></div><span className="soft-badge">05 / PARAMETER</span></div>
             <section className="metric-grid" aria-label="Lima indikator utama">
-              <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" />
-              <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" />
-              <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" tone="co" />
-              <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" tone="voc" />
+              <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
+              <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" offline={offline} />
+              <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" tone="co" offline={offline} />
+              <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" tone="voc" offline={offline} />
               <article className={"metric-card furan-card risk-border-" + risk.tone}>
                 <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
                 <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
@@ -304,7 +309,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                   <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh ? lot.furanIndex ?? 0 : 0}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>HASIL ANALISIS AI</strong><span>Berdasarkan suhu dan gas</span></div>
+                  <div className="prediction-note"><strong>{offline ? "ANALISIS DIJEDA" : "HASIL ANALISIS AI"}</strong><span>{offline ? "Menunggu data sensor terbaru" : "Berdasarkan suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
@@ -313,10 +318,10 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                 <div><p className="section-kicker">Pemantauan lingkungan</p><h2 id="extra-metrics-title">Parameter lingkungan dan gas lainnya</h2></div>
               </div>
               <div className="metric-grid">
-                <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} tone="ambient" />
-                <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} tone="humidity" />
-                <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} tone="h2" />
-                <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} tone="smoke" />
+                <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} tone="ambient" offline={offline} />
+                <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} tone="humidity" offline={offline} />
+                <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} tone="h2" offline={offline} />
+                <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} tone="smoke" offline={offline} />
               </div>
             </section>
             <section className="panel chart-panel full-span">
@@ -334,7 +339,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
             <section className="panel device-summary">
               <div className="panel-heading"><div><p className="section-kicker">Konektivitas</p><h2>Status perangkat</h2></div><ShieldCheck size={19} /></div>
               <div className="device-grid">
-                <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : "Menunggu koneksi"} />
+                <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : offline ? "OFFLINE" : "Menunggu koneksi"} />
                 <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={sensorActive("co","voc","h2") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
