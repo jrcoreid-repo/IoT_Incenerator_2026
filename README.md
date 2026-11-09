@@ -6,13 +6,13 @@ Dashboard **environmental telemetry** untuk Desa Caturharjo, Pandak, Bantul. Ant
 
 Sambil menunggu sensor RS485 fisik, dashboard bisa disiapkan sebagai **staging terproteksi**. Panduan langkah demi langkah untuk HTTPS, hosting, Upstash Redis, pemisahan token, perkiraan penggunaan dan syarat keamanan tersedia di [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi password/token). Pengujian otomatis konfigurasi melalui `npm run test:deploy`. Firmware ESP32 saat ini **masih HTTP LAN**, jadi jangan langsung diganti menuju server internet sebelum TLS/HTTPS terverifikasi tersedia.
+Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi password/token). Pengujian otomatis konfigurasi melalui `npm run test:deploy`. Firmware ESP32 sekarang mendukung **HTTPS dengan verifikasi CA dan sinkronisasi NTP** untuk `adi-incinerator.live`; pastikan rantai sertifikat Caddy sesuai CA trust pada firmware sebelum dipakai.
 
 ## Firmware ESP32 lokal
 
 Firmware Arduino IDE pengirim data sensor dummy tersedia pada [firmware/adi_esp32_sender/adi_esp32_sender.ino](firmware/adi_esp32_sender/adi_esp32_sender.ino), lengkap dengan [panduan setup](firmware/README.md).
 
-ESP32 dan laptop terhubung melalui Wi-Fi/LAN yang sama. Jalankan Next.js dengan `npm run dev -- -H 0.0.0.0`; salin `config.example.h` menjadi `config.h` (diabaikan Git), lalu isi Wi-Fi, IP laptop, dan token ingest yang sama dengan `.env.local`. Setelah upload, Serial Monitor 115200 menampilkan status HTTP (201 = diterima). Data dummy berubah setiap 10 detik melalui enam fase dan bisa diganti pembacaan RS485 fisik nanti.
+Untuk pengiriman ke VPS, salin `config.example.h` menjadi `config.h` (diabaikan Git), isi Wi-Fi 2,4 GHz, URL `https://adi-incinerator.live/api/telemetry`, dan token ingest **VPS** yang sama dengan environment service Next.js. Firmware menggunakan TLS tervalidasi, sinkronisasi NTP, serta interval 10 detik. Serial Monitor 115200 menampilkan HTTP 201 ketika data diterima. Pengujian HTTP lokal ke IP privat tetap tersedia sebagai alternatif. Baca [panduan firmware](firmware/README.md) sebelum upload.
 
 ## Alur sistem
 
