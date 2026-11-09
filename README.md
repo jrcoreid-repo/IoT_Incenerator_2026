@@ -12,7 +12,7 @@ Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi p
 
 Firmware Arduino IDE pengirim data sensor dummy tersedia pada [firmware/adi_esp32_sender/adi_esp32_sender.ino](firmware/adi_esp32_sender/adi_esp32_sender.ino), lengkap dengan [panduan setup](firmware/README.md).
 
-ESP32 dan laptop terhubung melalui Wi-Fi/LAN yang sama. Jalankan Next.js dengan `npm run dev -- -H 0.0.0.0`; salin `config.example.h` menjadi `config.h` (diabaikan Git), lalu isi Wi-Fi, IP laptop, dan token ingest yang sama dengan `.env.local`. Setelah upload, Serial Monitor 115200 menampilkan status HTTP (201 = diterima). Data dummy berubah setiap 3 detik melalui enam fase dan bisa diganti pembacaan RS485 fisik nanti.
+ESP32 dan laptop terhubung melalui Wi-Fi/LAN yang sama. Jalankan Next.js dengan `npm run dev -- -H 0.0.0.0`; salin `config.example.h` menjadi `config.h` (diabaikan Git), lalu isi Wi-Fi, IP laptop, dan token ingest yang sama dengan `.env.local`. Setelah upload, Serial Monitor 115200 menampilkan status HTTP (201 = diterima). Data dummy berubah setiap 10 detik melalui enam fase dan bisa diganti pembacaan RS485 fisik nanti.
 
 ## Alur sistem
 
@@ -28,11 +28,11 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
                       Dashboard + aturan LoT + indeks furan
 ```
 
-**Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 15 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
+**Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 35 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
 
 ## Arsip historis 10 detik / retensi otomatis 7 hari
 
-**Pengiriman ESP32 tetap setiap 3 detik** agar status LIVE dan OFFLINE tetap responsif. Namun **database riwayat hanya menyimpan satu sampel setiap paling cepat 10 detik**, sehingga arsip tidak tumbuh setiap 3 detik. Ini adalah *sampling*, bukan rata-rata semua pembacaan selama 10 detik.
+**Pengiriman ESP32 kini setiap 10 detik**, sama dengan interval logging historis (paling cepat satu sampel per 10 detik). Dashboard tetap melakukan polling setiap 5 detik sehingga data terbaru akan terlihat tanpa menunggu polling panjang. Ini adalah *sampling*, bukan rata-rata semua pembacaan selama 10 detik.
 
 - **Riwayat live**: 120 pembacaan terbaru untuk dashboard dan analisis saat ini.
 - **Arsip riset**: sampel asli tiap >=10 detik, disimpan paling lama **7×24 jam**. Kapasitas maksimal teoritis satu perangkat: **8.640 baris/hari atau 60.480 baris/7 hari** jika perangkat aktif tanpa jeda.
@@ -42,11 +42,11 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 - **Admin → Download CSV / Excel**: CSV UTF-8 siap dibuka Microsoft Excel maupun diolah menggunakan Python/pandas. CSV berisi **semua sampel mentah** dalam rentang yang dipilih, tidak dibatasi 300 titik. Saat ini **belum membuat file .xlsx native**. Operator boleh melihat grafik dan jumlah data tetapi tidak dapat mengunduh CSV.
 - API: `GET /api/history?days=1..7`, `GET /api/history?from=<UTC-ISO>&to=<UTC-ISO>` (Admin & Operator), dan `GET /api/history/export?... ` (Admin saja). Semua endpoint memerlukan sesi aktif, tanpa cache, dan menerapkan batas maksimal 7 hari di server.
 
-**Penting:** menyimpan histori tiap 10 detik bukan berarti mengurangi jumlah HTTP POST dari ESP yang masih tiap 3 detik. Jika butuh penghematan request hosting, cadence pengiriman ESP juga bisa dikurangi nanti, tetapi ambang OFFLINE 15 detik wajib disesuaikan. Tidak ada histori yang dapat direkonstruksi sebelum fitur arsip ini diaktifkan.
+**Penting:** interval kirim ESP 10 detik berarti sekitar 8.640 HTTP POST/hari atau 259.200 POST per 30 hari saat nonstop. Tetap pantau kuota hosting; sampling 10 detik pada backend juga membatasi arsip tanpa membuat data bertambah tanpa batas. Tidak ada histori yang dapat direkonstruksi sebelum fitur arsip ini diaktifkan.
 
 ## Status OFFLINE telemetry (ESP32 tidak mengirim)
 
-Dengan interval pengiriman ESP32 **3 detik**, dashboard memperlakukan data sebagai **OFFLINE** apabila pembacaan terbaru sudah melewati **15 detik** (sekitar lima siklus kirim yang terlewat), atau API tidak dapat dihubungi. Status dicek ulang oleh browser setiap 5 detik.
+Dengan interval pengiriman ESP32 **10 detik**, dashboard memperlakukan data sebagai **OFFLINE** apabila pembacaan terbaru sudah melewati **35 detik** (sekitar tiga siklus kirim yang terlewat, dengan margin 5 detik), atau API tidak dapat dihubungi. Status dicek ulang oleh browser setiap 5 detik.
 
 Ketika OFFLINE, status proses pembakaran serta seluruh kartu parameter (termasuk prediksi furan) diberi **aksen kuning/amber** dan label OFFLINE. Angka terakhir tetap terlihat sebagai **data historis, bukan nilai live**; prediksi furan dan peringatan berbasis data terkini tidak dilanjutkan sampai kiriman baru diterima. Bila ESP mengirim ulang, warna normal dan analisis live kembali otomatis. Jika belum pernah ada data sama sekali, tampilan awal tetap **MENUNGGU DATA SENSOR** tanpa mengarang nilai.
 
@@ -167,7 +167,7 @@ npm run dev
 npm run sender:virtual
 ```
 
-Sebelum menjalankan sender, isi `TELEMETRY_INGEST_KEY` di `.env.local` dengan string acak minimal 24 karakter. Simpan file lalu restart `npm run dev` jika sebelumnya sudah berjalan. Sender membaca token yang sama dari `.env.local` secara otomatis, dan mengirim pembacaan setiap **3 detik** ke `http://localhost:3000/api/telemetry`. Dashboard melakukan polling setiap **5 detik**. Saat sender terhubung, status **PENGIRIM VIRTUAL TERHUBUNG** muncul.
+Sebelum menjalankan sender, isi `TELEMETRY_INGEST_KEY` di `.env.local` dengan string acak minimal 24 karakter. Simpan file lalu restart `npm run dev` jika sebelumnya sudah berjalan. Sender membaca token yang sama dari `.env.local` secara otomatis, dan mengirim pembacaan setiap **10 detik** ke `http://localhost:3000/api/telemetry`. Dashboard melakukan polling setiap **5 detik**. Saat sender terhubung, status **PENGIRIM VIRTUAL TERHUBUNG** muncul.
 
 **Pilih skenario dengan satu perintah:**
 
@@ -186,7 +186,7 @@ Mode `cycle` otomatis berpindah dari **idle → heating → active → warning �
 
 Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke`). **Nilai tersebut dihasilkan oleh program virtual**, tidak mewakili pengukuran atau tingkat emisi sebenarnya. Indeks risiko furan tetap dihitung di sisi dashboard melalui LoT, bukan dikirim sender.
 
-- **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 15 detik, dan analisis otomatis berhenti.
+- **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 35 detik, dan analisis otomatis berhenti.
 - **URL lain:** `npm run sender:virtual -- --url https://domainmu.id/api/telemetry`. Pengiriman non-lokal wajib HTTPS; gunakan token ingest yang sesuai pada server tujuan. Jangan gunakan ini untuk mengirim data uji ke instalasi produksi sungguhan.
 - **Sebelum ESP32 fisik dipasang:** matikan sender virtual, gunakan `deviceId` yang berbeda untuk perangkat asli, lalu kirim JSON dengan skema yang sama.
 - **Uji program sender:** `npm run test:sender` (Node.js 22).
