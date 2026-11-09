@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { currentSession } from "@/lib/current-session";
 import { LOG_INTERVAL_MS, iterateArchived } from "@/lib/telemetry-store";
+import { ArchiveChartSampler } from "@/lib/archive-chart-sampler";
 import { parseArchiveRange } from "@/lib/archive-range";
-import type { Telemetry } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,20 +15,15 @@ export async function GET(request: Request) {
     const parsed = parseArchiveRange(new URL(request.url));
     if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400, headers: HEADERS });
     const { fromMs, toMs } = parsed.range;
-    // All 10s raw rows are retained for CSV. The chart receives only the last
-    // reading in each time bucket (<=300 samples) to stay fast on mobile.
-    const bucketMs = Math.max(LOG_INTERVAL_MS, Math.ceil((toMs - fromMs) / (300 * LOG_INTERVAL_MS)) * LOG_INTERVAL_MS);
-    const buckets = new Map<number, Telemetry>();
-    let total = 0;
-    for await (const reading of iterateArchived(fromMs, toMs)) {
-      total++;
-      const index = Math.floor((Date.parse(reading.receivedAt) - fromMs) / bucketMs);
-      buckets.set(index, reading);
-    }
-    const history = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]).map(([, item]) => item);
+    // Every archived reading is shown for short tests (<=300 entries).
+    // Large ranges are reduced in a single bounded pass, keeping the newest
+    // reading and avoiding time buckets that collapse brief sessions to 1 dot.
+    const sampler = new ArchiveChartSampler();
+    for await (const reading of iterateArchived(fromMs, toMs)) sampler.add(reading);
+    const { history, total, chartBucketSeconds, sampled } = sampler.finish();
     return NextResponse.json({
       history, total, from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString(),
-      sampledEverySeconds: LOG_INTERVAL_MS / 1000, chartBucketSeconds: bucketMs / 1000,
+      sampledEverySeconds: LOG_INTERVAL_MS / 1000, chartBucketSeconds, sampled,
       retentionDays: 7
     }, { headers: HEADERS });
   } catch {
