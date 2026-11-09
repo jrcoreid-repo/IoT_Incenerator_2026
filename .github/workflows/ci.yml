@@ -18,5 +18,7 @@ jobs:
           node-version: 22
       - name: Install
         run: npm install
+      - name: Validate virtual sender
+        run: npm run test:sender
       - name: Build
         run: npm run build
