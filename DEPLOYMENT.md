@@ -31,7 +31,7 @@ Laptop test sender -- HTTPS --> Next.js staging (login privat)
 3. **Perhatikan branch:** kode aktif berada di `design/minimal-operator-2026`. Branch default `main` bukan aplikasi terkini; jangan deploy `main` tanpa pengecekan.
 4. Gunakan deployment **Preview** dari branch tersebut untuk testing; aktifkan **Vercel Authentication / deployment protection** agar URL preview tidak dapat diakses sembarang orang. Konfigurasikan akses anggota tim yang memang perlu menguji.
 5. Jangan gunakan penyimpanan sensor/proxy demo yang sama dengan produksi. Buat Redis staging khusus dan token staging baru.
-6. Jangan membuat deployment production final sampai pengujian keamanan dan pembatasan login dipenuhi.
+6. Login sekarang memiliki pembatasan terpusat Redis; **jangan membuat deployment production final** sampai konfigurasi Redis, pengujian keamanan, pembatasan ingest perangkat, dan perlindungan jaringan (WAF) diverifikasi.
 
 **Penting:** ketentuan Vercel Hobby adalah pemakaian personal nonkomersial. Untuk layanan proyek universitas/operasional tim, pastikan plan/izin sesuai atau gunakan infrastruktur universitas/VPS dengan biaya dan pengelolaan yang jelas.
 
@@ -88,6 +88,17 @@ npm run deploy:check -- --env-file .env.deploy.local
 
 File ini hanya memeriksa **kelengkapan dan format dasar**, bukan menguji koneksi asli atau keamanan penuh.
 
+## Pengamanan login saat staging
+
+- Login admin menggunakan HMAC-SHA256 dengan identitas dan role yang ditandatangani. Format cookie versi lama tidak lagi diterima: masuk kembali sesudah deploy.
+- Redis untuk **login throttling** wajib tersedia pada `NODE_ENV=production`. Tanpa Redis atau ketika Redis tidak dapat dihubungi, `POST /api/login` mengembalikan **503**, bukan mengizinkan login tanpa rate limit. Ini berarti `npm run start` juga memerlukan Redis, sedangkan `npm run dev` tetap bisa diuji secara lokal dengan memori sementara.
+- Setelah 8 percobaan login per akun dalam 15 menit, login diblokir (HTTP 429). Batas tambahan jaringan adalah 60 percobaan per 15 menit; IP asli hanya dipercaya pada Vercel yang menormalkan header dan ketika `VERCEL=1`. Pengguna bisa terkena pembatasan jika tes login salah berulang kali.
+- Browser diberi cookie `HttpOnly`, `SameSite=Strict`, `Secure` pada produksi. POST login/logout memeriksa origin/fetch metadata.
+- `GET /api/telemetry` dan `/admin` masih khusus admin. **Belum ada user-management atau self-registration.** Ketika multi-user aktif, admin mengundang akun dan operator mendapat akses baca saja, ditegakkan pada endpoint server.
+- Masih harus disiapkan sebelum akses publik luas: MFA, audit login terpusat, pembatasan ingest perangkat, penanganan recovery akun, revokasi sesi saat logout (sesi sekarang stateless), monitoring serangan dan WAF.
+
+Referensi: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
 ## 4. Verifikasi staging online
 
 1. Akses URL Preview lewat browser dengan deployment protection aktif.
@@ -131,7 +142,7 @@ Invoke-RestMethod -Uri "https://URL-STAGING/api/telemetry" -Method Post -Content
 
 - [ ] Hosting & lisensi/plan layak untuk proyek universitas.
 - [ ] HTTPS dan konfigurasi DNS/sertifikat benar.
-- [ ] Rate limiting terpusat untuk login dan endpoint ingest; proteksi brute force dan audit login.
+- [x] Rate limiting Redis untuk login admin dan mitigasi percobaan password berulang; [ ] rate limiting endpoint ingest, monitoring kegagalan, audit login, serta WAF.
 - [ ] Kredensial acak kuat dan terpisah antar environment; proses rotasi token siap.
 - [ ] Redis/DB persisten, backup, retensi historis dan monitor biaya/kuota.
 - [ ] Pengaturan ambang LoT saat ini **lokal di browser**; jika multioperator perlu disimpan dan divalidasi di server.
