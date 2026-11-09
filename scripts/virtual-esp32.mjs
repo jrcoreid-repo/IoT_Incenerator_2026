@@ -40,7 +40,7 @@ npm run sender:virtual -- --dry-run
 
 Pilihan:
   --scenario <name>       cycle | idle | heating | active | warning | critical | cooling
-  --interval <seconds>    Jarak pengiriman, default 3 (minimal 1)
+  --interval <seconds>    Jarak pengiriman, default 10 (minimal 1)
   --phase-seconds <n>     Durasi tiap fase untuk cycle, default 25 (minimal 5)
   --count <n>             Jumlah payload; 0 = terus sampai Ctrl+C (default)
   --url <url>             Endpoint target, default http://localhost:3000/api/telemetry
@@ -55,7 +55,7 @@ Kirim ke localhost secara bawaan; untuk domain gunakan HTTPS dan --url.
 export function parseOptions(argv) {
   const options = {
     scenario: "cycle",
-    interval: 3,
+    interval: 10,
     phaseSeconds: 25,
     count: 0,
     url: "http://localhost:3000/api/telemetry",
