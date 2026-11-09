@@ -6,9 +6,9 @@
 
 Untuk tahap awal, gunakan:
 - **Dashboard/API:** hosting Next.js dengan HTTPS (contoh: Vercel Preview atau server Node.js).
-- **Database:** Upstash Redis REST untuk data terbaru dan 120 pembacaan terakhir.
+- **Database:** Upstash Redis REST untuk 120 pembacaan live, arsip 10 detik selama maksimal 7 hari, akun Operator, pengaturan ambang, dan rate limiting login.
 - **ESP32:** tetap mengirim ke server lokal sewaktu riset sensor. Baru setelah firmware mendukung **HTTPS dengan verifikasi sertifikat** boleh mengganti endpoint ke domain online.
-- **Hak akses:** semua dashboard membutuhkan sesi admin; POST telemetry membutuhkan token perangkat.
+- **Hak akses:** Admin ke /admin (termasuk ekspor CSV dan pengaturan); Operator ke /dashboard (hanya monitoring). POST telemetry membutuhkan token perangkat.
 
 Alur:
 ```
@@ -41,15 +41,15 @@ Alternatif jika beban 24/7: **VPS / server kampus** (Next.js server Node.js deng
 
 Buat database REST Redis di Upstash, pilih region terdekat yang tersedia bagi pengguna/hosting. Salin `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` ke environment server hosting, **bukan ke source GitHub, firmware, atau frontend**.
 
-Pada production, API POST tidak akan menerima telemetry jika Redis belum dikonfigurasi. Riwayat saat ini hanya **120 pembacaan terbaru**: jika interval 3 detik, rentangnya sekitar **6 menit**. Redis tidak menggantikan database historis jangka panjang; ekspor/penyimpanan analitik perlu dirancang terpisah.
+Pada production, API POST tidak akan menerima telemetry jika Redis belum dikonfigurasi. Dua lapisan data sekarang aktif: **120 pembacaan live terakhir**, serta **arsip riset 10 detik yang bergulir maksimal 7 hari** (60.480 rekaman untuk satu perangkat bila logging berlangsung 24/7). Arsip memakai Redis Sorted Set: setiap sampel baru menghapus data yang lebih tua dari 7 hari; TTL 7 hari akan menghapus seluruh arsip ketika perangkat tidak aktif lagi. Riwayat di luar 7 hari **tidak tersedia** dan CSV harus diunduh sebelum kedaluwarsa jika ingin menyimpan arsip penelitian lebih lama.
 
 ### Perkiraan kuota dan biaya
 
 Perangkat 3 detik, 24 jam:
 - `30 hari × 24 × 3600 ÷ 3 = 864.000` POST per bulan.
-- Kode saat ini melakukan **3 Redis command** per POST (`SET`, `LPUSH`, `LTRIM`), atau sekitar **2.592.000 command/bulan** belum termasuk pembacaan dashboard.
+- Kode sekarang memakai satu request Redis REST **EVAL** atomik tiap POST untuk memperbarui live dan memeriksa apakah sudah waktunya mengarsip sampel 10 detik. Operasi internal Lua dan pembacaan tetap menggunakan sumber daya Redis; jangan menganggap satu EVAL selalu berarti satu unit biaya. Periksa metrik/billing aktual Upstash saat staging.
 - Dashboard 1 browser yang dibuka terus menerus, polling tiap 5 detik, menambah sekitar **518.400 GET Redis/bulan** dan fungsi HTTP hosting. Beberapa browser menambah beban.
-- Jadi free tier Upstash **500.000 commands/bulan** tidak cocok untuk 3 detik nonstop.
+- Jadi free tier Upstash **500.000 commands/bulan** tidak cocok untuk pengiriman 3 detik nonstop; walaupun histori yang disimpan hanya tiap 10 detik, jumlah POST tetap 864.000 per 30 hari.
 - Vercel Hobby mencantumkan **1 juta Function Invocations/bulan** (lihat ketentuan terbaru). POST+GET nonstop dari satu dashboard bisa melewati angka ini.
 
 **Saran riset/staging:** aktifkan ESP dummy sesuai sesi uji, **tidak 24/7**, atau set interval 15–30 detik setelah pengujian real-time selesai. Bandingkan kuota/biaya aktual dan atur notifikasi biaya sebelum online terus menerus.
@@ -58,6 +58,15 @@ Sumber referensi:
 - https://upstash.com/pricing/redis
 - https://vercel.com/docs/plans/hobby
 - https://vercel.com/docs/deployments/environments
+
+### Pengujian arsip saat staging
+
+- Login Admin → **Riwayat**; pilih 1, 2, ... 7 hari atau dua tanggal dan tekan Download CSV / Excel. Untuk ekspor riwayat lengkap, CSV kompatibel Excel digunakan, **belum tersedia file .xlsx native**.
+- Uji GET `/api/history?days=7` dengan cookie Admin/Operator, pastikan respons grafik maksimal 300 titik dan jumlah baris asli dihitung terpisah.
+- Uji GET `/api/history/export?days=2`: Admin memperoleh berkas CSV UTF-8, Operator mendapat **403**, pengunjung tidak login mendapat **401**.
+- `days=8` atau rentang tanggal lebih dari 7 hari harus ditolak **400**. Pembacaan lebih dari 7 hari lalu tidak dikembalikan.
+- Arsip dimulai setelah fitur ini dipasang; pembacaan sebelum deploy **tidak di-backfill**. Simulasi lokal memakai `.local-data/telemetry-7days.jsonl`; untuk staging dan production Redis wajib aktif.
+- Jangan mengaktifkan pengiriman 3 detik 24/7 tanpa memastikan kapasitas dan anggaran database maupun fungsi hosting. Memperkecil interval penyimpanan **tidak mengurangi** jumlah POST dari ESP.
 
 ## 3. Konfigurasi environment di hosting
 
