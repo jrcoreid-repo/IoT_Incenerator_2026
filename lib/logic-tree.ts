@@ -154,7 +154,7 @@ export function evaluateLoT(
       ? "Beberapa parameter memerlukan pemeriksaan. Rincian kondisi dan tindakan tercantum di bawah."
       : severity === "unknown"
         ? "Parameter penting belum lengkap. Pemeriksaan kondisi gas belum bisa disimpulkan."
-        : "Belum ada parameter yang melewati batas internal yang ditetapkan. Status ini bukan sertifikasi keamanan emisi.";
+        : "Parameter yang tersedia berada di bawah ambang peringatan internal. Lanjutkan pemantauan suhu dan gas secara berkala.";
   return {
     process, severity, furanIndex,
     furanLevel: furanIndex === null ? "TIDAK TERSEDIA" : level(furanIndex),
