@@ -26,7 +26,20 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 - Identitas teknis internal seperti kode perangkat tetap ada dalam payload/API untuk integrasi, sedangkan antarmuka menggunakan bahasa awam: **Alat pengirim data**, **Sensor gas**, **Penyimpanan data**.
 - Informasi Hibah Bestari dan LPDP berada di bagian bawah halaman, bersama hak cipta dan identitas Omah Inovasi Universitas Ahmad Dahlan.
 
-## Identitas visual\n\n- Logo ADI menggunakan ikon dari aset identitas yang diberikan; disimpan dalam `public/adi-logo.png` dan digunakan di sidebar, login, serta header mobile.\n- Ikon aplikasi persegi di `public/adi-icon.png` digunakan sebagai favicon/bookmark.\n- Logo memakai `object-fit: contain` agar tidak terpotong; ketika sidebar tersembunyi di ponsel, identitas tetap terlihat di atas Beranda.\n- Latar emblem dibuat terang supaya logo hijau tua tetap terbaca baik pada tema gelap maupun terang.\n\n## Halaman login pengelola
+## Identitas visual\n\n- Logo ADI menggunakan ikon dari aset identitas yang diberikan; disimpan dalam `public/adi-logo.png` dan digunakan di sidebar, login, serta header mobile.\n- Ikon aplikasi persegi di `public/adi-icon.png` digunakan sebagai favicon/bookmark.\n- Logo memakai `object-fit: contain` agar tidak terpotong; ketika sidebar tersembunyi di ponsel, identitas tetap terlihat di atas Beranda.\n- Latar emblem dibuat terang supaya logo hijau tua tetap terbaca baik pada tema gelap maupun terang.\n\n## Keamanan akses dashboard
+
+Dashboard sekarang **khusus pengelola**. Halaman `/` hanya meneruskan pengunjung yang sudah masuk ke `/admin`, sedangkan pengguna tanpa sesi sah diarahkan ke `/login`. Server memeriksa cookie yang ditandatangani HMAC-SHA256 saat mengakses halaman atau API pembacaan sensor.
+
+- Cookie admin bersifat **HttpOnly**, **SameSite=Strict**, dan **Secure** pada HTTPS produksi. Sesi saat ini berlaku sampai 12 jam.
+- Selama sesi masih sah, pengguna memang tidak perlu memasukkan kata sandi lagi setiap membuka halaman. Gunakan tombol **Keluar** untuk mengakhiri sesi di browser.
+- `GET /api/telemetry` dilindungi login. `POST /api/telemetry` tetap menggunakan token terpisah `TELEMETRY_INGEST_KEY` untuk perangkat ESP.
+- Tanggapan privat menggunakan **no-store** dan halaman yang dipulihkan lewat tombol Back diperiksa ulang.
+- Mengganti `SESSION_SECRET` lalu memulai ulang server membatalkan semua sesi lama.
+- Setelah build, jalankan `npm run test:auth` untuk pengujian integrasi halaman publik/privat, cookie rusak, password salah, endpoint telemetry, dan logout.
+
+**Sebelum deploy publik:** tambahkan pembatasan percobaan login dan rate limiting, audit akses, penguatan hosting serta pengujian keamanan independen.
+
+## Halaman login pengelola
 
 Halaman `/login` memakai layout **split-screen industrial modern**: panel kiri berwarna hijau tua untuk identitas ADI Smart Incinerator, tema lingkungan dan fitur pemantauan; panel kanan berisi formulir masuk yang bersih. Tampilan tablet/ponsel otomatis beralih ke satu kolom, dengan logo dan form tetap mudah digunakan.
 
@@ -66,7 +79,7 @@ Isi `.env.local` (jika file tersebut sudah ada, jangan timpa). Syarat:
 
 Pada `npm run dev`, tanpa Redis data akan disimpan sementara di memori proses Node dan hilang saat restart. **Pada produksi, POST akan ditolak jika Redis belum dikonfigurasi.**
 
-Halaman umum: `http://localhost:3000`, admin: `http://localhost:3000/login`.
+Masuk melalui `http://localhost:3000/login`. Pengunjung tanpa sesi sah yang membuka `/` atau `/admin` diarahkan ke halaman login. Tidak ada halaman pemantauan umum.
 
 
 ## Virtual ESP32 sender (tanpa hardware)
@@ -113,7 +126,7 @@ Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`fu
 
 Endpoint:
 - `POST /api/telemetry` untuk ESP/gateway, wajib header `Authorization: Bearer <TELEMETRY_INGEST_KEY>`
-- `GET /api/telemetry` untuk dashboard, mengembalikan `latest`, `history`, dan `storageReady`
+- `GET /api/telemetry` hanya untuk pemegang sesi admin yang sah; tanpa login mengembalikan HTTP 401. Respons memuat `latest`, `history`, dan `storageReady`.
 
 Payload JSON:
 
