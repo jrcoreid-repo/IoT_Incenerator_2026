@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { currentSession } from "@/lib/current-session";
 
 export const dynamic = "force-dynamic";
-
-// Tidak ada lagi halaman pemantauan publik.
-export default function HomePage() {
-  redirect("/admin");
+export default async function HomePage() {
+  const session = await currentSession();
+  if (!session) redirect("/login");
+  redirect(session.role === "admin" ? "/admin" : "/dashboard");
 }
