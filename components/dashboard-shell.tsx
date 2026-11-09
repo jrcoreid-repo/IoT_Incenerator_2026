@@ -93,7 +93,7 @@ function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
 export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [latest, setLatest] = useState<Telemetry | null>(null);
   const [history, setHistory] = useState<Telemetry[]>([]);
   const [storageReady, setStorageReady] = useState(true);
@@ -113,7 +113,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("jr-telemetry-theme");
+    const savedTheme = localStorage.getItem("adi-telemetry-theme-v2");
     if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
     const savedThresholds = localStorage.getItem("jr-thresholds");
     if (!savedThresholds) return;
@@ -132,7 +132,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("jr-telemetry-theme", theme);
+    localStorage.setItem("adi-telemetry-theme-v2", theme);
   }, [theme]);
 
   useEffect(() => {
