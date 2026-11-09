@@ -14,6 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        {/* iOS can rewrite dates, phone numbers and addresses into links before React hydrates. */}
+        <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+      </head>
       <body>{children}</body>
     </html>
   );
