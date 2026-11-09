@@ -242,3 +242,93 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 @media(max-width:360px) {
   .metric-grid,.extra-metrics .metric-grid,.device-grid {grid-template-columns:1fr;}
 }
+
+
+/* Status aktivitas pembakaran ditentukan oleh suhu tungku, bukan indeks emisi. */
+.hero-status.burn-burning {
+  --burn-ink:#a6212b;
+  background:#ffebeb;
+  border:2px solid #d74e57;
+  border-left:9px solid #c72a38;
+}
+.hero-status.burn-idle {
+  --burn-ink:#11683b;
+  background:#e4f8e9;
+  border:2px solid #2c9a59;
+  border-left:9px solid #188547;
+}
+.hero-status.burn-unknown {
+  --burn-ink:var(--muted);
+  background:var(--surface);
+  border:2px solid var(--border);
+  border-left:9px solid #879c91;
+}
+.hero-status .combustion-state {color:var(--burn-ink);font-size:36px;letter-spacing:.04em;}
+.hero-status .section-kicker {color:var(--burn-ink);}
+.hero-status .hero-icon-wrap {color:var(--burn-ink);border-color:color-mix(in srgb,var(--burn-ink) 22%,transparent);background:color-mix(in srgb,var(--burn-ink) 7%,transparent);}
+.hero-status .muted {color:var(--text);opacity:.87;}
+.hero-status .hero-mini,.hero-status .hero-time {
+  background:color-mix(in srgb,var(--burn-ink) 5%,#ffffff);
+  border-color:color-mix(in srgb,var(--burn-ink) 20%,#ffffff);
+}
+.hero-status .hero-mini span,.hero-status .hero-time span {color:var(--burn-ink);}
+.hero-status .hero-mini strong,.hero-status .hero-time strong {color:var(--text);}
+.burn-legend {display:block;margin-top:12px;font-size:10px;color:var(--text);opacity:.72;line-height:1.5;}
+.dark .hero-status.burn-burning {--burn-ink:#ffbfc4;background:#4d1d25;border-color:#ae3b4a;border-left-color:#f16471;}
+.dark .hero-status.burn-idle {--burn-ink:#aff2c3;background:#153c26;border-color:#2e8750;border-left-color:#55ca82;}
+.dark .hero-status.burn-unknown {--burn-ink:var(--muted);background:var(--surface);border-color:var(--border);border-left-color:#6a8976;}
+.dark .hero-status .hero-mini,.dark .hero-status .hero-time {
+  background:rgba(0,0,0,.13);
+  border-color:rgba(255,255,255,.18);
+}
+.dark .hero-status .muted,.dark .hero-status .hero-mini strong,.dark .hero-status .hero-time strong,.dark .burn-legend {color:#e7f2e9;}
+/* Hijau / kuning / oranye / merah untuk indikasi berbasis ambang internal. */
+.status-label {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 9px;
+  border:1px solid transparent;
+  border-radius:4px;
+  width:max-content;
+  font:600 10px/1.4 var(--font-mono);
+  letter-spacing:.035em;
+  white-space:nowrap;
+}
+.status-label.risk-safe {color:#116b40;background:#e0f7e6;border-color:#9edcb1;}
+.status-label.risk-caution {color:#906000;background:#fff1c4;border-color:#edcd65;}
+.status-label.risk-danger {color:#9c4314;background:#ffeadc;border-color:#e9a47b;}
+.status-label.risk-critical {color:#ad1f2d;background:#ffe0e3;border-color:#e9959c;}
+.status-label.risk-muted {color:var(--muted);background:var(--surface-2);border-color:var(--border);}
+.dark .status-label.risk-safe {background:#123c27;color:#a4f2be;border-color:#43845a;}
+.dark .status-label.risk-caution {background:#4c3c18;color:#ffe19b;border-color:#97773a;}
+.dark .status-label.risk-danger {background:#4e2d1c;color:#ffbb93;border-color:#b2704d;}
+.dark .status-label.risk-critical {background:#511e2a;color:#ffc3c8;border-color:#b54d60;}
+.risk-border-safe {border-top:4px solid #258c55;}
+.risk-border-caution {border-top:4px solid #d6a625;}
+.risk-border-danger {border-top:4px solid #df753d;}
+.risk-border-critical {border-top:4px solid #d63d50;}
+.risk-border-muted {border-top:4px solid #899c8c;}
+.furan-track .risk-fill.risk-safe {background:#258c55;}
+.furan-track .risk-fill.risk-caution {background:#d6a625;}
+.furan-track .risk-fill.risk-danger {background:#df753d;}
+.furan-track .risk-fill.risk-critical {background:#d63d50;}
+.furan-track .risk-fill.risk-muted {background:#899c8c;}
+.event-level.status-label {font-size:10px;}
+.no-data-normal {display:flex;align-items:center;flex-wrap:wrap;gap:10px;}
+.analysis-score-row {grid-template-columns:repeat(4,minmax(0,1fr));}
+.analysis-score-row .status-label {font-size:11px;margin-right:6px;vertical-align:middle;}
+.process-text.process-burning {color:#b92f39;}
+.process-text.process-idle {color:#13834a;}
+.process-text.process-unknown {color:var(--muted);}
+.dark .process-text.process-burning {color:#ffa5ad;}
+.dark .process-text.process-idle {color:#9feeb9;}
+.site-footer {display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center;text-align:center;padding:23px 0;}
+.footer-main {display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font:500 11px/1.5 var(--font-mono);}
+.footer-sub {font:500 11px/1.6 var(--font-ui);color:var(--muted);}
+@media(max-width:1250px) { .analysis-score-row {grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media(max-width:850px) { .analysis-score-row {grid-template-columns:1fr;} }
+@media(max-width:550px) {
+  .hero-status .combustion-state {font-size:31px;}
+  .hero-status.burn-burning,.hero-status.burn-idle,.hero-status.burn-unknown {border-left-width:6px;}
+}
