@@ -96,8 +96,26 @@ File ini hanya memeriksa **kelengkapan dan format dasar**, bukan menguji koneksi
 4. `GET /api/telemetry` tanpa sesi wajib `401`.
 5. `POST /api/telemetry` tanpa token harus `401`; dengan token staging dan JSON valid harus `201`.
 6. Pantau *database*, *function invocation*, error rate, dan ukuran data Redis. Uji data melewati batas 90 detik untuk melihat status stale.
-7. Kirim data test lewat **Node.js virtual sender** dari laptop dengan URL HTTPS staging dan token staging (lihat README). Jangan mengubah firmware HTTP lokal untuk langsung mengarah ke internet.
+7. Kirim data test lewat **Node.js virtual sender** dari laptop dengan URL HTTPS staging dan token staging. Jika preview dilindungi Vercel Authentication, pengirim HTTP otomatis juga memerlukan **Protection Bypass for Automation** terpisah, karena Vercel memblokir request otomatis sebelum mencapai API Next.js.
 8. Jangan mengklaim angka dummy sebagai data sensor; dokumentasikan setiap sesi uji.
+
+### Menguji staging yang dilindungi Vercel Authentication
+
+Buat secret **Protection Bypass for Automation** pada pengaturan Deployment Protection Vercel. Secret ini **berbeda** dari `TELEMETRY_INGEST_KEY` dan tidak mengganti validasi token perangkat di Next.js. Jangan simpan bypass secret di GitHub atau firmware; ia hanya diperlukan pada alat uji staging.
+
+Di PowerShell pada laptop, untuk **pengujian terbatas** (ganti URL dengan preview milikmu):
+
+```powershell
+$env:TELEMETRY_INGEST_KEY = Read-Host "Token ingest STAGING"
+$env:VERCEL_AUTOMATION_BYPASS_SECRET = Read-Host "Vercel bypass STAGING"
+npm run sender:virtual -- --url https://NAMA-PREVIEW.vercel.app/api/telemetry --scenario cycle --interval 15 --count 12
+Remove-Item Env:TELEMETRY_INGEST_KEY
+Remove-Item Env:VERCEL_AUTOMATION_BYPASS_SECRET
+```
+
+Sender hanya melampirkan `x-vercel-protection-bypass` jika URL adalah **HTTPS** dan hostname berakhiran **.vercel.app**. Bypass tidak dikirim ke localhost/URL non-Vercel. Jika kamu menggunakan domain khusus dengan proteksi yang sama, lakukan pengujian manual memakai header yang tepat (lihat dokumentasi Vercel). Bypass merupakan akses tingkat hosting yang sensitif; **jangan gunakan di firmware produksi**.
+
+Referensi: https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
 
 Contoh uji via PowerShell (isi token staging pribadi tanpa menaruhnya dalam source):
 
