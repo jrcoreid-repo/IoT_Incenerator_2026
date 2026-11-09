@@ -1012,3 +1012,39 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .user-record-actions>.secondary-button {width:100%;}
   .user-reset-control {flex:1 1 100%;}
 }
+
+
+/* Seven-day telemetry archive: responsive date selectors and CSV export. */
+.archive-controls .muted {font-size:12px;line-height:1.65;max-width:880px;}
+.archive-toolbar {
+  display:flex;align-items:end;gap:12px;flex-wrap:wrap;
+  margin:16px 0 12px;
+}
+.archive-field {
+  display:flex;flex:1 1 155px;max-width:255px;
+  flex-direction:column;gap:7px;
+  font-size:11px;font-weight:700;color:var(--muted);
+}
+.archive-field select,.archive-field input {
+  display:block;width:100%;min-width:0;min-height:42px;
+  padding:10px 12px;border:1px solid var(--border);border-radius:4px;
+  background:var(--surface-2);color:var(--text);font-size:13px;
+  font-family:var(--font-ui);
+}
+.archive-field input:focus-visible,.archive-field select:focus-visible {
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+.archive-action {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;}
+.archive-action:disabled {opacity:.6;cursor:wait;}
+.archive-meta {
+  display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;
+  border-top:1px solid var(--border);padding-top:12px;
+  font:500 11px/1.5 var(--font-mono);color:var(--muted);
+}
+.archive-meta strong {color:var(--accent);font-weight:700;}
+.archive-controls .user-feedback {margin-top:14px;}
+@media(max-width:640px) {
+  .archive-field {flex:1 1 100%;max-width:none;}
+  .archive-action {flex:1 1 auto;}
+  .archive-controls .panel-heading {flex-wrap:wrap;}
+}
