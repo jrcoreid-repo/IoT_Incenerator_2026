@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hasRedisStorage, redisCommand } from "./redis-command";
 
 const WINDOW_SECONDS = 15 * 60;
 const ACCOUNT_LIMIT = 8;
@@ -36,40 +37,9 @@ function networkKey(request: Request) {
   return "adi:auth:network:" + sha(source);
 }
 
-function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  return url && token ? { url, token } : null;
-}
-
-async function command(parts: (string | number)[]) {
-  const cfg = redisConfig();
-  if (!cfg) throw new Error("AUTH_REDIS_MISSING");
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 3000);
-  try {
-    const response = await fetch(cfg.url, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${cfg.token}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(parts),
-      cache: "no-store",
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error("AUTH_REDIS_UNAVAILABLE");
-    const result = await response.json() as { result?: unknown; error?: string };
-    if (result.error) throw new Error("AUTH_REDIS_ERROR");
-    return result.result;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 async function checkBucket(key: string, max: number): Promise<RateResult> {
-  if (redisConfig()) {
-    const result = await command(["EVAL", LUA, 1, key, WINDOW_SECONDS, max]);
+  if (hasRedisStorage()) {
+    const result = await redisCommand(["EVAL", LUA, 1, key, WINDOW_SECONDS, max]);
     if (!Array.isArray(result) || result.length !== 2) throw new Error("AUTH_REDIS_INVALID");
     const [allowed, retry] = result.map(Number);
     if (![0, 1].includes(allowed) || !Number.isFinite(retry)) throw new Error("AUTH_REDIS_INVALID");
@@ -101,8 +71,8 @@ export async function consumeLoginAttempt(username: string, request: Request): P
 
 export async function clearAccountLoginAttempts(username: string) {
   const key = accountKey(username);
-  if (redisConfig()) {
-    await command(["DEL", key]);
+  if (hasRedisStorage()) {
+    await redisCommand(["DEL", key]);
   } else if (process.env.NODE_ENV !== "production") {
     localCounters.delete(key);
   } else throw new Error("AUTH_REDIS_REQUIRED");
