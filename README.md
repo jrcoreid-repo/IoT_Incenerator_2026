@@ -26,7 +26,7 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 - Identitas teknis internal seperti kode perangkat tetap ada dalam payload/API untuk integrasi, sedangkan antarmuka menggunakan bahasa awam: **Alat pengirim data**, **Sensor gas**, **Penyimpanan data**.
 - Informasi Hibah Bestari dan LPDP berada di bagian bawah halaman, bersama hak cipta dan identitas Omah Inovasi Universitas Ahmad Dahlan.
 
-## Tampilan dan fungsi
+## Identitas visual\n\n- Logo ADI menggunakan ikon dari aset identitas yang diberikan; disimpan dalam `public/adi-logo.png` dan digunakan di sidebar, login, serta header mobile.\n- Ikon aplikasi persegi di `public/adi-icon.png` digunakan sebagai favicon/bookmark.\n- Logo memakai `object-fit: contain` agar tidak terpotong; ketika sidebar tersembunyi di ponsel, identitas tetap terlihat di atas Beranda.\n- Latar emblem dibuat terang supaya logo hijau tua tetap terbaca baik pada tema gelap maupun terang.\n\n## Tampilan dan fungsi
 
 - Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
 - Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan **Prediksi Risiko Furan** dengan label **Hasil Analisis AI**.
