@@ -53,7 +53,7 @@ Dashboard sekarang **khusus pengelola**. Halaman `/` hanya meneruskan pengunjung
 
 ## Halaman login pengelola
 
-Halaman `/login` memakai layout **split-screen industrial modern**: panel kiri **bright hijau muda** dengan ilustrasi incinerator dari gambar yang diberikan (aset `public/incinerator-illustration.svg`, versi vektor ringan), panel kanan berisi formulir masuk. Pada ponsel login menjadi satu kolom dengan logo dan formulir agar tetap mudah digunakan.
+Halaman `/login` memakai layout **split-screen industrial modern**: panel kiri **bright hijau muda** dengan ilustrasi incinerator dari gambar yang diberikan (aset `public/incinerator-illustration.png`, PNG transparan yang dioptimalkan dari gambar terbaru), panel kanan berisi formulir masuk. Pada ponsel login menjadi satu kolom dengan logo dan formulir agar tetap mudah digunakan.
 
 Dashboard sekarang **default light/bright** pada kunjungan pertama. Tombol tema tetap memungkinkan pengguna memilih dark mode dan menyimpan pilihan baru pada browser. Preferensi lama yang tersimpan saat dark masih menjadi default tidak lagi dipaksakan.
 
