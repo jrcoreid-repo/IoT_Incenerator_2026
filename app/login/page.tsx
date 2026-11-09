@@ -151,10 +151,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <a className="login-access-back" href="/">
-            <ArrowRight size={17} aria-hidden="true" />
-            Kembali ke pemantauan umum
-          </a>
+
         </div>
 
         <footer className="login-access-footer">
