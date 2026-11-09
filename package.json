@@ -11,7 +11,8 @@
     "test:sender": "node --test scripts/virtual-esp32.test.mjs",
     "test:auth": "node --test scripts/auth-smoke.test.mjs",
     "deploy:check": "node scripts/deploy-preflight.mjs",
-    "test:deploy": "node --test scripts/deploy-preflight.test.mjs"
+    "test:deploy": "node --test scripts/deploy-preflight.test.mjs",
+    "test:history": "node --test scripts/archive-sampler.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
