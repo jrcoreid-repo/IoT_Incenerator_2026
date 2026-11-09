@@ -15,29 +15,50 @@ const char* SERVER_URL = "http://172.20.10.2:3000/api/telemetry";
 const char* INGEST_KEY = "GANTI_TELEMETRY_INGEST_KEY_DARI_ENV_LOCAL";
 const char* DEVICE_ID = "ESP32-ADI-DUMMY-01";
 
-constexpr unsigned long SEND_INTERVAL_MS = 3000;
-constexpr unsigned long WIFI_RETRY_MS = 8000;
+// Interval normal pengiriman telemetry: 10 detik.
+// Interval retry Wi-Fi: 10 detik, tanpa blocking delay.
+// Retry HTTP meningkat 10, 20, 40, 80, 120 detik ketika server down.
+constexpr unsigned long SEND_INTERVAL_MS = 10000;
+constexpr unsigned long WIFI_RETRY_MS = 10000;
+constexpr unsigned long HTTP_BACKOFF_MAX_MS = 120000;
+constexpr unsigned long HTTP_TIMEOUT_MS = 5000;
+constexpr unsigned int WIFI_RECOVER_AFTER_HTTP_FAILURES = 3;
+unsigned long lastWiFiAttemptAt = 0;
 unsigned long lastSendAt = 0;
-unsigned long lastReconnectAt = 0;
+unsigned long nextSendAt = 0;
 unsigned long sentCount = 0;
+unsigned long failedCount = 0;
+unsigned int consecutiveHttpFailures = 0;
+bool wasConnected = false;
+bool permanentConfigError = false;
 
-void connectWiFi() {
+void startWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to Wi-Fi");
-  for (int i = 0; i < 25 && WiFi.status() != WL_CONNECTED; i++) {
-    delay(400);
-    Serial.print(".");
-  }
-  Serial.println();
+  lastWiFiAttemptAt = millis();
+  Serial.println("[WiFi] Connecting / reconnecting...");
+}
+
+void maintainWiFi(unsigned long now) {
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("ESP IP: ");
-    Serial.println(WiFi.localIP());
-    Serial.print("Target: ");
-    Serial.println(SERVER_URL);
-  } else {
-    Serial.println("Wi-Fi not connected, retrying later");
+    if (!wasConnected) {
+      Serial.print("[WiFi] Connected, IP: ");
+      Serial.println(WiFi.localIP());
+      Serial.print("[HTTP] Target: ");
+      Serial.println(SERVER_URL);
+      consecutiveHttpFailures = 0;
+      nextSendAt = now;
+    }
+    wasConnected = true;
+    return;
+  }
+  if (wasConnected) Serial.println("[WiFi] Disconnected, reconnecting automatically.");
+  wasConnected = false;
+  if ((unsigned long)(now - lastWiFiAttemptAt) >= WIFI_RETRY_MS) {
+    WiFi.disconnect(false);
+    startWiFi();
   }
 }
 
@@ -80,56 +101,85 @@ String buildPayload() {
   return json;
 }
 
-void sendTelemetry() {
-  if (WiFi.status() != WL_CONNECTED) return;
+unsigned long retryInterval() {
+  unsigned long ms = SEND_INTERVAL_MS;
+  for (unsigned int i = 1; i < consecutiveHttpFailures && ms < HTTP_BACKOFF_MAX_MS; i++) {
+    ms = ms > HTTP_BACKOFF_MAX_MS / 2 ? HTTP_BACKOFF_MAX_MS : ms * 2;
+  }
+  return ms;
+}
 
+void sendTelemetry(unsigned long now) {
+  if (WiFi.status() != WL_CONNECTED || permanentConfigError) return;
   WiFiClient client;
   HTTPClient http;
-  http.setTimeout(4500);
+  http.setTimeout(HTTP_TIMEOUT_MS);
+  const String body = buildPayload();
+  int status = -1;
 
-  if (!http.begin(client, SERVER_URL)) {
-    Serial.println("HTTP begin failed");
+  if (http.begin(client, SERVER_URL)) {
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("Authorization", String("Bearer ") + INGEST_KEY);
+    status = http.POST(body);
+    if (status != 201 && status > 0) {
+      Serial.print("[HTTP] Response: ");
+      Serial.println(http.getString());
+    }
+    http.end();
+  }
+
+  if (status == 201) {
+    ++sentCount;
+    consecutiveHttpFailures = 0;
+    lastSendAt = millis();
+    nextSendAt = lastSendAt + SEND_INTERVAL_MS;
+    Serial.printf("[HTTP] 201 OK #%lu, next in 10s: ", sentCount);
+    Serial.println(body);
     return;
   }
 
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", String("Bearer ") + INGEST_KEY);
+  ++failedCount;
+  if (consecutiveHttpFailures < 8) ++consecutiveHttpFailures;
 
-  const String body = buildPayload();
-  const int status = http.POST(body);
-  Serial.print("Send #");
-  Serial.print(++sentCount);
-  Serial.print(" HTTP ");
-  Serial.print(status);
-  Serial.print(" JSON: ");
-  Serial.println(body);
-  if (status != 201) {
-    Serial.print("Response: ");
-    Serial.println(http.getString());
+  // Repeated 401/403 means the device token/configuration needs operator action.
+  // Do not endlessly retry invalid credentials.
+  if (status == 401 || status == 403) {
+    permanentConfigError = true;
+    Serial.printf("[HTTP] %d AUTH ERROR: check TELEMETRY_INGEST_KEY. Sending paused until reboot.\n", status);
+    return;
   }
-  http.end();
+
+  const unsigned long wait = retryInterval();
+  nextSendAt = millis() + wait;
+  Serial.printf("[HTTP] failed (%d), total failures=%lu, retry in %lu ms\n", status, failedCount, wait);
+
+  // Wi-Fi may show connected even when the connection is stuck.
+  // Force reconnection after repeated network failures, without rebooting ESP32.
+  if (consecutiveHttpFailures >= WIFI_RECOVER_AFTER_HTTP_FAILURES) {
+    Serial.println("[Recovery] Reinitializing Wi-Fi after consecutive HTTP failures.");
+    wasConnected = false;
+    WiFi.disconnect(false);
+    startWiFi();
+  }
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(350);
   Serial.println("\nADI Smart Incinerator - DUMMY TELEMETRY / NOT REAL SENSOR DATA");
-  connectWiFi();
-  lastSendAt = millis();
+  WiFi.persistent(false);
+  WiFi.setSleep(false);
+  startWiFi();
+  nextSendAt = millis() + SEND_INTERVAL_MS;
 }
 
 void loop() {
   const unsigned long now = millis();
-  if (WiFi.status() != WL_CONNECTED) {
-    if (now - lastReconnectAt >= WIFI_RETRY_MS) {
-      lastReconnectAt = now;
-      connectWiFi();
-    }
-    return;
+  maintainWiFi(now);
+  // Scheduled using wrap-safe signed difference; no blocking delay in main loop.
+  if (WiFi.status() == WL_CONNECTED && !permanentConfigError &&
+      (int32_t)(now - nextSendAt) >= 0) {
+    sendTelemetry(now);
   }
-
-  if (now - lastSendAt >= SEND_INTERVAL_MS) {
-    lastSendAt = now;
-    sendTelemetry();
-  }
+  delay(10);
 }
