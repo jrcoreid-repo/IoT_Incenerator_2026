@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [dashboard-v1]
+    branches: [dashboard-v1, design/minimal-operator-2026]
   pull_request:
     branches: [main, dashboard-v1]
 
