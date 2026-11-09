@@ -742,7 +742,7 @@ body { font-size:14px; letter-spacing:.005em; }
 .login-simple-shell { width:min(490px,100%); }
 .login-simple-mark {
   background:#18252f; border:1px solid #365966; border-radius:5px;
-  color:#b7e6df;
+  color:#b7e6df; font:700 18px var(--font-display); letter-spacing:.07em;
 }
 .login-simple-overline { color:#8fadb7; font:500 10px var(--font-mono); letter-spacing:.1em; }
 .login-simple-brand h1 {
