@@ -664,3 +664,19 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .login-access-submit {transition:none;}
   .login-access-submit:hover:not(:disabled) {transform:none;}
 }
+
+/* Login identity subtitle, replacing the introductory paragraph. */
+.login-visual-content > .login-visual-system {
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  max-width:460px;
+  margin:0 0 36px;
+  color:#e0f3e5;
+  font:600 clamp(16px,1.5vw,21px)/1.35 var(--font-ui);
+  letter-spacing:.005em;
+}
+.login-visual-system span {
+  color:#a4cfaf;
+  font:500 clamp(12px,1vw,14px)/1.6 var(--font-ui);
+}
