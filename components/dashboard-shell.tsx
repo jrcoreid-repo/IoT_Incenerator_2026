@@ -306,7 +306,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                 <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
                 <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
                   <div className="metric-value">{fresh ? formatNumber(lot.furanIndex, 0) : "—"}<small>/100</small></div>
-                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh ? lot.furanIndex ?? 0 : 0}>
+                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
                   <div className="prediction-note"><strong>{offline ? "ANALISIS DIJEDA" : "HASIL ANALISIS AI"}</strong><span>{offline ? "Menunggu data sensor terbaru" : "Berdasarkan suhu dan gas"}</span></div>
