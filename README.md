@@ -53,7 +53,9 @@ Dashboard sekarang **khusus pengelola**. Halaman `/` hanya meneruskan pengunjung
 
 ## Halaman login pengelola
 
-Halaman `/login` memakai layout **split-screen industrial modern**: panel kiri berwarna hijau tua untuk identitas ADI Smart Incinerator, tema lingkungan dan fitur pemantauan; panel kanan berisi formulir masuk yang bersih. Tampilan tablet/ponsel otomatis beralih ke satu kolom, dengan logo dan form tetap mudah digunakan.
+Halaman `/login` memakai layout **split-screen industrial modern**: panel kiri **bright hijau muda** dengan ilustrasi incinerator dari gambar yang diberikan (aset `public/incinerator-illustration.svg`, versi vektor ringan), panel kanan berisi formulir masuk. Pada ponsel login menjadi satu kolom dengan logo dan formulir agar tetap mudah digunakan.
+
+Dashboard sekarang **default light/bright** pada kunjungan pertama. Tombol tema tetap memungkinkan pengguna memilih dark mode dan menyimpan pilihan baru pada browser. Preferensi lama yang tersimpan saat dark masih menjadi default tidak lagi dipaksakan.
 
 Logo memakai aset `/adi-logo.png`; tidak ada data sensor fiktif yang ditampilkan pada halaman login. Kontrol tampil/sembunyikan kata sandi hanya mengubah visibilitas input. Endpoint autentikasi `POST /api/login`, cookie sesi admin, dan tujuan `/admin` **tidak diubah**. Pengelola tetap harus mengisi kredensial dan `SESSION_SECRET` yang kuat di server.
 
