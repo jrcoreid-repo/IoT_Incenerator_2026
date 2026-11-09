@@ -31,7 +31,8 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/admin";
+      const result = await response.json() as { redirectTo?: string };
+      window.location.replace(result.redirectTo === "/dashboard" ? "/dashboard" : "/admin");
     } catch {
       setError("Tidak dapat terhubung. Periksa koneksi internet dan coba lagi.");
     } finally {
@@ -95,7 +96,7 @@ export default function LoginPage() {
             <div className="login-access-line" aria-hidden="true" />
             <p className="login-access-kicker">MASUK KE SISTEM</p>
             <h2 id="login-title">Selamat datang.</h2>
-            <p>Masukkan akun pengelola untuk mengakses dashboard dan pengaturan.</p>
+            <p>Masukkan akun Admin atau Operator untuk mengakses dashboard sesuai hak akses.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-access-form">
