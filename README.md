@@ -2,6 +2,12 @@
 
 Dashboard **environmental telemetry** untuk Desa Caturharjo, Pandak, Bantul. Antarmuka hijau industrial, angka monospaced, grafik sensor, peringatan parameter, dan **Analisis AI berbasis LoT** (*logic tree / aturan if–else*).
 
+## Persiapan deploy (staging online)
+
+Sambil menunggu sensor RS485 fisik, dashboard bisa disiapkan sebagai **staging terproteksi**. Panduan langkah demi langkah untuk HTTPS, hosting, Upstash Redis, pemisahan token, perkiraan penggunaan dan syarat keamanan tersedia di [DEPLOYMENT.md](DEPLOYMENT.md).
+
+Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi password/token). Pengujian otomatis konfigurasi melalui `npm run test:deploy`. Firmware ESP32 saat ini **masih HTTP LAN**, jadi jangan langsung diganti menuju server internet sebelum TLS/HTTPS terverifikasi tersedia.
+
 ## Firmware ESP32 lokal
 
 Firmware Arduino IDE pengirim data sensor dummy tersedia pada [firmware/adi_esp32_sender/adi_esp32_sender.ino](firmware/adi_esp32_sender/adi_esp32_sender.ino), lengkap dengan [panduan setup](firmware/README.md).
