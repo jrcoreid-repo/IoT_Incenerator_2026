@@ -56,6 +56,9 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
   const counters = new Map();
   const strings = new Map();
   const hashes = new Map();
+  const liveReadings = [];
+  const archiveReadings = [];
+  let lastArchivedMs = 0;
   const redisServer = createHttpServer(async (request, response) => {
     let raw = "";
     for await (const part of request) raw += part;
@@ -63,7 +66,26 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
       const parts = JSON.parse(raw);
       const cmd = parts[0];
       let result = null;
-      if (cmd === "EVAL") {
+      if (cmd === "EVAL" && parts[1].includes("ZREMRANGEBYSCORE")) {
+        // Test double reproduces the atomic 10-second sampling + 7-day prune
+        // described by the actual Lua script, without a real Upstash account.
+        const now = Number(parts[6]);
+        const serialized = parts[7];
+        const liveLimit = Number(parts[8]);
+        const interval = Number(parts[9]);
+        const retention = Number(parts[11]);
+        liveReadings.unshift(serialized);
+        if (liveReadings.length > liveLimit) liveReadings.length = liveLimit;
+        if (now - lastArchivedMs >= interval || now < lastArchivedMs) {
+          archiveReadings.push({ score: now, value: serialized });
+          lastArchivedMs = now;
+          const cutoff = now - retention;
+          for (let i = archiveReadings.length - 1; i >= 0; i--) {
+            if (archiveReadings[i].score < cutoff) archiveReadings.splice(i, 1);
+          }
+          result = 1;
+        } else result = 0;
+      } else if (cmd === "EVAL") {
         const key = parts[3];
         const seconds = Number(parts[4]);
         const max = Number(parts[5]);
@@ -76,7 +98,12 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
       } else if (cmd === "DEL") {
         result = Number(counters.delete(parts[1]) || strings.delete(parts[1]));
       } else if (cmd === "LRANGE") {
-        result = [];
+        result = liveReadings.slice(Number(parts[2]), Number(parts[3]) + 1);
+      } else if (cmd === "ZRANGEBYSCORE") {
+        const from = Number(parts[2]), to = Number(parts[3]);
+        result = archiveReadings.filter(item => item.score >= from && item.score <= to)
+          .sort((a, b) => a.score - b.score)
+          .slice(Number(parts[5]), Number(parts[5]) + Number(parts[6])).map(item => item.value);
       } else if (cmd === "GET") {
         result = strings.get(parts[1]) ?? null;
       } else if (cmd === "SET") {
@@ -219,6 +246,48 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     redirectTo(await request("/dashboard", { headers: { cookie: adminCookie } }), "/admin");
     assert.equal((await request("/admin", { headers: { cookie: adminCookie } })).status, 200);
     assert.equal((await request("/api/telemetry", { headers: { cookie: adminCookie } })).status, 200);
+    assert.equal((await request("/api/history?days=1")).status, 401);
+    assert.equal((await request("/api/history/export?days=1")).status, 401);
+    assert.equal((await request("/api/history?days=8", { headers: { cookie: adminCookie } })).status, 400);
+    assert.equal((await request("/api/history?days=0", { headers: { cookie: adminCookie } })).status, 400);
+    const longStart = new Date(Date.now() - 8 * 86400000).toISOString();
+    const longEnd = new Date().toISOString();
+    assert.equal((await request("/api/history?from=" + encodeURIComponent(longStart) + "&to=" + encodeURIComponent(longEnd), { headers: { cookie: adminCookie } })).status, 400);
+
+    // Log each 3s-or-faster telemetry upload to LIVE, but only one historical
+    // sample per 10 seconds, with 7-day cleanup.
+    const oldTime = Date.now() - 8 * 86400000;
+    archiveReadings.push({ score: oldTime, value: JSON.stringify({
+      deviceId: "ARCHIVE-EXPIRED", receivedAt: new Date(oldTime).toISOString(),
+      furnace: 42, stack: null, ambient: null, humidity: null,
+      co: null, h2: null, voc: null, smoke: null
+    }) });
+    const ingest = (temperature) => request("/api/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + ingestKey },
+      body: JSON.stringify({ deviceId: "ESP32-TEST-01", furnace: temperature, co: 12 })
+    });
+    assert.equal((await ingest(120)).status, 201);
+    assert.equal((await ingest(121)).status, 201);
+    assert.equal((await ingest(122)).status, 201);
+    assert.equal(liveReadings.length, 3);
+    assert.equal(archiveReadings.length, 1, "Only one 10-second sample must be stored; expired sample pruned");
+
+    const selected = await request("/api/history?days=1", { headers: { cookie: adminCookie } });
+    assert.equal(selected.status, 200);
+    const summary = await selected.json();
+    assert.equal(summary.total, 1);
+    assert.equal(summary.history.length, 1);
+    assert.equal(summary.sampledEverySeconds, 10);
+    assert.equal(summary.retentionDays, 7);
+    const exported = await request("/api/history/export?days=1", { headers: { cookie: adminCookie } });
+    assert.equal(exported.status, 200);
+    assert.match(exported.headers.get("content-type") ?? "", /text\\/csv/);
+    assert.match(exported.headers.get("content-disposition") ?? "", /attachment/);
+    const csv = await exported.text();
+    assert.match(csv, /received_at_utc,device_id,furnace/);
+    assert.match(csv, /ESP32-TEST-01/);
+    assert.equal(csv.trim().split(/\\r?\\n/).length, 2, "CSV must contain header + one archived measurement");
 
     const badOrigin = await request("/api/users", {
       method: "POST",
@@ -247,6 +316,8 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     redirectTo(await request("/admin", { headers: { cookie: operatorCookie } }), "/dashboard");
     assert.equal((await request("/dashboard", { headers: { cookie: operatorCookie } })).status, 200);
     assert.equal((await request("/api/telemetry", { headers: { cookie: operatorCookie } })).status, 200);
+    assert.equal((await request("/api/history?days=1", { headers: { cookie: operatorCookie } })).status, 200);
+    assert.equal((await request("/api/history/export?days=1", { headers: { cookie: operatorCookie } })).status, 403);
     assert.equal((await request("/api/users", { headers: { cookie: operatorCookie } })).status, 403);
     assert.equal((await jsonRequest("/api/users", "POST", { username: "backdoor", password: "NoAccess123456!" }, operatorCookie)).status, 403);
 
