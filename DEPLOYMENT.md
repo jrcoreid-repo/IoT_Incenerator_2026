@@ -45,14 +45,14 @@ Pada production, API POST tidak akan menerima telemetry jika Redis belum dikonfi
 
 ### Perkiraan kuota dan biaya
 
-Perangkat 3 detik, 24 jam:
-- `30 hari × 24 × 3600 ÷ 3 = 864.000` POST per bulan.
+Perangkat 10 detik, 24 jam:
+- `30 hari × 24 × 3600 ÷ 10 = 259.200` POST per bulan.
 - Kode sekarang memakai satu request Redis REST **EVAL** atomik tiap POST untuk memperbarui live dan memeriksa apakah sudah waktunya mengarsip sampel 10 detik. Operasi internal Lua dan pembacaan tetap menggunakan sumber daya Redis; jangan menganggap satu EVAL selalu berarti satu unit biaya. Periksa metrik/billing aktual Upstash saat staging.
 - Dashboard 1 browser yang dibuka terus menerus, polling tiap 5 detik, menambah sekitar **518.400 GET Redis/bulan** dan fungsi HTTP hosting. Beberapa browser menambah beban.
-- Jadi free tier Upstash **500.000 commands/bulan** tidak cocok untuk pengiriman 3 detik nonstop; walaupun histori yang disimpan hanya tiap 10 detik, jumlah POST tetap 864.000 per 30 hari.
+- Pada interval 10 detik, pengirim membuat sekitar **8.640 POST/hari** atau **259.200 POST per 30 hari** untuk satu perangkat nonstop. Ini belum termasuk polling dashboard dan biaya operasi database; kuota layanan harus diperiksa sebelum operasi 24/7.
 - Vercel Hobby mencantumkan **1 juta Function Invocations/bulan** (lihat ketentuan terbaru). POST+GET nonstop dari satu dashboard bisa melewati angka ini.
 
-**Saran riset/staging:** aktifkan ESP dummy sesuai sesi uji, **tidak 24/7**, atau set interval 15–30 detik setelah pengujian real-time selesai. Bandingkan kuota/biaya aktual dan atur notifikasi biaya sebelum online terus menerus.
+**Saran riset/staging:** aktifkan ESP dummy sesuai sesi uji, **tidak 24/7** pada tahap awal. Bandingkan kuota/biaya aktual dan atur notifikasi biaya sebelum online terus menerus.
 
 Sumber referensi:
 - https://upstash.com/pricing/redis
@@ -66,7 +66,7 @@ Sumber referensi:
 - Uji GET `/api/history/export?days=2`: Admin memperoleh berkas CSV UTF-8, Operator mendapat **403**, pengunjung tidak login mendapat **401**.
 - `days=8` atau rentang tanggal lebih dari 7 hari harus ditolak **400**. Pembacaan lebih dari 7 hari lalu tidak dikembalikan.
 - Arsip dimulai setelah fitur ini dipasang; pembacaan sebelum deploy **tidak di-backfill**. Simulasi lokal memakai `.local-data/telemetry-7days.jsonl`; untuk staging dan production Redis wajib aktif.
-- Jangan mengaktifkan pengiriman 3 detik 24/7 tanpa memastikan kapasitas dan anggaran database maupun fungsi hosting. Memperkecil interval penyimpanan **tidak mengurangi** jumlah POST dari ESP.
+- Jangan mengaktifkan pengiriman 10 detik 24/7 tanpa memastikan kapasitas dan anggaran database maupun fungsi hosting. Pengaturan terbaru mengubah **keduanya**: interval pengiriman ESP dan interval pencatatan histori menjadi 10 detik.
 
 ## 3. Konfigurasi environment di hosting
 
@@ -115,7 +115,7 @@ Referensi: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_S
 3. Setelah login admin, dashboard muncul. Logout menghapus akses pada browser.
 4. `GET /api/telemetry` tanpa sesi wajib `401`.
 5. `POST /api/telemetry` tanpa token harus `401`; dengan token staging dan JSON valid harus `201`.
-6. Pantau *database*, *function invocation*, error rate, dan ukuran data Redis. Uji data melewati batas 15 detik untuk melihat status stale.
+6. Pantau *database*, *function invocation*, error rate, dan ukuran data Redis. Uji data melewati batas 35 detik untuk melihat status stale.
 7. Kirim data test lewat **Node.js virtual sender** dari laptop dengan URL HTTPS staging dan token staging. Jika preview dilindungi Vercel Authentication, pengirim HTTP otomatis juga memerlukan **Protection Bypass for Automation** terpisah, karena Vercel memblokir request otomatis sebelum mencapai API Next.js.
 8. Jangan mengklaim angka dummy sebagai data sensor; dokumentasikan setiap sesi uji.
 
