@@ -2,6 +2,12 @@
 
 Dashboard **environmental telemetry** untuk Desa Caturharjo, Pandak, Bantul. Antarmuka hijau industrial, angka monospaced, grafik sensor, peringatan parameter, dan **Analisis AI berbasis LoT** (*logic tree / aturan if–else*).
 
+## Firmware ESP32 lokal
+
+Firmware Arduino IDE pengirim data sensor dummy tersedia pada [firmware/adi_esp32_sender/adi_esp32_sender.ino](firmware/adi_esp32_sender/adi_esp32_sender.ino), lengkap dengan [panduan setup](firmware/README.md).
+
+ESP32 dan laptop terhubung melalui Wi-Fi/LAN yang sama. Jalankan Next.js dengan `npm run dev -- -H 0.0.0.0`; salin `config.example.h` menjadi `config.h` (diabaikan Git), lalu isi Wi-Fi, IP laptop, dan token ingest yang sama dengan `.env.local`. Setelah upload, Serial Monitor 115200 menampilkan status HTTP (201 = diterima). Data dummy berubah setiap 3 detik melalui enam fase dan bisa diganti pembacaan RS485 fisik nanti.
+
 ## Alur sistem
 
 ```
