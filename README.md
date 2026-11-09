@@ -32,7 +32,7 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 
 ## Visualisasi riwayat adaptif
 
-Riwayat grafik sekarang menampilkan **setiap rekaman asli** selama jumlah data yang dipilih tidak lebih dari 300 titik. Pada arsip lebih panjang, sampling otomatis merampingkan titik yang ditampilkan (maksimal 300) dan tetap menyertakan sampel terbaru; **CSV tetap berisi semua data mentah**. Satu pembacaan juga akan terlihat sebagai titik tunggal. Saat tab Riwayat dengan rentang bergulir terbuka, grafik otomatis diperbarui setiap 10 detik tanpa menampilkan loading berkedip.
+Riwayat grafik sekarang menampilkan **setiap rekaman asli** selama jumlah data yang dipilih tidak lebih dari 300 titik. Pada arsip lebih panjang, sampling otomatis merampingkan titik yang ditampilkan (maksimal 300) dan tetap menyertakan sampel terbaru; **CSV tetap berisi semua data mentah**. Satu pembacaan juga akan terlihat sebagai titik tunggal. Saat tab Riwayat dengan rentang bergulir terbuka, grafik otomatis diperbarui setiap 10 detik untuk arsip kecil (≤300 rekaman), atau setiap 60 detik untuk arsip besar demi mengurangi beban Redis/VPS. Permintaan tidak berjalan tumpang tindih dan grafik tidak berkedip saat refresh.
 
 ## Arsip historis 10 detik / retensi otomatis 7 hari
 
