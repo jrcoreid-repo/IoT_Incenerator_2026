@@ -100,7 +100,7 @@ Pemeriksaan IP hanya menggunakan alamat yang disediakan dan dinormalisasi oleh V
 
 - `POST /api/login` dan `POST /api/logout` memeriksa `Origin` dan `Sec-Fetch-Site` bila tersedia; cookie tetap **HttpOnly**, **SameSite=Strict**, dan **Secure** pada produksi.
 - Token sesi baru berisi subject, role `admin`, waktu terbit, expiry, dan ID acak, semuanya ditandatangani. Token versi lama otomatis tidak diterima; pengguna perlu login kembali.
-- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` sudah aktif melalui akun yang dibuat Admin, dengan izin membaca data dan mengekspor CSV, tanpa hak ubah pengaturan/akun.
+- Route `/admin`, pengaturan, serta manajemen akun tetap **khusus Admin**. API telemetry, analisis, riwayat, dan ekspor CSV bisa dipakai Admin dan Operator aktif; pembatasan hak ubah ditegakkan oleh backend.
 - Tidak ada tombol registrasi terbuka. Saat database akun disiapkan, admin akan **mengundang/membuat pengguna**; operator hanya boleh memantau, tidak mengubah ambang atau konfigurasi.
 - `npm run test:auth` memverifikasi login salah/benar, token rusak, role operator tidak bisa mengakses admin, pemblokiran login, CSRF, dan logout.
 
