@@ -1,6 +1,6 @@
 # ESP32 — ADI Smart Incinerator (pengirim data dummy)
 
-Firmware Arduino IDE untuk mengetes dashboard **tanpa sensor fisik**. ESP32 mengirim delapan parameter melalui `HTTP POST /api/telemetry` dengan token ingest. Data berubah setiap 3 detik dan berputar melalui enam fase: IDLE → HEATING → ACTIVE → WARNING → CRITICAL → COOLING. Hanya gunakan di jaringan lokal saat pengujian.
+Firmware Arduino IDE untuk mengetes dashboard **tanpa sensor fisik**. ESP32 mengirim delapan parameter melalui `HTTP POST /api/telemetry` dengan token ingest. Data berubah setiap 10 detik dan berputar melalui enam fase: IDLE → HEATING → ACTIVE → WARNING → CRITICAL → COOLING. Hanya gunakan di jaringan lokal saat pengujian.
 
 ## 1. Siapkan Arduino IDE
 
@@ -67,6 +67,8 @@ Contoh di atas hanya ilustrasi. **HTTP 201** berarti server sudah menerima paylo
   "smoke": 0.012
 }
 ```
+
+ESP32 mengirim 1 data tiap **10 detik**. Dashboard memeriksa pembaruan tiap 5 detik dan menandai OFFLINE setelah **35 detik** tanpa kiriman baru. Arsip menyimpan sampel setiap paling cepat 10 detik dengan penghapusan otomatis setelah 7 hari.
 
 Nilai merupakan **hasil generator data uji**, bukan hasil sensor, nilai emisi, atau konsentrasi furan. Skor prediksi risiko furan dihitung di dashboard melalui LoT. Tidak ada perintah kendali ke insinerator.
 
