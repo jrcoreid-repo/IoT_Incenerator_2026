@@ -733,3 +733,120 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 @media(prefers-reduced-motion:reduce) {
   .sensor-card { transition:none; }
 }
+
+
+/* Pre-deployment visual refresh: bright login panel with the supplied
+   incinerator illustration. Dashboard still offers an optional dark theme. */
+.login-split-visual {
+  background:linear-gradient(155deg,#f3f9ef 0%,#e9f3e7 55%,#dfecdd 100%);
+  border-right:1px solid #cbdccd;
+  color:#183b2b;
+}
+.login-split-visual::before {
+  opacity:.4;
+  background-image:linear-gradient(rgba(72,130,86,.10) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(72,130,86,.10) 1px,transparent 1px);
+  mask-image:linear-gradient(to bottom,transparent,black 14%,black 86%,transparent);
+}
+.login-split-visual::after { content:none; }
+.login-brand-copy strong { color:#194a30; }
+.login-brand-eyebrow { color:#508263; }
+.login-visual-index {
+  color:#456e53;
+  border-color:#c6d9c7;
+  background:rgba(255,255,255,.38);
+}
+.login-visual-content {
+  min-height:0;
+  padding:clamp(23px,3.5vh,42px) 0 clamp(17px,2.5vh,30px);
+}
+.login-section-number {
+  color:#407952;
+  margin-bottom:clamp(14px,2.8vh,25px);
+}
+.login-section-number>span { background:#70ad80; }
+.login-visual-content h1 {
+  color:#183e2a;
+  font-size:clamp(42px,4.2vw,65px);
+  line-height:.98;
+  margin-bottom:16px;
+  max-width:650px;
+}
+.login-visual-content h1 em { color:#559c64; }
+.login-visual-content > .login-visual-system {
+  color:#264b34;
+  margin:0 0 14px;
+  max-width:100%;
+  gap:3px;
+  font-size:clamp(14px,1.35vw,19px);
+}
+.login-visual-system span { color:#63846c; }
+.login-facility-art {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:clamp(205px,32dvh,345px);
+  min-width:0;
+  position:relative;
+  margin:0 auto 16px;
+}
+.login-facility-art img {
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:620px;
+  object-fit:contain;
+  object-position:center;
+}
+.login-feature-list {
+  max-width:none;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  border:0;
+}
+.login-feature-list>div {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  padding:12px;
+  border:1px solid #c8dcca;
+  border-radius:6px;
+  background:rgba(255,255,255,.50);
+}
+.login-feature-icon {
+  width:30px;
+  height:30px;
+  color:#367c52;
+  background:#e3f2e5;
+  border-color:#bcd7c3;
+}
+.login-feature-list strong {
+  color:#2b6d43;
+  font-size:9px;
+}
+.login-feature-list small {
+  display:block;
+  color:#5f7c68;
+  font-size:11px;
+  line-height:1.45;
+}
+.login-visual-bottom {
+  color:#6a866e;
+  border-top-color:#bfd3bf;
+}
+@media (min-width:861px) and (max-width:1200px) {
+  .login-visual-content h1 { font-size:clamp(39px,4.2vw,54px); }
+  .login-facility-art { height:clamp(185px,26dvh,280px); }
+  .login-feature-list { gap:6px; }
+  .login-feature-list>div { padding:9px; }
+}
+@media (min-width:861px) and (max-height:790px) {
+  .login-visual-content { padding:12px 0; }
+  .login-visual-content h1 { font-size:clamp(38px,4vw,51px); }
+  .login-facility-art { height:clamp(165px,25dvh,240px); margin-bottom:9px; }
+  .login-feature-list>div { padding:9px; }
+}
