@@ -57,7 +57,19 @@ Dashboard sekarang **khusus pengelola**. Halaman `/` hanya meneruskan pengunjung
 - Mengganti `SESSION_SECRET` lalu memulai ulang server membatalkan semua sesi lama.
 - Setelah build, jalankan `npm run test:auth` untuk pengujian integrasi halaman publik/privat, cookie rusak, password salah, endpoint telemetry, dan logout.
 
-**Sebelum deploy publik:** tambahkan pembatasan percobaan login dan rate limiting, audit akses, penguatan hosting serta pengujian keamanan independen.
+### Penguatan login sebelum staging
+
+Login kini dibatasi maksimum **8 percobaan per akun per 15 menit**, ditambah maksimum **60 percobaan per sumber jaringan per 15 menit**. Pembatasan memakai Redis REST (skrip EVAL atomik) di produksi, dan memori sementara hanya saat `npm run dev` untuk pengujian lokal. Jika Redis tidak tersedia pada server produksi, login mengembalikan **503** (tidak menurunkan keamanan menjadi limiter RAM). Saat diblokir, API menjawab **HTTP 429** dengan header `Retry-After`.
+
+Pemeriksaan IP hanya menggunakan alamat yang disediakan dan dinormalisasi oleh Vercel ketika `VERCEL=1`. Pada hosting lain tanpa proxy tepercaya, permintaan masuk ke bucket jaringan bersama sebagai batas tambahan; **jangan mempercayai header IP yang dikirim langsung oleh client**.
+
+- `POST /api/login` dan `POST /api/logout` memeriksa `Origin` dan `Sec-Fetch-Site` bila tersedia; cookie tetap **HttpOnly**, **SameSite=Strict**, dan **Secure** pada produksi.
+- Token sesi baru berisi subject, role `admin`, waktu terbit, expiry, dan ID acak, semuanya ditandatangani. Token versi lama otomatis tidak diterima; pengguna perlu login kembali.
+- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` disiapkan di skema sesi tetapi **akun operator, pendaftaran akun, dan manajemen pengguna belum diaktifkan**.
+- Tidak ada tombol registrasi terbuka. Saat database akun disiapkan, admin akan **mengundang/membuat pengguna**; operator hanya boleh memantau, tidak mengubah ambang atau konfigurasi.
+- `npm run test:auth` memverifikasi login salah/benar, token rusak, role operator tidak bisa mengakses admin, pemblokiran login, CSRF, dan logout.
+
+**Sebelum deploy publik:** tetap perlu pembatasan endpoint ingest perangkat, logging/audit akses, monitoring kegagalan, MFA bila dibutuhkan, revoke sesi server-side, penguatan hosting, serta pengujian keamanan independen. Logout saat ini menghapus cookie perangkat, tetapi token yang sudah dicuri masih valid sampai kedaluwarsa atau `SESSION_SECRET` diganti.
 
 ## Halaman login pengelola
 
