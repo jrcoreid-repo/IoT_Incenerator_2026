@@ -317,9 +317,15 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     assert.equal((await request("/dashboard", { headers: { cookie: operatorCookie } })).status, 200);
     assert.equal((await request("/api/telemetry", { headers: { cookie: operatorCookie } })).status, 200);
     assert.equal((await request("/api/history?days=1", { headers: { cookie: operatorCookie } })).status, 200);
-    assert.equal((await request("/api/history/export?days=1", { headers: { cookie: operatorCookie } })).status, 403);
+    const operatorExport = await request("/api/history/export?days=1", { headers: { cookie: operatorCookie } });
+    assert.equal(operatorExport.status, 200);
+    assert.ok((operatorExport.headers.get("content-type") ?? "").includes("text/csv"));
+    const operatorCsv = await operatorExport.text();
+    assert.ok(operatorCsv.includes("ESP32-TEST-01"));
+    assert.equal(operatorCsv, csv, "Admin and Operator must export the same source data");
     assert.equal((await request("/api/users", { headers: { cookie: operatorCookie } })).status, 403);
     assert.equal((await jsonRequest("/api/users", "POST", { username: "backdoor", password: "NoAccess123456!" }, operatorCookie)).status, 403);
+    assert.equal((await jsonRequest("/api/users/" + operatorName, "PATCH", { action: "disable" }, operatorCookie)).status, 403);
 
     const defaults = await (await request("/api/thresholds", { headers: { cookie: operatorCookie } })).json();
     assert.equal(defaults.thresholds.activeTemp, 180);
@@ -332,6 +338,7 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     const reset = await jsonRequest("/api/users/" + operatorName, "PATCH", { action: "reset-password", password: operatorNewPassword }, adminCookie);
     assert.equal(reset.status, 200);
     assert.equal((await request("/api/telemetry", { headers: { cookie: operatorCookie } })).status, 401);
+    assert.equal((await request("/api/history/export?days=1", { headers: { cookie: operatorCookie } })).status, 401);
     const revokedPage = await request("/dashboard", { headers: { cookie: operatorCookie } });
     if ([301, 302, 303, 307, 308].includes(revokedPage.status)) {
       redirectTo(revokedPage, "/login");
