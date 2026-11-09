@@ -1,7 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifySessionToken } from "@/lib/auth";
+import { currentSession } from "@/lib/current-session";
 import { parseTelemetry } from "@/lib/telemetry";
 import { appendTelemetry, readTelemetry, isStorageReady } from "@/lib/telemetry-store";
 
@@ -15,16 +14,16 @@ function secureMatch(a: string, b: string) {
 }
 
 export async function GET() {
-  // Hanya operator yang terautentikasi boleh membaca telemetry.
-  // POST tetap memakai TELEMETRY_INGEST_KEY untuk pengiriman perangkat ESP.
-  const cookieStore = await cookies();
-  if (!(await verifySessionToken(cookieStore.get("jr_admin")?.value))) {
-    return NextResponse.json(
-      { error: "Sesi login diperlukan." },
-      { status: 401, headers: { "Cache-Control": "private, no-store, max-age=0" } }
-    );
-  }
+  // Admin and enabled operator may READ telemetry. Disabled/reset operator
+  // accounts are rejected immediately, regardless of signed cookie expiry.
+  // POST continues to require separate ESP32 TELEMETRY_INGEST_KEY.
   try {
+    const session = await currentSession();
+    if (!session) {
+      return NextResponse.json({ error: "Sesi login diperlukan." }, {
+        status: 401, headers: { "Cache-Control": "private, no-store, max-age=0" }
+      });
+    }
     const result = await readTelemetry();
     return NextResponse.json(result, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch {
