@@ -123,6 +123,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const [archiveHistory, setArchiveHistory] = useState<Telemetry[]>([]);
   const [archiveTotal, setArchiveTotal] = useState(0);
   const [archiveBucketSeconds, setArchiveBucketSeconds] = useState(10);
+  const [archiveSampled, setArchiveSampled] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [archiveError, setArchiveError] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
@@ -220,34 +221,49 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   useEffect(() => {
     if (tab !== "riwayat" || !archiveRange.query) return;
     let active = true;
+    let working = false;
     const controller = new AbortController();
-    async function refreshArchive() {
-      setArchiveBusy(true);
-      setArchiveError("");
+    async function refreshArchive(showLoading = false) {
+      if (working) return;
+      working = true;
+      if (showLoading) setArchiveBusy(true);
       try {
         const response = await fetch("/api/history?" + archiveRange.query, {
           credentials: "same-origin", cache: "no-store", signal: controller.signal
         });
         if (response.status === 401) { window.location.replace("/login"); return; }
         const data = await response.json() as {
-          history?: Telemetry[]; total?: number; chartBucketSeconds?: number; error?: string
+          history?: Telemetry[]; total?: number; chartBucketSeconds?: number;
+          sampled?: boolean; error?: string
         };
         if (!response.ok) throw new Error(data.error ?? "Riwayat belum dapat dibaca.");
         if (!active) return;
         setArchiveHistory(Array.isArray(data.history) ? data.history : []);
         setArchiveTotal(data.total ?? 0);
         setArchiveBucketSeconds(data.chartBucketSeconds ?? 10);
+        setArchiveSampled(Boolean(data.sampled));
+        setArchiveError("");
       } catch (error) {
         if (active && !controller.signal.aborted) {
           setArchiveError(error instanceof Error ? error.message : "Gagal memuat riwayat.");
-          setArchiveHistory([]);
-          setArchiveTotal(0);
+          // Keep last known graph during a transient outage.
         }
-      } finally { if (active) setArchiveBusy(false); }
+      } finally {
+        working = false;
+        if (active && showLoading) setArchiveBusy(false);
+      }
     }
-    void refreshArchive();
-    return () => { active = false; controller.abort(); };
-  }, [tab, archiveRange.query, archiveRefresh]);
+    void refreshArchive(true);
+    // Rolling range refreshes in sync with ESP32's 10s cadence.
+    const timer = archiveMode === "rolling"
+      ? window.setInterval(() => { void refreshArchive(); }, 10000)
+      : null;
+    return () => {
+      active = false;
+      controller.abort();
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [tab, archiveRange.query, archiveRefresh, archiveMode]);
 
   async function downloadArchiveCsv() {
     if (!archiveRange.query) return;
@@ -304,7 +320,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     }),
     furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
   })), [archiveHistory, thresholds]);
-  const showArchiveChart = archiveHistory.length >= 2;
+  const showArchiveChart = archiveHistory.length >= 1;
+  const archiveSingleDot = archiveHistory.length === 1 ? { r: 5, strokeWidth: 2 } : false;
   const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
@@ -523,26 +540,26 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             </div>
             <div className="archive-meta">
               <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
-              <span>Grafik: hingga 300 titik · Sampel ringkasan per {archiveBucketSeconds} detik</span>
+              <span>Grafik: {archiveSampled ? "data diringkas (perkiraan tiap " + archiveBucketSeconds + " detik)" : "semua rekaman asli tiap 10 detik"} · maksimal 300 titik</span>
             </div>
             {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
           </div>
           <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">{archiveHistory.length} TITIK GRAFIK</span></div>
             {showArchiveChart ? <div className="chart-large"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={24} /><YAxis /><Tooltip />
-              <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#c2dd94" strokeWidth={2.2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#c2dd94" strokeWidth={2.2} dot={archiveSingleDot} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rangkaian data untuk ditampilkan.</p>}
           </div>
           <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div></div>
             {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis /><Tooltip />
-              <Line type="monotone" dataKey="co" name="CO" stroke="#f4b16c" strokeWidth={2.3} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="h2" name="H₂" stroke="#a4aee9" strokeWidth={2} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="co" name="CO" stroke="#f4b16c" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="h2" name="H₂" stroke="#a4aee9" strokeWidth={2} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Menunggu data sensor gas.</p>}
           </div>
           <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div></div>
             {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
-              <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Indeks akan dihitung setelah suhu, CO, dan VOC tersedia.</p>}
           </div>
         </section>}
