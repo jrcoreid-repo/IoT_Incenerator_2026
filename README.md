@@ -30,6 +30,10 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 
 **Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 35 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
 
+## Visualisasi riwayat adaptif
+
+Riwayat grafik sekarang menampilkan **setiap rekaman asli** selama jumlah data yang dipilih tidak lebih dari 300 titik. Pada arsip lebih panjang, sampling otomatis merampingkan titik yang ditampilkan (maksimal 300) dan tetap menyertakan sampel terbaru; **CSV tetap berisi semua data mentah**. Satu pembacaan juga akan terlihat sebagai titik tunggal. Saat tab Riwayat dengan rentang bergulir terbuka, grafik otomatis diperbarui setiap 10 detik tanpa menampilkan loading berkedip.
+
 ## Arsip historis 10 detik / retensi otomatis 7 hari
 
 **Pengiriman ESP32 kini setiap 10 detik**, sama dengan interval logging historis (paling cepat satu sampel per 10 detik). Dashboard tetap melakukan polling setiap 5 detik sehingga data terbaru akan terlihat tanpa menunggu polling panjang. Ini adalah *sampling*, bukan rata-rata semua pembacaan selama 10 detik.
