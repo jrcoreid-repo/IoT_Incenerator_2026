@@ -18,6 +18,8 @@ jobs:
           node-version: 22
       - name: Install
         run: npm install
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Validate virtual sender
         run: npm run test:sender
       - name: Validate deploy configuration checker
