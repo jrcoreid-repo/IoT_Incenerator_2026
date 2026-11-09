@@ -98,7 +98,9 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   const [history, setHistory] = useState<Telemetry[]>([]);
   const [storageReady, setStorageReady] = useState(true);
   const [apiError, setApiError] = useState("");
-  const [now, setNow] = useState(() => Date.now());
+  // Nilai awal harus identik antara SSR dan render pertama di browser.
+  // Jam aktif diisi dari useEffect setelah hydration agar tidak berbeda pada HP.
+  const [now, setNow] = useState(0);
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
   const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => ({
     activeTemp: String(DEFAULT_THRESHOLDS.activeTemp),
