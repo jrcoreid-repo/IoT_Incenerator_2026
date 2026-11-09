@@ -49,7 +49,7 @@ type ThresholdDraft = Record<keyof Thresholds, string>;
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
   { id: "riwayat", label: "Riwayat", icon: History },
-  { id: "ai", label: "Analisis (Demo)", icon: BrainCircuit },
+  { id: "ai", label: "Analisis Proses", icon: BrainCircuit },
   { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
   { id: "pengaturan", label: "Pengaturan", icon: Settings }
@@ -105,10 +105,10 @@ function riskLabel(value: number) {
 
 function aiInsight(data: Telemetry, thresholds: Thresholds) {
   if (data.furanRisk >= 75) {
-    return "Pada simulasi, indikator proses melewati batas tinggi. Tinjau kestabilan suhu dan kecenderungan gas. Ini belum dapat dipakai untuk menilai emisi nyata.";
+    return "Indikator perhitungan melewati batas tinggi. Tinjau kestabilan suhu dan kecenderungan gas. Perhitungan ini belum dapat dipakai untuk menilai emisi nyata.";
   }
   if (data.furanRisk >= thresholds.riskWarning) {
-    return "Dalam contoh data, beberapa indikator membutuhkan perhatian. Periksa pola suhu dan kadar gas pada grafik demonstrasi.";
+    return "Sejumlah parameter berada di atas ambang yang diatur. Periksa pola suhu dan gas pada grafik sebelum mengambil keputusan.";
   }
   if (data.furnace >= thresholds.activeTemp) {
     return "Contoh suhu menunjukkan proses pembakaran aktif. Status ini tidak membuktikan kondisi aman atau kadar emisi yang memenuhi standar.";
@@ -164,14 +164,14 @@ function DevicePill({ name, detail }: { name: string; detail: string }) {
 export default function DashboardShell({ mode = "client" }: { mode?: "client" | "admin" }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [history, setHistory] = useState<Telemetry[]>(() => makeInitialData());
   const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
   const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => thresholdsToDraft(defaultThresholds));
   const [settingsMessage, setSettingsMessage] = useState("");
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("jr-theme") as "light" | "dark" | null;
+    const savedTheme = localStorage.getItem("jr-telemetry-theme") as "light" | "dark" | null;
     const savedThresholds = localStorage.getItem("jr-thresholds");
     if (savedTheme) setTheme(savedTheme);
     if (savedThresholds) {
@@ -185,7 +185,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("jr-theme", theme);
+    localStorage.setItem("jr-telemetry-theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -295,10 +295,10 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-logo"><Flame size={22} /></div>
+          <div className="brand-logo" aria-hidden="true"><span>ADI</span></div>
           <div>
             <strong>ADI Smart Incinerator</strong>
-            <span>Sistem Pemantauan Lingkungan</span>
+            <span>JR-AIoT / TELEMETRY</span>
           </div>
         </div>
 
@@ -315,7 +315,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         </nav>
 
         <div className="sidebar-footer">
-          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "Pengelola · Demo" : "Mode simulasi"}</div>
+          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "AKSES PENGELOLA" : "SENSOR BELUM TERHUBUNG"}</div>
           {isAdmin && <button onClick={logout} className="logout-button"><LogOut size={17} /> Keluar</button>}
         </div>
       </aside>
@@ -323,20 +323,17 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       <main className="main-content">
         <header className="topbar">
           <div>
+            <p className="topbar-overline">ADI SYSTEMS <span>/</span> TELEMETRY MONITORING</p>
             <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
           </div>
           <div className="top-actions">
             <span className={`mode-badge ${isAdmin ? "admin" : "client"}`}>{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
-            <span className="live-badge">DATA SIMULASI</span>
+            <span className="live-badge"><span className="offline-dot" /> DATA CONTOH · SENSOR OFFLINE</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
         </header>
-
-        <div className="data-demo-note" role="status">
-          <strong>Mode demo.</strong> Angka ditampilkan sebagai simulasi dan belum berasal dari sensor di lokasi.
-        </div>
 
         {tab === "beranda" && (
           <div className="page-grid">
@@ -360,7 +357,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 <div>
                   <p className="section-kicker">Status pembakaran</p>
                   <div className={`combustion-state ${status.tone}`}>{status.text}</div>
-                  <p className="muted">Perkiraan status proses dari contoh data suhu.</p>
+                  <p className="muted">Estimasi proses berdasarkan data contoh, belum dari perangkat lapangan.</p>
                 </div>
               </div>
               <div className="hero-side">
@@ -373,7 +370,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                   <strong>{current.co.toFixed(1)} ppm</strong>
                 </div>
                 <div className="hero-time">
-                  <span>Waktu simulasi</span>
+                  <span>Waktu data contoh</span>
                   <strong>{current.waktu}</strong>
                 </div>
               </div>
@@ -384,13 +381,27 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 <p className="section-kicker">Parameter utama</p>
                 <h2>Kondisi utama</h2>
               </div>
-              <span className="soft-badge">4 informasi utama</span>
+              <span className="soft-badge">05 / PARAMETER UTAMA</span>
             </div>
-            <section className="metric-grid" aria-label="Empat parameter utama">
+            <section className="metric-grid" aria-label="Lima parameter utama">
               <MetricCard title="Suhu pembakaran" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Suhu di dalam tungku" tone="orange" />
               <MetricCard title="Suhu cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Suhu saluran keluaran" tone="amber" />
               <MetricCard title="Gas CO" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Di atas batas contoh" : "Di bawah batas contoh"} tone="red" />
               <MetricCard title="Gas VOC" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Di atas batas contoh" : "Di bawah batas contoh"} tone="lime" />
+              <article className="metric-card furan-card" aria-label="Indeks estimasi risiko pembentukan furan">
+                <div className="metric-card-head">
+                  <div className="metric-icon"><Activity size={18} /></div>
+                  <span className={"furan-level risk-" + riskLabel(current.furanRisk).toLowerCase()}>{riskLabel(current.furanRisk)}</span>
+                </div>
+                <div className="metric-body">
+                  <span className="metric-label">Indeks risiko furan</span>
+                  <div className="metric-value">{current.furanRisk}<small>/100</small></div>
+                  <div className="furan-track" role="meter" aria-label="Indeks risiko furan yang diestimasi" aria-valuemin={0} aria-valuemax={100} aria-valuenow={current.furanRisk}>
+                    <span style={{ width: String(current.furanRisk) + "%" }} />
+                  </div>
+                  <span className="metric-note">Perhitungan suhu &amp; gas, bukan sensor furan</span>
+                </div>
+              </article>
             </section>
             <details className="panel extra-metrics">
               <summary>Lihat parameter lainnya (4)</summary>
@@ -405,7 +416,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <section className="panel chart-panel">
               <div className="panel-heading">
                 <div><p className="section-kicker">Tren proses</p><h2>Suhu pembakaran</h2></div>
-                <span className="chip">Tren data contoh</span>
+                <span className="chip">TEMPERATURE / °C</span>
               </div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
@@ -434,7 +445,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                   </div>
                 ))}
               </div>
-              <p className="demo-text">Peringatan ini dihitung dari ambang contoh, bukan hasil pemantauan emisi nyata.</p>
+              <p className="data-origin-note">Indikator dihitung dari data contoh dan ambang konfigurasi. Bukan hasil pengujian emisi.</p>
             </section>
 
             <section className="panel device-summary">
@@ -455,7 +466,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <div className="panel full-span">
               <div className="panel-heading">
                 <div><p className="section-kicker">Riwayat & grafik</p><h2>Historis parameter proses</h2></div>
-                <span className="chip">Sesi simulasi · hingga 48 sampel</span>
+                <span className="chip">DATA CONTOH · 48 SAMPEL TERAKHIR</span>
               </div>
               <div className="chart-large">
                 <ResponsiveContainer width="100%" height="100%">
@@ -489,7 +500,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </div>
 
             <div className="panel">
-              <div className="panel-heading"><div><p className="section-kicker">Percobaan</p><h2>Indeks D/F simulasi</h2></div></div>
+              <div className="panel-heading"><div><p className="section-kicker">Indikator terhitung</p><h2>Indeks risiko furan (0–100)</h2></div></div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={history}>
@@ -497,7 +508,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                     <XAxis dataKey="waktu" minTickGap={30} />
                     <YAxis domain={[0, 100]} />
                     <Tooltip />
-                    <Line type="monotone" dataKey="furanRisk" name="Risiko D/F" stroke="#14b8a6" strokeWidth={2.6} dot={false} />
+                    <Line type="monotone" dataKey="furanRisk" name="Indeks furan (estimasi)" stroke="#f1b85b" strokeWidth={2.6} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -508,11 +519,11 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "ai" && (
           <section className="page-grid">
             <div className="panel full-span ai-analysis">
-              <div className="panel-heading"><div><p className="section-kicker">Analisis percobaan</p><h2>Ringkasan dari aturan simulasi</h2></div><BrainCircuit size={24} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Analisis proses</p><h2>Ringkasan parameter dan indikator</h2></div><BrainCircuit size={24} /></div>
               <div className="analysis-score-row">
-                <div><span>Indeks eksperimen D/F</span><strong>{current.furanRisk}/100 · {riskLabel(current.furanRisk)}</strong></div>
+                <div><span>Indeks risiko furan (estimasi)</span><strong>{current.furanRisk}/100 · {riskLabel(current.furanRisk)}</strong></div>
                 <div><span>Status Pembakaran</span><strong>{status.text}</strong></div>
-                <div><span>Sumber data</span><strong>Simulasi</strong></div>
+                <div><span>Sumber data</span><strong>Data contoh</strong></div>
               </div>
               <div className="analysis-copy">
                 <h3>Wawasan saat ini</h3>
@@ -520,7 +531,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 <h3>Rekomendasi sistem</h3>
                 <p>Pertahankan kestabilan suhu proses, pantau tren CO dan VOC, serta konfirmasi hasil prediksi dengan metode laboratorium bila diperlukan untuk evaluasi emisi formal.</p>
               </div>
-              <div className="prototype-note">Indeks dan wawasan ini demonstrasi berbasis aturan sederhana; bukan pengukuran dioksin/furan atau acuan keselamatan dan kepatuhan emisi.</div>
+              <div className="prototype-note">Indeks furan dihitung secara heuristik dari suhu, CO, VOC, dan indikator asap. Nilai ini bukan konsentrasi furan terukur, belum tervalidasi, serta tidak dapat digunakan sebagai dasar penilaian keselamatan atau kepatuhan emisi.</div>
             </div>
           </section>
         )}
@@ -528,7 +539,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "alarm" && (
           <section className="page-grid">
             <div className="panel full-span">
-              <div className="panel-heading"><div><p className="section-kicker">Peringatan simulasi</p><h2>Parameter yang melewati ambang contoh</h2></div><AlertTriangle size={22} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Monitoring parameter</p><h2>Indikator melewati ambang</h2></div><AlertTriangle size={22} /></div>
               <div className="event-list">
                 {alarms.map((alarm, index) => (
                   <div className="event-row" key={index}>
@@ -561,7 +572,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           <section className="page-grid">
             <div className="panel full-span settings-panel">
               <div className="panel-heading"><div><p className="section-kicker">Khusus admin</p><h2>Pengaturan ambang sistem</h2></div><Settings size={22} /></div>
-              <p className="muted">Batas ini hanya dipakai pada simulasi. Perubahan tersimpan di browser ini, bukan pada perangkat atau server.</p>
+              <p className="muted">Pengaturan ini berlaku untuk data contoh dan tersimpan di browser ini. Belum terhubung ke perangkat atau server.</p>
               <div className="settings-grid">
                 <label>
                   Suhu pembakaran aktif (°C)
