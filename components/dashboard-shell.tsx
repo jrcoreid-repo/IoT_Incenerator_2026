@@ -217,7 +217,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-logo" aria-hidden="true"><span>ADI</span></div>
+          <div className="brand-logo" aria-hidden="true"><img src="/adi-logo.png" width={120} height={76} alt="" /></div>
           <div><strong>ADI Smart Incinerator</strong><span>PEMANTAUAN SUHU &amp; GAS</span></div>
         </div>
         <nav className="side-nav">
@@ -234,7 +234,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
       <main className="main-content">
         <header className="topbar">
-          <div><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
+          <div className="mobile-brand"><img src="/adi-logo.png" width={120} height={76} alt="" /><span>ADI Smart Incinerator</span></div>
+          <div className="topbar-heading"><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
           <div className="top-actions">
             <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
