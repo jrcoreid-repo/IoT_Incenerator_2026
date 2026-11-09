@@ -186,7 +186,7 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     assert.equal(JSON.stringify(list).includes("passwordHash"), false);
 
     const operatorLogin = await jsonRequest("/api/login", "POST", { username: operatorName, password: operatorPassword });
-    assert.equal(operatorLogin.status, 200, await operatorLogin.text());
+    assert.equal(operatorLogin.status, 200, await operatorLogin.clone().text());
     const operatorBody = await operatorLogin.clone().json().catch(() => null);
     assert.equal(operatorBody?.redirectTo, "/dashboard");
     const operatorCookie = findCookie(operatorLogin);
