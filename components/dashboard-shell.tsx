@@ -283,15 +283,17 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 </div>
               </article>
             </section>
-            <details className="panel extra-metrics">
-              <summary>Parameter lingkungan dan gas lainnya</summary>
-              <section className="metric-grid">
+            <section className="panel extra-metrics" aria-labelledby="extra-metrics-title">
+              <div className="panel-heading">
+                <div><p className="section-kicker">Pemantauan lingkungan</p><h2 id="extra-metrics-title">Parameter lingkungan dan gas lainnya</h2></div>
+              </div>
+              <div className="metric-grid">
                 <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} />
                 <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} />
                 <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} />
                 <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} />
-              </section>
-            </details>
+              </div>
+            </section>
             <section className="panel chart-panel">
               <div className="panel-heading"><div><p className="section-kicker">Grafik telemetry</p><h2>Tren suhu</h2></div><span className="chip">TEMPERATURE / °C</span></div>
               {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%">
