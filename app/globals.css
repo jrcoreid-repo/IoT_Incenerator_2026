@@ -850,3 +850,92 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .login-facility-art { height:clamp(165px,25dvh,240px); margin-bottom:9px; }
   .login-feature-list>div { padding:9px; }
 }
+
+
+/* Telemetry offline: no new ESP/gateway data for 15 s.
+   Amber indicates unavailable telemetry, not a gas hazard level.
+   Last values stay visible as historical readings. */
+.app-shell.telemetry-offline {
+  --offline-ink:#92620d;
+  --offline-border:#d7ad49;
+  --offline-surface:#fff4d6;
+  --offline-surface-soft:#fff9e8;
+}
+.app-shell.telemetry-offline .hero-status.burn-offline {
+  --burn-ink:var(--offline-ink);
+  background:var(--offline-surface);
+  border:2px solid var(--offline-border);
+  border-left:9px solid #c78d12;
+}
+.app-shell.telemetry-offline .hero-status.burn-offline .hero-mini,
+.app-shell.telemetry-offline .hero-status.burn-offline .hero-time {
+  background:var(--offline-surface-soft);
+  border-color:#e7ce87;
+}
+.app-shell.telemetry-offline .sensor-card,
+.app-shell.telemetry-offline .furan-card {
+  --sensor-active:var(--offline-ink);
+  background:var(--offline-surface);
+  border:1px solid var(--offline-border);
+  border-top:4px solid #ca931c;
+}
+.app-shell.telemetry-offline .extra-metrics {
+  background:var(--offline-surface-soft);
+  border-color:#ead8a4;
+}
+.app-shell.telemetry-offline .extra-metrics .sensor-card {
+  background:var(--offline-surface);
+}
+.app-shell.telemetry-offline .sensor-card .metric-icon,
+.app-shell.telemetry-offline .furan-card .metric-icon {
+  color:var(--offline-ink);
+  border-color:#dfc27c;
+  background:#ffebba;
+}
+.app-shell.telemetry-offline .metric-card .metric-label,
+.app-shell.telemetry-offline .furan-card .prediction-note strong {
+  color:var(--offline-ink);
+}
+.app-shell.telemetry-offline .metric-card .metric-value {color:#493716;}
+.app-shell.telemetry-offline .metric-card .metric-note,
+.app-shell.telemetry-offline .furan-card .prediction-note span {color:#755d30;}
+.app-shell.telemetry-offline .live-badge {
+  border-color:var(--offline-border);
+  background:var(--offline-surface);
+  color:var(--offline-ink);
+}
+.app-shell.telemetry-offline .mini-status {color:#f3d68a;}
+.app-shell.telemetry-offline .offline-dot {background:#dc9c1d;}
+/* Dark theme retains amber warnings without forcing a bright white card. */
+.dark .app-shell.telemetry-offline {
+  --offline-ink:#f3c56b;
+  --offline-border:#99732b;
+  --offline-surface:#413319;
+  --offline-surface-soft:#312918;
+}
+.dark .app-shell.telemetry-offline .hero-status.burn-offline,
+.dark .app-shell.telemetry-offline .sensor-card,
+.dark .app-shell.telemetry-offline .furan-card,
+.dark .app-shell.telemetry-offline .extra-metrics {
+  color:#f9eccb;
+}
+.dark .app-shell.telemetry-offline .hero-status.burn-offline .hero-mini,
+.dark .app-shell.telemetry-offline .hero-status.burn-offline .hero-time {
+  border-color:#775b2c;
+}
+.dark .app-shell.telemetry-offline .sensor-card .metric-icon,
+.dark .app-shell.telemetry-offline .furan-card .metric-icon {
+  color:#f5d38d;
+  border-color:#8c6d32;
+  background:#58401e;
+}
+.dark .app-shell.telemetry-offline .metric-card .metric-value {color:#fff3d8;}
+.dark .app-shell.telemetry-offline .metric-card .metric-note,
+.dark .app-shell.telemetry-offline .furan-card .prediction-note span {color:#e0c58f;}
+.dark .app-shell.telemetry-offline .hero-status .muted,
+.dark .app-shell.telemetry-offline .hero-status .hero-mini strong,
+.dark .app-shell.telemetry-offline .hero-status .hero-time strong,
+.dark .app-shell.telemetry-offline .burn-legend {color:#f4e5c1;}
+@media (max-width:550px) {
+  .app-shell.telemetry-offline .hero-status.burn-offline {border-left-width:6px;}
+}
