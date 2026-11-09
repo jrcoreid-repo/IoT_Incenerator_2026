@@ -33,16 +33,17 @@ function formatClock(iso: string | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "medium" });
 }
-function MetricCard({ title, value, unit, icon: Icon, note }: {
-  title: string; value: string; unit?: string; icon: typeof Home; note?: string
+type SensorTone = "furnace" | "stack" | "co" | "voc" | "ambient" | "humidity" | "h2" | "smoke";
+function MetricCard({ title, value, unit, icon: Icon, note, tone }: {
+  title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone
 }) {
   return (
-    <article className="metric-card">
+    <article className={"metric-card sensor-card sensor-tone-" + tone}>
       <div className="metric-card-head"><div className="metric-icon"><Icon size={18} /></div></div>
       <div className="metric-body">
         <span className="metric-label">{title}</span>
         <div className="metric-value">{value}{unit && <small>{unit}</small>}</div>
-        <span className="metric-note">{note ?? "Menunggu pembacaan sensor"}</span>
+        <span className="metric-note">{note ?? (value === "—" ? "Menunggu pembacaan sensor" : "Pembacaan sensor terakhir")}</span>
       </div>
     </article>
   );
@@ -290,10 +291,10 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
             </section>
             <div className="section-title-row"><div><p className="section-kicker">Telemetry / Sensor</p><h2>Parameter utama</h2></div><span className="soft-badge">05 / PARAMETER</span></div>
             <section className="metric-grid" aria-label="Lima indikator utama">
-              <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" />
-              <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" />
-              <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" />
-              <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" />
+              <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" />
+              <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" />
+              <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" tone="co" />
+              <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" tone="voc" />
               <article className={"metric-card furan-card risk-border-" + risk.tone}>
                 <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
                 <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
@@ -310,10 +311,10 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                 <div><p className="section-kicker">Pemantauan lingkungan</p><h2 id="extra-metrics-title">Parameter lingkungan dan gas lainnya</h2></div>
               </div>
               <div className="metric-grid">
-                <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} />
-                <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} />
-                <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} />
-                <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} />
+                <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} tone="ambient" />
+                <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} tone="humidity" />
+                <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} tone="h2" />
+                <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} tone="smoke" />
               </div>
             </section>
             <section className="panel chart-panel">
