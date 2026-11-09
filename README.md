@@ -46,9 +46,30 @@ Untuk menguji: jalankan ESP sender sampai grafik muncul, matikan ESP32 selama se
 - Identitas teknis internal seperti kode perangkat tetap ada dalam payload/API untuk integrasi, sedangkan antarmuka menggunakan bahasa awam: **Alat pengirim data**, **Sensor gas**, **Penyimpanan data**.
 - Informasi Hibah Bestari dan LPDP berada di bagian bawah halaman, bersama hak cipta dan identitas Omah Inovasi Universitas Ahmad Dahlan.
 
-## Identitas visual\n\n- Logo ADI menggunakan ikon dari aset identitas yang diberikan; disimpan dalam `public/adi-logo.png` dan digunakan di sidebar, login, serta header mobile.\n- Ikon aplikasi persegi di `public/adi-icon.png` digunakan sebagai favicon/bookmark.\n- Logo memakai `object-fit: contain` agar tidak terpotong; ketika sidebar tersembunyi di ponsel, identitas tetap terlihat di atas Beranda.\n- Latar emblem dibuat terang supaya logo hijau tua tetap terbaca baik pada tema gelap maupun terang.\n\n## Keamanan akses dashboard
+## Identitas visual\n\n- Logo ADI menggunakan ikon dari aset identitas yang diberikan; disimpan dalam `public/adi-logo.png` dan digunakan di sidebar, login, serta header mobile.\n- Ikon aplikasi persegi di `public/adi-icon.png` digunakan sebagai favicon/bookmark.\n- Logo memakai `object-fit: contain` agar tidak terpotong; ketika sidebar tersembunyi di ponsel, identitas tetap terlihat di atas Beranda.\n- Latar emblem dibuat terang supaya logo hijau tua tetap terbaca baik pada tema gelap maupun terang.\n\n## Dua jenis akun: Admin dan Operator
 
-Dashboard sekarang **khusus pengelola**. Halaman `/` hanya meneruskan pengunjung yang sudah masuk ke `/admin`, sedangkan pengguna tanpa sesi sah diarahkan ke `/login`. Server memeriksa cookie yang ditandatangani HMAC-SHA256 saat mengakses halaman atau API pembacaan sensor.
+**Satu halaman login** di `/login` menerima Admin utama dan Operator yang dibuat oleh Admin.
+
+- **Admin** (akun pemilik dari `ADMIN_USERNAME` / `ADMIN_PASSWORD` di `.env.local`) masuk ke `/admin`. Menu **Manajemen Pengguna** memungkinkan membuat akun Operator, mengaktifkan/menonaktifkan, dan reset password. Menu **Pengaturan** menyimpan ambang LoT di server dan berlaku untuk semua Operator.
+- **Operator / User** masuk ke `/dashboard` dan hanya dapat membaca Beranda, Riwayat, Analisis AI, Peringatan, dan Perangkat. Tidak ada menu Pengaturan maupun Manajemen Pengguna. Akses tulis dicegah di **API server**, bukan hanya UI.
+- Kedua halaman menampilkan badge hak akses (**ADMIN** atau **USER / OPERATOR**). Tidak ada registrasi publik.
+- Password Operator disimpan sebagai hash **scrypt bersalt acak**, tidak pernah dikirim kembali oleh API. Menonaktifkan akun atau reset password menaikkan versi sesi, sehingga sesi Operator lama langsung ditolak pada permintaan berikutnya.
+- Untuk **pengembangan lokal** tanpa Redis, akun serta ambang tersimpan dalam `.local-data/` (sudah diabaikan Git); data tetap ada setelah Next.js restart. Hati-hati bila folder proyek berada di OneDrive: file lokal itu mengandung hash akun dan sebaiknya tidak dibagikan.
+- Untuk **production/staging**, Redis REST wajib dikonfigurasi melalui `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN`. Akun Operator dan ambang tersimpan secara persisten di Redis.
+- Admin utama tetap menggunakan `.env.local` / environment hosting; UI hanya mengelola Operator, bukan akun Admin utama. Sebelum multiadmin/MFA/akun email, sistem ini diperuntukkan bagi lingkungan terbatas.
+
+### Uji alur akun
+
+1. Login sebagai Admin, buka tab **Manajemen Pengguna**.
+2. Buat `operator01` dengan password kuat (minimal 12 karakter, tidak menggunakan password umum).
+3. Buka jendela Incognito/Private lalu login `operator01`. Pastikan badge **USER / OPERATOR** muncul dan menu Pengaturan/Pengguna tidak ada.
+4. Ubah ambang melalui Admin; Operator akan memakai konfigurasi baru (polling setiap 30 detik).
+5. Reset password/nonaktifkan Operator melalui Admin; sesi Operator sebelumnya wajib kehilangan akses, termasuk API telemetry.
+6. Pengujian otomatis end-to-end: `npm run build` lalu `npm run test:auth`.
+
+## Keamanan akses dashboard
+
+Dashboard kini **khusus pengguna yang terautentikasi**. Halaman `/` mengarahkan Admin ke `/admin` dan Operator ke `/dashboard`, sedangkan pengguna tanpa sesi sah diarahkan ke `/login`. Server memeriksa cookie HMAC-SHA256 serta status aktif akun Operator.
 
 - Cookie admin bersifat **HttpOnly**, **SameSite=Strict**, dan **Secure** pada HTTPS produksi. Sesi saat ini berlaku sampai 12 jam.
 - Selama sesi masih sah, pengguna memang tidak perlu memasukkan kata sandi lagi setiap membuka halaman. Gunakan tombol **Keluar** untuk mengakhiri sesi di browser.
@@ -65,7 +86,7 @@ Pemeriksaan IP hanya menggunakan alamat yang disediakan dan dinormalisasi oleh V
 
 - `POST /api/login` dan `POST /api/logout` memeriksa `Origin` dan `Sec-Fetch-Site` bila tersedia; cookie tetap **HttpOnly**, **SameSite=Strict**, dan **Secure** pada produksi.
 - Token sesi baru berisi subject, role `admin`, waktu terbit, expiry, dan ID acak, semuanya ditandatangani. Token versi lama otomatis tidak diterima; pengguna perlu login kembali.
-- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` disiapkan di skema sesi tetapi **akun operator, pendaftaran akun, dan manajemen pengguna belum diaktifkan**.
+- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` sudah aktif melalui akun yang dibuat Admin, dengan izin baca-saja.
 - Tidak ada tombol registrasi terbuka. Saat database akun disiapkan, admin akan **mengundang/membuat pengguna**; operator hanya boleh memantau, tidak mengubah ambang atau konfigurasi.
 - `npm run test:auth` memverifikasi login salah/benar, token rusak, role operator tidak bisa mengakses admin, pemblokiran login, CSRF, dan logout.
 
@@ -160,7 +181,7 @@ Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`fu
 
 Endpoint:
 - `POST /api/telemetry` untuk ESP/gateway, wajib header `Authorization: Bearer <TELEMETRY_INGEST_KEY>`
-- `GET /api/telemetry` hanya untuk pemegang sesi admin yang sah; tanpa login mengembalikan HTTP 401. Respons memuat `latest`, `history`, dan `storageReady`.
+- `GET /api/telemetry` untuk Admin atau Operator dengan sesi yang sah; tanpa login mengembalikan HTTP 401. Respons memuat `latest`, `history`, dan `storageReady`.
 
 Payload JSON:
 
