@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Flame, Gauge, History, Home, LogOut, MapPin, Moon, Settings, ShieldCheck, Sun, Thermometer, Users, Wifi, Wind } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, Moon, RefreshCcw, Settings, ShieldCheck, Sun, Thermometer, Users, Wifi, Wind } from "lucide-react";
 import UserManagement from "@/components/user-management";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
@@ -115,6 +115,38 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const [settingsMessage, setSettingsMessage] = useState("");
   const [thresholdDraftDirty, setThresholdDraftDirty] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  // Archival history is separate from the 120 live dashboard samples.
+  const [archiveMode, setArchiveMode] = useState<"rolling" | "dates">("rolling");
+  const [archiveDays, setArchiveDays] = useState(1);
+  const [archiveFromDate, setArchiveFromDate] = useState("");
+  const [archiveToDate, setArchiveToDate] = useState("");
+  const [archiveHistory, setArchiveHistory] = useState<Telemetry[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archiveBucketSeconds, setArchiveBucketSeconds] = useState(10);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [archiveRefresh, setArchiveRefresh] = useState(0);
+
+  const archiveRange = useMemo(() => {
+    const params = new URLSearchParams();
+    if (archiveMode === "rolling") {
+      params.set("days", String(archiveDays));
+      return { query: params.toString(), error: "" };
+    }
+    if (!archiveFromDate || !archiveToDate) return { query: "", error: "Isi tanggal awal dan akhir." };
+    const from = new Date(archiveFromDate + "T00:00:00");
+    const until = new Date(archiveToDate + "T00:00:00");
+    until.setDate(until.getDate() + 1);
+    const toMs = until.getTime() - 1;
+    const span = toMs - from.getTime();
+    if (!Number.isFinite(span) || span < 0 || span > 7 * 86400000) {
+      return { query: "", error: "Rentang tanggal minimal 1 hari dan maksimal 7 hari." };
+    }
+    params.set("from", from.toISOString());
+    params.set("to", new Date(toMs).toISOString());
+    return { query: params.toString(), error: "" };
+  }, [archiveMode, archiveDays, archiveFromDate, archiveToDate]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("adi-telemetry-theme-v2");
@@ -186,6 +218,67 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   }, []);
 
   useEffect(() => {
+    if (tab !== "riwayat" || !archiveRange.query) return;
+    let active = true;
+    const controller = new AbortController();
+    async function refreshArchive() {
+      setArchiveBusy(true);
+      setArchiveError("");
+      try {
+        const response = await fetch("/api/history?" + archiveRange.query, {
+          credentials: "same-origin", cache: "no-store", signal: controller.signal
+        });
+        if (response.status === 401) { window.location.replace("/login"); return; }
+        const data = await response.json() as {
+          history?: Telemetry[]; total?: number; chartBucketSeconds?: number; error?: string
+        };
+        if (!response.ok) throw new Error(data.error ?? "Riwayat belum dapat dibaca.");
+        if (!active) return;
+        setArchiveHistory(Array.isArray(data.history) ? data.history : []);
+        setArchiveTotal(data.total ?? 0);
+        setArchiveBucketSeconds(data.chartBucketSeconds ?? 10);
+      } catch (error) {
+        if (active && !controller.signal.aborted) {
+          setArchiveError(error instanceof Error ? error.message : "Gagal memuat riwayat.");
+          setArchiveHistory([]);
+          setArchiveTotal(0);
+        }
+      } finally { if (active) setArchiveBusy(false); }
+    }
+    void refreshArchive();
+    return () => { active = false; controller.abort(); };
+  }, [tab, archiveRange.query, archiveRefresh]);
+
+  async function downloadArchiveCsv() {
+    if (!isAdmin || !archiveRange.query) return;
+    setExportBusy(true);
+    setArchiveError("");
+    try {
+      const response = await fetch("/api/history/export?" + archiveRange.query, {
+        credentials: "same-origin", cache: "no-store"
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? "Gagal mengunduh CSV.");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const file = /filename="([a-zA-Z0-9_.-]+)"/.exec(disposition)?.[1] ?? "adi-telemetry.csv";
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = file;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      setArchiveError(error instanceof Error ? error.message : "Tidak dapat mengekspor riwayat.");
+    } finally { setExportBusy(false); }
+  }
+
+  useEffect(() => {
     // Refresh halaman yang dipulihkan dari back/forward cache agar sesi dicek ulang.
     function onPageShow(event: PageTransitionEvent) {
       if (event.persisted) window.location.reload();
@@ -204,6 +297,14 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
   })), [history, thresholds]);
   const showChart = history.length >= 2;
+  const archiveChartData = useMemo(() => archiveHistory.map((item, index, items) => ({
+    ...item,
+    waktu: new Date(item.receivedAt).toLocaleString("id-ID", {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+    }),
+    furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
+  })), [archiveHistory, thresholds]);
+  const showArchiveChart = archiveHistory.length >= 2;
   const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
@@ -382,21 +483,66 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
         )}
 
         {tab === "riwayat" && <section className="page-grid">
-          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">{history.length} REKAMAN</span></div>
-            {showChart ? <div className="chart-large"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={24} /><YAxis /><Tooltip />
+          <div className="panel full-span archive-controls">
+            <div className="panel-heading">
+              <div><p className="section-kicker">Penyimpanan berkelanjutan</p><h2>Arsip Sensor · Retensi 7 Hari</h2></div>
+              <span className="chip">LOG / 10 DETIK</span>
+            </div>
+            <p className="muted">Data lama otomatis dihapus setelah 7 hari. Pilih jumlah hari terakhir atau tanggal tertentu. Grafik menampilkan ringkasan agar tetap ringan; file CSV berisi rekaman aslinya.</p>
+            <div className="archive-toolbar">
+              <label className="archive-field">Pilih rentang
+                <select value={archiveMode} onChange={event => setArchiveMode(event.target.value as "rolling" | "dates")}>
+                  <option value="rolling">Hari terakhir</option>
+                  <option value="dates">Tanggal khusus</option>
+                </select>
+              </label>
+              {archiveMode === "rolling" ?
+                <label className="archive-field">Lama data
+                  <select value={archiveDays} onChange={event => setArchiveDays(Number(event.target.value))}>
+                    {[1,2,3,4,5,6,7].map(days => <option key={days} value={days}>{days} hari</option>)}
+                  </select>
+                </label> :
+                <>
+                  <label className="archive-field">Dari tanggal
+                    <input type="date" value={archiveFromDate} onChange={event => setArchiveFromDate(event.target.value)} />
+                  </label>
+                  <label className="archive-field">Sampai tanggal
+                    <input type="date" value={archiveToDate} min={archiveFromDate || undefined}
+                      onChange={event => setArchiveToDate(event.target.value)} />
+                  </label>
+                </>
+              }
+              <button className="secondary-button archive-action" type="button"
+                onClick={() => setArchiveRefresh(value => value + 1)} disabled={archiveBusy || !archiveRange.query}>
+                <RefreshCcw size={15}/> Muat ulang
+              </button>
+              {isAdmin && <button className="primary-button archive-action" type="button"
+                onClick={() => void downloadArchiveCsv()} disabled={exportBusy || !archiveRange.query}>
+                <Download size={16}/> {exportBusy ? "Menyusun CSV..." : "Download CSV / Excel"}
+              </button>}
+            </div>
+            <div className="archive-meta">
+              <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
+              <span>Grafik: hingga 300 titik · Sampel ringkasan per {archiveBucketSeconds} detik</span>
+              {!isAdmin && <span>Ekspor data tersedia bagi Admin.</span>}
+            </div>
+            {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
+          </div>
+          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">{archiveHistory.length} TITIK GRAFIK</span></div>
+            {showArchiveChart ? <div className="chart-large"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={24} /><YAxis /><Tooltip />
               <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#c2dd94" strokeWidth={2.2} dot={false} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rangkaian data untuk ditampilkan.</p>}
           </div>
           <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div></div>
-            {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis /><Tooltip />
+            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis /><Tooltip />
               <Line type="monotone" dataKey="co" name="CO" stroke="#f4b16c" strokeWidth={2.3} dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="h2" name="H₂" stroke="#a4aee9" strokeWidth={2} dot={false} isAnimationActive={false} />
               <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={false} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Menunggu data sensor gas.</p>}
           </div>
           <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div></div>
-            {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
+            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
               <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={false} isAnimationActive={false} />
             </LineChart></ResponsiveContainer></div> : <p className="no-data">Indeks akan dihitung setelah suhu, CO, dan VOC tersedia.</p>}
           </div>
