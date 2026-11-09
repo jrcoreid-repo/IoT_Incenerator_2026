@@ -47,6 +47,7 @@ test("sender rejects unsafe endpoints and invalid parameters", () => {
   assert.throws(() => parseOptions(["--count", "-1"]), /count/);
   assert.throws(() => parseOptions(["--interval", "0"]), /interval/);
   assert.equal(parseOptions(["--scenario", "warning", "--count", "2"]).count, 2);
+  assert.equal(parseOptions([]).interval, 10);
 });
 
 test("dry run exits without token or network requests", () => {
