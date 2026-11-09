@@ -58,9 +58,9 @@ export default function LoginPage() {
         <div className="login-visual-content">
           <span className="login-section-number"><span /> ENVIRONMENTAL MONITORING</span>
           <h1>Teknologi untuk<br /><em>lingkungan</em> yang<br /> lebih baik.</h1>
-          <p>
-            Pantau suhu pembakaran, kondisi gas, dan perubahan proses
-            melalui satu sistem yang mudah dipahami.
+          <p className="login-visual-system">
+            Ahmad Dahlan IoT Incinerator System
+            <span>by Universitas Ahmad Dahlan</span>
           </p>
 
           <div className="login-visual-graphic" aria-hidden="true">
