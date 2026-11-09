@@ -107,7 +107,8 @@ test("dashboard requires a signed session; logout and telemetry are private", { 
     const privateTelemetry = await request("/api/telemetry", { headers: { cookie } });
     assert.equal(privateTelemetry.status, 200);
 
-    const malformed = cookie.slice(0, -1) + (cookie.endsWith("x") ? "y" : "x");
+    const [tokenPayload, tokenSignature] = cookie.slice("jr_admin=".length).split(".");
+    const malformed = "jr_admin=" + tokenPayload + "." + (tokenSignature[0] === "A" ? "B" : "A") + tokenSignature.slice(1);
     assertRedirectTo(await request("/admin", { headers: { cookie: malformed } }), "/login");
     assert.equal((await request("/api/telemetry", { headers: { cookie: malformed } })).status, 401);
 
