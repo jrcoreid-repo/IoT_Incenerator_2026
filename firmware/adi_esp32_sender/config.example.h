@@ -1,14 +1,17 @@
 #pragma once
 
-// Make a private copy named config.h; never commit the real Wi-Fi or API key.
-// Use the same 2.4 GHz Wi-Fi network as your laptop running Next.js.
+// Copy as config.h and fill in PRIVATE values; never commit config.h.
+// ESP32 works on 2.4 GHz Wi-Fi (internet access needed for cloud HTTPS).
 #define WIFI_SSID "YOUR_WIFI_NAME"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
-// Replace 192.168.1.100 with the laptop's IPv4 from ipconfig.
-// IMPORTANT: use the LAPTOP IP, never localhost/127.0.0.1/0.0.0.0.
-#define TELEMETRY_URL "http://192.168.1.100:3000/api/telemetry"
+// Cloud endpoint of our Caddy + Next.js VPS.
+// The TLS client validates the chain and hostname before sending token/data.
+#define TELEMETRY_URL "https://adi-incinerator.live/api/telemetry"
 
-// Match TELEMETRY_INGEST_KEY in the laptop project's .env.local.
-// Minimum 24 characters; keep this secret and do not paste into chat.
-#define TELEMETRY_INGEST_KEY "REPLACE_WITH_PRIVATE_TOKEN_24_PLUS_CHARS"
+// Use TELEMETRY_INGEST_KEY configured on the VPS service, NOT the admin password.
+// Must be >=24 chars and identical to the server's ingest key.
+#define TELEMETRY_INGEST_KEY "REPLACE_WITH_PRIVATE_VPS_INGEST_TOKEN_24_PLUS_CHARS"
+
+// For isolated offline LAN development only, you can replace TELEMETRY_URL with
+// http://192.168.1.100:3000/api/telemetry; public HTTP is intentionally blocked.
