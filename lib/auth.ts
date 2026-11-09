@@ -11,6 +11,7 @@ export type SessionIdentity = {
   aud: "adi-dashboard";
   sub: string;
   role: SessionRole;
+  sv: number;
   iat: number;
   exp: number;
   jti: string;
@@ -29,7 +30,8 @@ async function sessionKey() {
   if (!secret || secret.length < 32) throw new Error("SESSION_SECRET belum ditetapkan.");
   return crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign","verify"]);
 }
-export async function createSessionToken(subject: string, role: SessionRole = "admin") {
+export async function createSessionToken(subject: string, role: SessionRole = "admin", sessionVersion = 0) {
+  if (!Number.isSafeInteger(sessionVersion) || sessionVersion < 0) throw new Error("Invalid session version");
   if (!subject || subject.length > 128) throw new Error("Invalid subject");
   const now = Date.now();
   const claim: SessionIdentity = {
@@ -38,6 +40,7 @@ export async function createSessionToken(subject: string, role: SessionRole = "a
     aud: "adi-dashboard",
     sub: subject,
     role,
+    sv: sessionVersion,
     iat: now,
     exp: now + TTL,
     jti: crypto.randomUUID()
@@ -61,6 +64,7 @@ export async function readSessionToken(token: string | undefined): Promise<Sessi
       (claim.role !== "admin" && claim.role !== "operator") ||
       typeof claim.sub !== "string" || claim.sub.length < 1 || claim.sub.length > 128 ||
       typeof claim.jti !== "string" || claim.jti.length < 16 ||
+      !Number.isSafeInteger(claim.sv) || (claim.sv as number) < 0 ||
       typeof claim.iat !== "number" || typeof claim.exp !== "number" ||
       !Number.isFinite(claim.iat) || !Number.isFinite(claim.exp) ||
       claim.iat > now + 60_000 || claim.exp <= now || claim.exp > claim.iat + TTL
