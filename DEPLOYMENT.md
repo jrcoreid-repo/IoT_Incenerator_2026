@@ -95,7 +95,7 @@ File ini hanya memeriksa **kelengkapan dan format dasar**, bukan menguji koneksi
 3. Setelah login admin, dashboard muncul. Logout menghapus akses pada browser.
 4. `GET /api/telemetry` tanpa sesi wajib `401`.
 5. `POST /api/telemetry` tanpa token harus `401`; dengan token staging dan JSON valid harus `201`.
-6. Pantau *database*, *function invocation*, error rate, dan ukuran data Redis. Uji data melewati batas 90 detik untuk melihat status stale.
+6. Pantau *database*, *function invocation*, error rate, dan ukuran data Redis. Uji data melewati batas 15 detik untuk melihat status stale.
 7. Kirim data test lewat **Node.js virtual sender** dari laptop dengan URL HTTPS staging dan token staging. Jika preview dilindungi Vercel Authentication, pengirim HTTP otomatis juga memerlukan **Protection Bypass for Automation** terpisah, karena Vercel memblokir request otomatis sebelum mencapai API Next.js.
 8. Jangan mengklaim angka dummy sebagai data sensor; dokumentasikan setiap sesi uji.
 
