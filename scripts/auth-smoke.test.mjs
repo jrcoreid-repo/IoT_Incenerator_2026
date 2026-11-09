@@ -29,7 +29,9 @@ async function waitForReady(origin, child) {
 }
 function redirectTo(response, path) {
   assert.ok([301, 302, 303, 307, 308].includes(response.status), "Expected redirect, got HTTP " + response.status);
-  assert.equal(new URL(response.headers.get("location")).pathname, path);
+  const destination = response.headers.get("location");
+  assert.ok(destination, "Redirect harus memiliki header Location.");
+  assert.equal(new URL(destination, "http://127.0.0.1").pathname, path);
 }
 function findCookie(response) {
   const header = response.headers.get("set-cookie") ?? "";
