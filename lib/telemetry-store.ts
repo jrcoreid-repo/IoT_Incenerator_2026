@@ -3,8 +3,9 @@ import { isTelemetry } from "./telemetry";
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
+import { hasRedisStorage, redisCommand } from "./redis-command";
 
-// Live monitoring remains responsive at the ESP's ~3s transmit cadence.
+// Live monitoring follows the ESP's 10s transmit cadence.
 // The separate research archive is sampled at most once every 10 seconds and
 // never exposes or retains readings older than 7 rolling days.
 export const LOG_INTERVAL_MS = 10_000;
@@ -42,34 +43,6 @@ let archiveLocal: Telemetry[] | null = null;
 let lastArchivedLocal = 0;
 let lastPruneLocal = 0;
 let localSerial: Promise<void> = Promise.resolve();
-
-function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
-}
-
-async function command(parts: (string | number)[]): Promise<unknown> {
-  const cfg = redisConfig();
-  if (!cfg) throw new Error("Penyimpanan Redis belum dikonfigurasi.");
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(cfg.url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(parts),
-      cache: "no-store",
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error("Penyimpanan tidak dapat dihubungi.");
-    const data = await response.json() as { result?: unknown; error?: string };
-    if (data.error) throw new Error("Perintah penyimpanan gagal.");
-    return data.result;
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 function decode(value: unknown): Telemetry | null {
   if (typeof value !== "string") return null;
@@ -117,14 +90,14 @@ async function compactLocalArchive(now: number) {
 }
 
 export function isStorageReady() {
-  return Boolean(redisConfig()) || process.env.NODE_ENV !== "production";
+  return Boolean(hasRedisStorage()) || process.env.NODE_ENV !== "production";
 }
 
 export async function appendTelemetry(data: Telemetry) {
   const now = Date.parse(data.receivedAt);
   if (!Number.isFinite(now)) throw new Error("Timestamp telemetry tidak valid.");
-  if (redisConfig()) {
-    await command([
+  if (hasRedisStorage()) {
+    await redisCommand([
       "EVAL", INGEST_SCRIPT, 3, LIVE_HISTORY, ARCHIVE, LAST_ARCHIVED,
       now, JSON.stringify(data), LIVE_LIMIT, LOG_INTERVAL_MS, RETENTION_SECONDS, RETENTION_MS
     ]);
@@ -144,8 +117,8 @@ export async function appendTelemetry(data: Telemetry) {
 }
 
 export async function readTelemetry(): Promise<TelemetryResponse> {
-  if (redisConfig()) {
-    const items = await command(["LRANGE", LIVE_HISTORY, 0, LIVE_LIMIT - 1]);
+  if (hasRedisStorage()) {
+    const items = await redisCommand(["LRANGE", LIVE_HISTORY, 0, LIVE_LIMIT - 1]);
     const history = (Array.isArray(items) ? items : []).map(decode)
       .filter((item): item is Telemetry => item !== null).reverse();
     return { latest: history[history.length - 1] ?? null, history, storageReady: true };
@@ -162,10 +135,10 @@ export async function* iterateArchived(fromMs: number, untilMs: number): AsyncGe
   const min = Math.max(fromMs, Date.now() - RETENTION_MS);
   const max = Math.min(untilMs, Date.now());
   if (min > max) return;
-  if (redisConfig()) {
+  if (hasRedisStorage()) {
     let cursor = min;
     while (cursor <= max) {
-      const result = await command(["ZRANGEBYSCORE", ARCHIVE, cursor, max, "LIMIT", 0, PAGE_SIZE]);
+      const result = await redisCommand(["ZRANGEBYSCORE", ARCHIVE, cursor, max, "LIMIT", 0, PAGE_SIZE]);
       if (!Array.isArray(result) || result.length === 0) return;
       let last = cursor - 1;
       for (const raw of result) {
