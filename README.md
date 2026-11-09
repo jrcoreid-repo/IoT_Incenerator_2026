@@ -195,6 +195,18 @@ Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`fu
 - **Sebelum ESP32 fisik dipasang:** matikan sender virtual, gunakan `deviceId` yang berbeda untuk perangkat asli, lalu kirim JSON dengan skema yang sama.
 - **Uji program sender:** `npm run test:sender` (Node.js 22).
 
+## Firmware ESP32 fisik (dummy, self-healing)
+
+Sketch Arduino IDE: `firmware/esp32_dummy_sender/esp32_dummy_sender.ino`. Gunakan board ESP32 sesuai varian yang dipakai. Sebelum upload, ubah `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` (IP laptop/host yang bisa dijangkau ESP32), dan `INGEST_KEY` (harus sama dengan `TELEMETRY_INGEST_KEY` server). Jangan masukkan kredensial asli ke repository publik. Untuk tes lokal, jalankan Next.js dengan `npm run dev -- -H 0.0.0.0` dan buka Serial Monitor 115200 baud.
+
+- Interval **mengirim data ESP32 fisik: 10 detik** setelah sukses. Ini berbeda dari skrip sender virtual Node.js yang default-nya 3 detik dan polling frontend 5 detik.
+- Wi-Fi: memulai koneksi tanpa blocking; jika terputus, mencoba reconnect sekitar tiap 10 detik tanpa restart.
+- Kegagalan HTTP: retry dengan backoff 10 → 20 → 40 → 80 → 120 detik (maksimum). Setelah tiga kegagalan berturut-turut, firmware mencoba reinitialisasi Wi-Fi.
+- Bila mendapat HTTP 401/403, pengiriman dihentikan sementara sampai reboot karena kredensial kemungkinan salah; betulkan token sebelum restart. HTTP 201 berarti server menerima payload.
+- Jika listrik ESP32 padam, program akan boot dan konek kembali saat menyala. Tidak ada antrean data offline/persisten pada firmware dummy ini; pembacaan saat putus jaringan tidak disimpan.
+- Ini **data simulasi**, bukan data emisi nyata. Matikan `npm run sender:virtual` saat mengetes perangkat fisik agar riwayat tidak tercampur.
+- Alamat `http://IP-LAN:3000` hanya untuk pengujian di jaringan tepercaya. Untuk internet publik gunakan HTTPS dengan validasi sertifikat dan jangan hardcode credential aktif ke repository.
+
 ## Mengirim data dari ESP/gateway
 
 Endpoint:
