@@ -155,6 +155,46 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     assert.equal(loginPage.status, 200);
     assert.match(await loginPage.text(), /name="format-detection"[^>]*telephone=no[^>]*date=no/);
 
+    // Regression: phones access the dev server via its LAN IP, while Next.js
+    // may normalize request.url to a loopback hostname. CSRF validation must
+    // use the actual HTTP Host and not reject an honest browser Origin.
+    const lanHost = "172.20.10.2:" + port;
+    const lanLogin = await request("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Host: lanHost,
+        Origin: "http://" + lanHost,
+        "Sec-Fetch-Site": "same-origin"
+      },
+      body: JSON.stringify({ username: adminName, password: adminPassword })
+    });
+    assert.equal(lanLogin.status, 200, "LAN login rejected: " + await lanLogin.clone().text());
+
+    const spoofedOrigin = await request("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Host: lanHost,
+        Origin: "http://untrusted.example",
+        "Sec-Fetch-Site": "same-origin"
+      },
+      body: JSON.stringify({ username: adminName, password: adminPassword })
+    });
+    assert.equal(spoofedOrigin.status, 403);
+
+    const crossSiteFetch = await request("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Host: lanHost,
+        Origin: "http://" + lanHost,
+        "Sec-Fetch-Site": "cross-site"
+      },
+      body: JSON.stringify({ username: adminName, password: adminPassword })
+    });
+    assert.equal(crossSiteFetch.status, 403);
+
     assert.equal((await jsonRequest("/api/login", "POST", { username: adminName, password: "wrong" })).status, 401);
     assert.equal((await jsonRequest("/api/login", "POST", { username: adminName, password: adminPassword }, "")).status, 200);
     const adminLogin = await jsonRequest("/api/login", "POST", { username: adminName, password: adminPassword });
