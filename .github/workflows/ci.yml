@@ -20,6 +20,8 @@ jobs:
         run: npm install
       - name: Validate virtual sender
         run: npm run test:sender
+      - name: Validate deploy configuration checker
+        run: npm run test:deploy
       - name: Build
         run: npm run build
       - name: Verify protected routes and login
