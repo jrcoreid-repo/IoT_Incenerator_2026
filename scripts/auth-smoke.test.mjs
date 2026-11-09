@@ -78,6 +78,9 @@ test("dashboard requires a signed session; logout and telemetry are private", { 
 
     const loginPage = await request("/login");
     assert.equal(loginPage.status, 200);
+    const loginHtml = await loginPage.text();
+    assert.match(loginHtml, /name="format-detection"[^>]*telephone=no[^>]*date=no[^>]*email=no[^>]*address=no/);
+
 
     const wrong = await request("/api/login", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -103,6 +106,8 @@ test("dashboard requires a signed session; logout and telemetry are private", { 
     const privateAdmin = await request("/admin", { headers: { cookie } });
     assert.equal(privateAdmin.status, 200);
     assert.match(privateAdmin.headers.get("cache-control") ?? "", /no-store/i);
+    const adminHtml = await privateAdmin.text();
+    assert.match(adminHtml, /name="format-detection"[^>]*telephone=no[^>]*date=no[^>]*email=no[^>]*address=no/);
 
     const privateTelemetry = await request("/api/telemetry", { headers: { cookie } });
     assert.equal(privateTelemetry.status, 200);
