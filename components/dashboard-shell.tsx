@@ -89,7 +89,7 @@ function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
   );
 }
 
-export default function DashboardShell({ mode = "client" }: { mode?: "client" | "admin" }) {
+export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -107,6 +107,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
     riskWarning: String(DEFAULT_THRESHOLDS.riskWarning)
   }));
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("jr-telemetry-theme");
@@ -138,7 +139,11 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       if (working) return;
       working = true;
       try {
-        const response = await fetch("/api/telemetry", { cache: "no-store" });
+        const response = await fetch("/api/telemetry", { cache: "no-store", credentials: "same-origin" });
+        if (response.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
         if (!response.ok) throw new Error("Server telemetry tidak tersedia.");
         const data = await response.json() as TelemetryResponse;
         if (!active) return;
@@ -160,6 +165,15 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
     void refresh();
     const timer = window.setInterval(() => { void refresh(); }, 5000);
     return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
+  useEffect(() => {
+    // Refresh halaman yang dipulihkan dari back/forward cache agar sesi dicek ulang.
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) window.location.reload();
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   const ageMs = latest ? now - Date.parse(latest.receivedAt) : Infinity;
@@ -210,7 +224,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
     setSettingsMessage("Pengaturan kembali ke nilai awal.");
   }
   async function logout() {
-    try { await fetch("/api/logout", { method: "POST" }); } finally { window.location.href = "/login"; }
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/logout", { method: "POST", cache: "no-store", credentials: "same-origin" });
+      if (!response.ok) throw new Error("Logout belum berhasil.");
+      window.location.replace("/login");
+    } catch {
+      setLogoutError("Gagal keluar. Periksa koneksi lalu coba lagi.");
+    }
   }
 
   return (
@@ -229,6 +250,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         <div className="sidebar-footer">
           <div className="mini-status"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</div>
           {isAdmin && <button className="logout-button" onClick={logout}><LogOut size={17} /> Keluar</button>}
+          {logoutError && <p className="logout-error" role="alert">{logoutError}</p>}
         </div>
       </aside>
 
@@ -405,11 +427,12 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           <div className="footer-sub">Didukung melalui Program Hibah Bestari · LPDP</div>
         </footer>
       </main>
-      <nav className="mobile-nav">
+      <nav className="mobile-nav" aria-label="Menu dashboard">
         {visibleNavItems.map(item => {
           const Icon = item.icon;
           return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "ai" ? "Analisis" : item.label}</span></button>;
         })}
+        <button type="button" onClick={logout} aria-label="Keluar dari dashboard"><LogOut size={19} /><span>Keluar</span></button>
       </nav>
     </div>
   );
