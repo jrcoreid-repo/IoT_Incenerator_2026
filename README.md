@@ -1,43 +1,45 @@
 # JR-AIoT — ADI Smart Incinerator
 
-Dashboard monitoring proses pembakaran berbasis **JR-AIoT** untuk Desa Caturharjo, Pandak, Bantul.
+Antarmuka telemetry pemantauan suhu dan gas proses pembakaran di Desa Caturharjo, Pandak, Bantul.
 
-## Tampilan minimalis untuk operator (usulan V2)
-- Halaman masuk sederhana, tanpa gambar cerobong atau ilustrasi mesin.
-- Beranda menonjolkan status proses dan empat parameter utama (suhu pembakaran, suhu cerobong, CO, VOC).
-- Empat parameter tambahan tetap dapat dibuka melalui **Lihat parameter lainnya**.
-- Ringkasan peringatan dan grafik suhu dengan istilah sederhana.
-- Riwayat, analisis percobaan, daftar perangkat, dan pengaturan tetap tersedia.
-- Responsif di komputer dan ponsel; semua menu bisa diakses pada ponsel.
-- Mode terang sebagai tampilan bawaan, dengan pilihan mode gelap.
+## Antarmuka operator
 
-## Penting: prototipe, bukan pemantauan lapangan
+- Gaya telemetry industrial: latar gelap, garis tipis, tanpa ilustrasi cerobong.
+- Font **Barlow / Barlow Condensed** untuk antarmuka dan **IBM Plex Mono** untuk pembacaan angka. Font mempunyai alternatif sistem jika sumber Google Fonts tidak tersedia.
+- Lima informasi di Beranda: suhu pembakaran, suhu cerobong, CO, VOC, **indeks risiko pembentukan furan**.
+- Empat parameter lanjutan ada dalam bagian yang dapat dibuka; halaman Riwayat tetap memuat grafik indeks furan.
+- Panel peringatan, daftar perangkat, analisis proses, dan pengaturan pengelola tetap tersedia.
+- Dapat dibuka melalui komputer maupun ponsel.
 
-**Semua angka dan grafik masih disimulasikan oleh `lib/mock-data.ts`.** Angka berubah otomatis tiap 3 detik untuk mendemonstrasikan antarmuka. Belum ada pembacaan sensor yang masuk, koneksi server, maupun penyimpanan riwayat nyata.
+## Sumber dan makna data
 
-- Label **Data Simulasi** berarti pembacaan belum berasal dari alat.
-- Daftar perangkat berstatus **Belum tersambung**, bukan online.
-- Peringatan CO/VOC memakai ambang untuk demonstrasi, bukan batas keselamatan resmi.
-- Indeks dioksin/furan adalah percobaan berbasis aturan sederhana dan **bukan** pengukuran konsentrasi atau prediksi emisi tervalidasi.
-- Tombol rentang waktu yang belum berfungsi sengaja dihilangkan sampai ada data historis nyata.
-- Konfigurasi batas hanya tersimpan di browser, belum dikirim ke gateway.
+**Saat ini seluruh angka dan grafik berasal dari generator data contoh `lib/mock-data.ts`, bukan dari sensor RS485.** Tampilan secara eksplisit memperlihatkan **DATA CONTOH · SENSOR OFFLINE**.
 
-## Menjalankan lokal
+Indeks risiko furan ditunjukkan sebagai skala *0–100*, **bukan nilai konsentrasi gas atau hasil ukur sensor furan**. Angka dihitung secara heuristik dari suhu, CO, VOC, dan indikator asap dengan rumus pada `components/dashboard-shell.tsx`. Rumus tersebut belum divalidasi secara ilmiah, sehingga tidak boleh dijadikan indikator keselamatan, standar emisi, maupun hasil pengujian laboratorium.
 
-```bash
-cp .env.example .env.local
+- Kategori peringatan CO/VOC memakai ambang yang dapat diedit untuk visualisasi data contoh, bukan standar resmi.
+- Status perangkat masih **Belum tersambung**.
+- Riwayat hanya mencakup data yang dibuat di browser selama sesi berjalan; belum disimpan di database.
+- Konfigurasi ambang saat ini disimpan di localStorage browser pengelola, bukan pada gateway.
+
+## Menjalankan di Windows (CMD / PowerShell)
+
+```powershell
+git fetch origin
+git switch design/minimal-operator-2026
+git pull --ff-only
 npm install
 npm run dev
 ```
 
-Ubah `ADMIN_USERNAME` dan `ADMIN_PASSWORD` di `.env.local`. Buka `http://localhost:3000` untuk tampilan umum dan `http://localhost:3000/login` untuk pengelola.
+Jika belum tersedia, buat `.env.local` dari `.env.example` lalu ubah `ADMIN_USERNAME` dan `ADMIN_PASSWORD`. Buka `http://localhost:3000` atau `http://localhost:3000/login`.
 
-**Catatan keamanan:** Login V1 saat ini hanya mekanisme demonstrasi, belum menggunakan sesi terenkripsi/terverifikasi yang layak untuk internet publik. Jangan deploy dashboard ini ke internet atau menghubungkannya ke kendali perangkat sebelum autentikasi, otorisasi, dan data telemetry diperkuat.
+**Keamanan:** Autentikasi versi awal belum siap untuk deploy publik. Amankan mekanisme sesi, kredensial, serta akses API perangkat sebelum implementasi lapangan.
 
-## Struktur pengembangan
+## Branch
 
-- `dashboard-v1`: basis dashboard sebelumnya.
-- `design/minimal-operator-2026`: usulan perapihan antarmuka.
-- `main`: inisialisasi repository.
+- `main`: inisialisasi awal.
+- `dashboard-v1`: basis antarmuka sebelumnya.
+- `design/minimal-operator-2026`: antarmuka telemetry yang sedang dikembangkan.
 
-Integrasi JR-AIoT RS485, API telemetry, database, dan analisis AI belum dilaksanakan.
+Integrasi data gateway USR-EG118/RS485, API telemetry, database, dan analisis terkalibrasi belum dilakukan.
