@@ -178,7 +178,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
   // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
   const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
-  const isBurning = hasFurnaceReading && latest.furnace >= thresholds.activeTemp;
+  const isBurning = hasFurnaceReading && latest?.furnace !== null && latest?.furnace !== undefined && latest.furnace >= thresholds.activeTemp;
   const burnTone = !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
   const burnLabel = !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
   const burnDescription = !hasFurnaceReading
