@@ -48,9 +48,9 @@ type ThresholdDraft = Record<keyof Thresholds, string>;
 
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
-  { id: "riwayat", label: "Riwayat & Grafik", icon: History },
-  { id: "ai", label: "Analisis AI", icon: BrainCircuit },
-  { id: "alarm", label: "Alarm & Kejadian", icon: Bell },
+  { id: "riwayat", label: "Riwayat", icon: History },
+  { id: "ai", label: "Analisis (Demo)", icon: BrainCircuit },
+  { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
   { id: "pengaturan", label: "Pengaturan", icon: Settings }
 ];
@@ -105,15 +105,15 @@ function riskLabel(value: number) {
 
 function aiInsight(data: Telemetry, thresholds: Thresholds) {
   if (data.furanRisk >= 75) {
-    return "Risiko pembentukan dioksin/furan diprediksi tinggi. Terlihat kombinasi kondisi pembakaran yang kurang stabil dengan kenaikan parameter gas. Periksa suplai udara, kestabilan temperatur, dan kondisi proses.";
+    return "Pada simulasi, indikator proses melewati batas tinggi. Tinjau kestabilan suhu dan kecenderungan gas. Ini belum dapat dipakai untuk menilai emisi nyata.";
   }
   if (data.furanRisk >= thresholds.riskWarning) {
-    return "Kondisi proses memerlukan perhatian. Suhu pembakaran dan tren CO/VOC menunjukkan pola yang dapat meningkatkan risiko pembentukan dioksin/furan. Pertahankan pembakaran stabil dan pantau perubahan parameter.";
+    return "Dalam contoh data, beberapa indikator membutuhkan perhatian. Periksa pola suhu dan kadar gas pada grafik demonstrasi.";
   }
   if (data.furnace >= thresholds.activeTemp) {
-    return "Pembakaran terpantau aktif dan relatif stabil. CO dan VOC belum menunjukkan peningkatan signifikan. Berdasarkan parameter yang tersedia, risiko pembentukan dioksin/furan saat ini diprediksi rendah.";
+    return "Contoh suhu menunjukkan proses pembakaran aktif. Status ini tidak membuktikan kondisi aman atau kadar emisi yang memenuhi standar.";
   }
-  return "Unit belum berada pada kondisi pembakaran aktif penuh. Sistem terus memantau kenaikan suhu tungku, gas hasil pembakaran, dan kestabilan proses sebelum memberikan evaluasi risiko yang lebih kuat.";
+  return "Contoh suhu belum mencapai batas pembakaran aktif. Pantau kecenderungannya di grafik.";
 }
 
 function MetricCard({
@@ -152,7 +152,7 @@ function MetricCard({
 function DevicePill({ name, detail }: { name: string; detail: string }) {
   return (
     <div className="device-pill">
-      <span className="status-dot" />
+      <span className="status-dot device-placeholder-dot" />
       <div>
         <strong>{name}</strong>
         <small>{detail}</small>
@@ -164,7 +164,7 @@ function DevicePill({ name, detail }: { name: string; detail: string }) {
 export default function DashboardShell({ mode = "client" }: { mode?: "client" | "admin" }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [history, setHistory] = useState<Telemetry[]>(() => makeInitialData());
   const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
   const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => thresholdsToDraft(defaultThresholds));
@@ -218,17 +218,12 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         title: "VOC melewati ambang",
         detail: `${current.voc.toFixed(1)} ppm · ambang ${thresholds.vocWarning} ppm`
       },
-      current.furanRisk > thresholds.riskWarning && {
-        level: "Analisis",
-        title: "Risiko dioksin/furan meningkat",
-        detail: `Indeks saat ini ${current.furanRisk}/100`
-      }
     ].filter(Boolean) as { level: string; title: string; detail: string }[];
 
     return rows.length ? rows : [{
       level: "Normal",
-      title: "Tidak ada alarm aktif",
-      detail: "Seluruh parameter berada dalam ambang konfigurasi."
+      title: "Tidak ada peringatan pada data contoh",
+      detail: "Nilai CO dan VOC berada di bawah batas contoh yang ditetapkan."
     }];
   }, [current, thresholds]);
 
@@ -320,7 +315,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         </nav>
 
         <div className="sidebar-footer">
-          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "Mode Admin" : "Sistem terhubung"}</div>
+          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "Pengelola · Demo" : "Mode simulasi"}</div>
           {isAdmin && <button onClick={logout} className="logout-button"><LogOut size={17} /> Keluar</button>}
         </div>
       </aside>
@@ -332,12 +327,16 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           </div>
           <div className="top-actions">
             <span className={`mode-badge ${isAdmin ? "admin" : "client"}`}>{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
-            <span className="live-badge"><span className="pulse-dot" /> DATA LANGSUNG</span>
+            <span className="live-badge">DATA SIMULASI</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
         </header>
+
+        <div className="data-demo-note" role="status">
+          <strong>Mode demo.</strong> Angka ditampilkan sebagai simulasi dan belum berasal dari sensor di lokasi.
+        </div>
 
         {tab === "beranda" && (
           <div className="page-grid">
@@ -361,7 +360,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 <div>
                   <p className="section-kicker">Status pembakaran</p>
                   <div className={`combustion-state ${status.tone}`}>{status.text}</div>
-                  <p className="muted">Status dihitung dari suhu tungku dan arah perubahan temperatur.</p>
+                  <p className="muted">Perkiraan status proses dari contoh data suhu.</p>
                 </div>
               </div>
               <div className="hero-side">
@@ -370,11 +369,11 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                   <strong>{current.furnace.toFixed(1)}°C</strong>
                 </div>
                 <div className="hero-mini">
-                  <span>Risiko D/F</span>
-                  <strong>{current.furanRisk}/100</strong>
+                  <span>Gas CO</span>
+                  <strong>{current.co.toFixed(1)} ppm</strong>
                 </div>
                 <div className="hero-time">
-                  <span>Data terakhir</span>
+                  <span>Waktu simulasi</span>
                   <strong>{current.waktu}</strong>
                 </div>
               </div>
@@ -383,25 +382,30 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <div className="section-title-row">
               <div>
                 <p className="section-kicker">Parameter utama</p>
-                <h2>Kondisi proses & lingkungan</h2>
+                <h2>Kondisi utama</h2>
               </div>
-              <span className="soft-badge">8 parameter aktif</span>
+              <span className="soft-badge">4 informasi utama</span>
             </div>
-            <section className="metric-grid">
-              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="orange" />
-              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Sensor suhu cerobong" tone="amber" />
-              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`Kelembapan ${current.humidity.toFixed(0)}%`} tone="blue" />
-              <MetricCard title="Kelembapan Udara" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Kondisi udara sekitar" tone="cyan" />
-              <MetricCard title="CO · Karbon Monoksida" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Kondisi normal"} tone="red" />
-              <MetricCard title="H₂ · Hidrogen" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="Pembacaan sensor gas" tone="purple" />
-              <MetricCard title="VOC · Gas Organik" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Kondisi stabil"} tone="lime" />
-              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Kondisi asap terpantau" tone="green" />
+            <section className="metric-grid" aria-label="Empat parameter utama">
+              <MetricCard title="Suhu pembakaran" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Suhu di dalam tungku" tone="orange" />
+              <MetricCard title="Suhu cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Suhu saluran keluaran" tone="amber" />
+              <MetricCard title="Gas CO" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Di atas batas contoh" : "Di bawah batas contoh"} tone="red" />
+              <MetricCard title="Gas VOC" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Di atas batas contoh" : "Di bawah batas contoh"} tone="lime" />
             </section>
+            <details className="panel extra-metrics">
+              <summary>Lihat parameter lainnya (4)</summary>
+              <section className="metric-grid" aria-label="Parameter tambahan">
+                <MetricCard title="Suhu sekitar" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note="Udara di sekitar alat" tone="blue" />
+                <MetricCard title="Kelembapan udara" value={current.humidity.toFixed(1)} unit="%" icon={Wind} note="Kelembapan lingkungan" tone="cyan" />
+                <MetricCard title="Gas H₂" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="Parameter gas tambahan" tone="purple" />
+                <MetricCard title="Indikator asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Indikator dari data contoh" tone="green" />
+              </section>
+            </details>
 
             <section className="panel chart-panel">
               <div className="panel-heading">
                 <div><p className="section-kicker">Tren proses</p><h2>Suhu pembakaran</h2></div>
-                <span className="chip">48 sampel terakhir</span>
+                <span className="chip">Tren data contoh</span>
               </div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
@@ -417,34 +421,30 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               </div>
             </section>
 
-            <section className="panel ai-card colorful-panel">
+            <section className="panel simple-alert-panel">
               <div className="panel-heading">
-                <div><p className="section-kicker">Perkiraan risiko</p><h2>Dioksin / Furan</h2></div>
-                <div className="panel-icon ai"><BrainCircuit size={20} /></div>
+                <div><p className="section-kicker">Ringkasan pemeriksaan</p><h2>Hal yang perlu diperhatikan</h2></div>
+                <AlertTriangle size={20} />
               </div>
-              <div className="risk-row">
-                <div className={`risk-score risk-${riskLabel(current.furanRisk).toLowerCase()}`}>
-                  <strong>{current.furanRisk}</strong><span>/100</span>
-                </div>
-                <div>
-                  <span className="risk-label">{riskLabel(current.furanRisk)}</span>
-                  <p className="muted">Estimasi kondisi proses, bukan pengukuran laboratorium langsung.</p>
-                </div>
+              <div className="event-list">
+                {alarms.map((alarm, index) => (
+                  <div className="event-row" key={index}>
+                    <span className={alarm.level === "Normal" ? "status-dot" : "warning-dot"} />
+                    <div><strong>{alarm.title}</strong><small>{alarm.detail}</small></div>
+                  </div>
+                ))}
               </div>
-              <div className="ai-insight">
-                <span><BrainCircuit size={16} /> Ringkasan kondisi · analisis otomatis</span>
-                <p>{insight}</p>
-              </div>
+              <p className="demo-text">Peringatan ini dihitung dari ambang contoh, bukan hasil pemantauan emisi nyata.</p>
             </section>
 
             <section className="panel device-summary">
-              <div className="panel-heading"><div><p className="section-kicker">Kesehatan sistem</p><h2>Status perangkat</h2></div><div className="panel-icon device"><ShieldCheck size={19} /></div></div>
+              <div className="panel-heading"><div><p className="section-kicker">Koneksi perangkat</p><h2>Daftar perangkat rencana</h2></div><div className="panel-icon device"><ShieldCheck size={19} /></div></div>
               <div className="device-grid">
-                <DevicePill name="JR-AIoT" detail="Gateway · online" />
-                <DevicePill name="ZEH100" detail="Gas sensor · online" />
-                <DevicePill name="ME31" detail="Thermocouple · online" />
-                <DevicePill name="Sensor Lingkungan" detail="Temp/RH · online" />
-                <DevicePill name="Server" detail="Cloud · online" />
+                <DevicePill name="JR-AIoT" detail="Gateway · belum tersambung" />
+                <DevicePill name="ZEH100" detail="Sensor gas · belum tersambung" />
+                <DevicePill name="Termokopel" detail="Suhu · belum tersambung" />
+                <DevicePill name="Sensor Lingkungan" detail="Suhu & kelembapan · belum tersambung" />
+                <DevicePill name="Server" detail="Penyimpanan · belum tersambung" />
               </div>
             </section>
           </div>
@@ -455,7 +455,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <div className="panel full-span">
               <div className="panel-heading">
                 <div><p className="section-kicker">Riwayat & grafik</p><h2>Historis parameter proses</h2></div>
-                <div className="range-tabs"><button className="active">1 Jam</button><button>6 Jam</button><button>24 Jam</button><button>7 Hari</button><button>30 Hari</button></div>
+                <span className="chip">Sesi simulasi · hingga 48 sampel</span>
               </div>
               <div className="chart-large">
                 <ResponsiveContainer width="100%" height="100%">
@@ -489,7 +489,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </div>
 
             <div className="panel">
-              <div className="panel-heading"><div><p className="section-kicker">Prediksi</p><h2>Indeks risiko D/F</h2></div></div>
+              <div className="panel-heading"><div><p className="section-kicker">Percobaan</p><h2>Indeks D/F simulasi</h2></div></div>
               <div className="chart-wrap">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={history}>
@@ -508,11 +508,11 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "ai" && (
           <section className="page-grid">
             <div className="panel full-span ai-analysis">
-              <div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Ringkasan kondisi pembakaran</h2></div><BrainCircuit size={24} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Analisis percobaan</p><h2>Ringkasan dari aturan simulasi</h2></div><BrainCircuit size={24} /></div>
               <div className="analysis-score-row">
-                <div><span>Risiko Dioksin/Furan</span><strong>{current.furanRisk}/100 · {riskLabel(current.furanRisk)}</strong></div>
+                <div><span>Indeks eksperimen D/F</span><strong>{current.furanRisk}/100 · {riskLabel(current.furanRisk)}</strong></div>
                 <div><span>Status Pembakaran</span><strong>{status.text}</strong></div>
-                <div><span>Kualitas Data</span><strong>Baik</strong></div>
+                <div><span>Sumber data</span><strong>Simulasi</strong></div>
               </div>
               <div className="analysis-copy">
                 <h3>Wawasan saat ini</h3>
@@ -520,7 +520,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
                 <h3>Rekomendasi sistem</h3>
                 <p>Pertahankan kestabilan suhu proses, pantau tren CO dan VOC, serta konfirmasi hasil prediksi dengan metode laboratorium bila diperlukan untuk evaluasi emisi formal.</p>
               </div>
-              <div className="prototype-note">Mode prototipe: teks wawasan saat ini dihasilkan dari rule-based engine. Integrasi AI API akan ditambahkan pada tahap berikutnya.</div>
+              <div className="prototype-note">Indeks dan wawasan ini demonstrasi berbasis aturan sederhana; bukan pengukuran dioksin/furan atau acuan keselamatan dan kepatuhan emisi.</div>
             </div>
           </section>
         )}
@@ -528,7 +528,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "alarm" && (
           <section className="page-grid">
             <div className="panel full-span">
-              <div className="panel-heading"><div><p className="section-kicker">Alarm & kejadian</p><h2>Kondisi yang perlu diperhatikan</h2></div><AlertTriangle size={22} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Peringatan simulasi</p><h2>Parameter yang melewati ambang contoh</h2></div><AlertTriangle size={22} /></div>
               <div className="event-list">
                 {alarms.map((alarm, index) => (
                   <div className="event-row" key={index}>
@@ -545,13 +545,13 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         {tab === "perangkat" && (
           <section className="page-grid">
             <div className="panel full-span">
-              <div className="panel-heading"><div><p className="section-kicker">Perangkat</p><h2>Topologi JR-AIoT</h2></div><Wifi size={22} /></div>
+              <div className="panel-heading"><div><p className="section-kicker">Perangkat</p><h2>Rencana koneksi JR-AIoT</h2></div><Wifi size={22} /></div>
               <div className="device-table">
                 <div className="device-table-row header"><span>Perangkat</span><span>Antarmuka</span><span>Status</span><span>Data terakhir</span></div>
-                <div className="device-table-row"><strong>JR-AIoT</strong><span>Ethernet / Wi-Fi / RS485</span><span className="online-text">Online</span><span>baru saja</span></div>
-                <div className="device-table-row"><strong>ZEH100</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
-                <div className="device-table-row"><strong>ME31</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
-                <div className="device-table-row"><strong>Sensor Lingkungan</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
+                <div className="device-table-row"><strong>JR-AIoT</strong><span>Ethernet / Wi-Fi / RS485</span><span>Belum tersambung</span><span>—</span></div>
+                <div className="device-table-row"><strong>ZEH100</strong><span>RS485 Modbus</span><span>Belum tersambung</span><span>—</span></div>
+                <div className="device-table-row"><strong>ME31</strong><span>RS485 Modbus</span><span>Belum tersambung</span><span>—</span></div>
+                <div className="device-table-row"><strong>Sensor Lingkungan</strong><span>RS485 Modbus</span><span>Belum tersambung</span><span>—</span></div>
               </div>
             </div>
           </section>
@@ -561,7 +561,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           <section className="page-grid">
             <div className="panel full-span settings-panel">
               <div className="panel-heading"><div><p className="section-kicker">Khusus admin</p><h2>Pengaturan ambang sistem</h2></div><Settings size={22} /></div>
-              <p className="muted">Nilai di bawah tersimpan lokal untuk prototipe. Pada versi database, konfigurasi akan disimpan di server.</p>
+              <p className="muted">Batas ini hanya dipakai pada simulasi. Perubahan tersimpan di browser ini, bukan pada perangkat atau server.</p>
               <div className="settings-grid">
                 <label>
                   Suhu pembakaran aktif (°C)
@@ -599,9 +599,9 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       </main>
 
       <nav className="mobile-nav">
-        {visibleNavItems.slice(0, 5).map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
-          return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "riwayat" ? "Riwayat" : item.id === "perangkat" ? "Device" : item.label.replace("Analisis ", "")}</span></button>;
+          return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "ai" ? "Analisis" : item.label}</span></button>;
         })}
       </nav>
     </div>
