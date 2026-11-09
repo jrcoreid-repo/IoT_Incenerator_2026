@@ -8,7 +8,7 @@ Untuk tahap awal, gunakan:
 - **Dashboard/API:** hosting Next.js dengan HTTPS (contoh: Vercel Preview atau server Node.js).
 - **Database:** Upstash Redis REST untuk 120 pembacaan live, arsip 10 detik selama maksimal 7 hari, akun Operator, pengaturan ambang, dan rate limiting login.
 - **ESP32:** tetap mengirim ke server lokal sewaktu riset sensor. Baru setelah firmware mendukung **HTTPS dengan verifikasi sertifikat** boleh mengganti endpoint ke domain online.
-- **Hak akses:** Admin ke /admin (termasuk ekspor CSV dan pengaturan); Operator ke /dashboard (hanya monitoring). POST telemetry membutuhkan token perangkat.
+- **Hak akses:** Admin ke /admin, Operator ke /dashboard. **Keduanya dapat monitoring, analisis, memilih riwayat dan ekspor CSV**. Hanya Admin bisa mengubah ambang serta mengelola akun. POST telemetry membutuhkan token perangkat.
 
 Alur:
 ```
@@ -61,9 +61,9 @@ Sumber referensi:
 
 ### Pengujian arsip saat staging
 
-- Login Admin → **Riwayat**; pilih 1, 2, ... 7 hari atau dua tanggal dan tekan Download CSV / Excel. Untuk ekspor riwayat lengkap, CSV kompatibel Excel digunakan, **belum tersedia file .xlsx native**.
+- Login sebagai Admin **atau Operator** → **Riwayat**; pilih 1, 2, ... 7 hari atau dua tanggal dan tekan Download CSV / Excel. Untuk ekspor riwayat lengkap, CSV kompatibel Excel digunakan, **belum tersedia file .xlsx native**.
 - Uji GET `/api/history?days=7` dengan cookie Admin/Operator, pastikan respons grafik maksimal 300 titik dan jumlah baris asli dihitung terpisah.
-- Uji GET `/api/history/export?days=2`: Admin memperoleh berkas CSV UTF-8, Operator mendapat **403**, pengunjung tidak login mendapat **401**.
+- Uji GET `/api/history/export?days=2`: Admin **dan Operator aktif** memperoleh berkas CSV UTF-8 yang sama, pengunjung tidak login mendapat **401**. Akun Operator yang dinonaktifkan juga harus ditolak.
 - `days=8` atau rentang tanggal lebih dari 7 hari harus ditolak **400**. Pembacaan lebih dari 7 hari lalu tidak dikembalikan.
 - Arsip dimulai setelah fitur ini dipasang; pembacaan sebelum deploy **tidak di-backfill**. Simulasi lokal memakai `.local-data/telemetry-7days.jsonl`; untuk staging dan production Redis wajib aktif.
 - Jangan mengaktifkan pengiriman 10 detik 24/7 tanpa memastikan kapasitas dan anggaran database maupun fungsi hosting. Pengaturan terbaru mengubah **keduanya**: interval pengiriman ESP dan interval pencatatan histori menjadi 10 detik.
@@ -103,7 +103,7 @@ File ini hanya memeriksa **kelengkapan dan format dasar**, bukan menguji koneksi
 - Redis untuk **login throttling** wajib tersedia pada `NODE_ENV=production`. Tanpa Redis atau ketika Redis tidak dapat dihubungi, `POST /api/login` mengembalikan **503**, bukan mengizinkan login tanpa rate limit. Ini berarti `npm run start` juga memerlukan Redis, sedangkan `npm run dev` tetap bisa diuji secara lokal dengan memori sementara.
 - Setelah 8 percobaan login per akun dalam 15 menit, login diblokir (HTTP 429). Batas tambahan jaringan adalah 60 percobaan per 15 menit; IP asli hanya dipercaya pada Vercel yang menormalkan header dan ketika `VERCEL=1`. Pengguna bisa terkena pembatasan jika tes login salah berulang kali.
 - Browser diberi cookie `HttpOnly`, `SameSite=Strict`, `Secure` pada produksi. POST login/logout memeriksa origin/fetch metadata.
-- `GET /api/telemetry` dan `/admin` masih khusus admin. **Belum ada user-management atau self-registration.** Ketika multi-user aktif, admin mengundang akun dan operator mendapat akses baca saja, ditegakkan pada endpoint server.
+- `GET /api/telemetry`, `/api/history`, dan `/api/history/export` dapat diakses Admin dan Operator aktif. Hanya Admin dapat membuka `/admin`, mengubah `/api/thresholds` dan mengelola akun melalui `/api/users`. Tidak ada registrasi publik; Admin membuat dan mengelola akun Operator.
 - Masih harus disiapkan sebelum akses publik luas: MFA, audit login terpusat, pembatasan ingest perangkat, penanganan recovery akun, revokasi sesi saat logout (sesi sekarang stateless), monitoring serangan dan WAF.
 
 Referensi: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
