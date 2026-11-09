@@ -40,7 +40,7 @@ export default function LoginPage() {
     <main className="login-simple">
       <div className="login-simple-shell">
         <div className="login-simple-brand">
-          <div className="login-simple-mark" aria-hidden="true">ADI</div>
+          <div className="login-simple-mark" aria-hidden="true"><img src="/adi-logo.png" width={120} height={76} alt="" /></div>
           <div>
             <p className="login-simple-overline">Sistem Pemantauan Lingkungan</p>
             <h1>ADI Smart Incinerator</h1>
