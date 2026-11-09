@@ -147,13 +147,21 @@ function loadLocalEnv() {
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
 async function send(url, token, payload) {
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store"
+  };
+  // Optional: automated tests against Vercel-protected staging preview.
+  // Never send the bypass key to unrelated servers, HTTP or localhost.
+  const target = new URL(url);
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+  if (bypass && target.protocol === "https:" && target.hostname.endsWith(".vercel.app")) {
+    headers["x-vercel-protection-bypass"] = bypass;
+  }
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store"
-    },
+    headers,
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(8000)
   });
