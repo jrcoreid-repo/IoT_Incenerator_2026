@@ -64,7 +64,7 @@ export default function LoginPage() {
           </p>
 
           <div className="login-facility-art" aria-hidden="true">
-            <img src="/incinerator-illustration.svg" width={1024} height={809} alt="" />
+            <img src="/incinerator-illustration.png" width={1024} height={809} alt="" />
           </div>
           <div className="login-feature-list">
             <div><span className="login-feature-icon"><Thermometer size={18} /></span><span><strong>01 / SUHU</strong><small>Pemantauan suhu pembakaran</small></span></div>
