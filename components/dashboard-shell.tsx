@@ -55,16 +55,34 @@ function DevicePill({ name, status, active }: { name: string; status: string; ac
     </div>
   );
 }
+type StatusTone = "safe" | "caution" | "danger" | "critical" | "muted";
+
+// Warna menunjukkan kondisi indikator internal, bukan hasil uji emisi lingkungan.
+function riskPresentation(index: number | null, fresh: boolean): { label: string; tone: StatusTone } {
+  if (!fresh || index === null) return { label: "BELUM TERSEDIA", tone: "muted" };
+  if (index < 25) return { label: "NORMAL", tone: "safe" };
+  if (index < 50) return { label: "WASPADA", tone: "caution" };
+  if (index < 75) return { label: "BAHAYA", tone: "danger" };
+  return { label: "KRITIS", tone: "critical" };
+}
+
+function monitoringPresentation(severity: "normal" | "warning" | "critical" | "unknown"): { label: string; tone: StatusTone } {
+  if (severity === "normal") return { label: "NORMAL", tone: "safe" };
+  if (severity === "warning") return { label: "WASPADA", tone: "caution" };
+  if (severity === "critical") return { label: "BAHAYA", tone: "critical" };
+  return { label: "BELUM TERSEDIA", tone: "muted" };
+}
+
 function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
   if (!live) return <p className="no-data">Peringatan akan aktif setelah pembacaan terbaru tersedia.</p>;
-  if (events.length === 0) return <p className="no-data">Tidak ada ambang internal yang terlampaui pada pembacaan terbaru. Ini bukan jaminan keamanan emisi.</p>;
+  if (events.length === 0) return <p className="no-data no-data-normal"><span className="status-label risk-safe">NORMAL</span> Tidak ada ambang internal yang terlampaui pada pembacaan terbaru. Ini bukan jaminan keamanan emisi.</p>;
   return (
     <div className="event-list">
       {events.map((event) => (
         <div className="event-row" key={event.code}>
           <span className={event.severity === "critical" ? "warning-dot" : "offline-dot"} />
           <div><strong>{event.title}</strong><small>{event.detail}</small></div>
-          <span className="event-level">{event.severity === "critical" ? "TINGGI" : "PERHATIAN"}</span>
+          <span className={"event-level status-label risk-" + (event.severity === "critical" ? "critical" : "caution")}>{event.severity === "critical" ? "BAHAYA" : "WASPADA"}</span>
         </div>
       ))}
     </div>
@@ -157,6 +175,19 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
   const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : apiError ? "SERVER TIDAK TERHUBUNG" : fresh ? (virtualSource ? "PENGIRIM VIRTUAL TERHUBUNG" : "TELEMETRY ONLINE") : latest ? "DATA TIDAK TERBARU" : "MENUNGGU DATA SENSOR";
+  // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
+  // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
+  const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
+  const isBurning = hasFurnaceReading && latest.furnace >= thresholds.activeTemp;
+  const burnTone = !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
+  const burnLabel = !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
+  const burnDescription = !hasFurnaceReading
+    ? "Pembacaan suhu tungku belum tersedia atau belum terbaru."
+    : isBurning
+      ? `Suhu tungku mencapai batas aktif ${thresholds.activeTemp}°C. Pantau indikator gas secara terpisah.`
+      : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
+  const risk = riskPresentation(lot.furanIndex, fresh);
+  const monitoring = monitoringPresentation(lot.severity);
   const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan");
 
   function applyThresholdSettings() {
@@ -187,7 +218,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-logo" aria-hidden="true"><span>ADI</span></div>
-          <div><strong>ADI Smart Incinerator</strong><span>JR-AIoT / ENVIRONMENTAL TELEMETRY</span></div>
+          <div><strong>ADI Smart Incinerator</strong><span>PEMANTAUAN SUHU &amp; GAS</span></div>
         </div>
         <nav className="side-nav">
           {visibleNavItems.map(item => {
@@ -203,7 +234,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
 
       <main className="main-content">
         <header className="topbar">
-          <div><p className="topbar-overline">ADI SYSTEMS <span>/</span> ENVIRONMENTAL MONITORING</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
+          <div><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
           <div className="top-actions">
             <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
@@ -218,14 +249,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <div className="project-context-main"><div className="project-context-icon"><MapPin size={19} /></div>
                 <div><span className="project-context-label">Lokasi instalasi</span><strong>Desa Caturharjo, Pandak, Bantul</strong></div>
               </div>
-              <div className="project-context-funding"><span>Program</span><strong>Hibah Bestari · LPDP · Omah Inovasi UAD</strong></div>
             </section>
-            <section className={"hero-status status-" + (fresh ? (lot.severity === "normal" ? "good" : "warn") : "muted")}>
+            <section className={"hero-status burn-" + burnTone} aria-label="Status aktivitas pembakaran">
               <div className="hero-status-main">
                 <div className="hero-icon-wrap"><Flame size={26} /></div>
                 <div><p className="section-kicker">Status proses pembakaran</p>
-                  <div className="combustion-state">{lot.process}</div>
-                  <p className="muted">{fresh ? lot.summary : "Menunggu pembacaan yang terbaru dari gateway."}</p>
+                  <div className="combustion-state">{burnLabel}</div>
+                  <p className="muted">{burnDescription}</p>
+                  <span className="burn-legend">Merah = pembakaran berlangsung · Hijau = pembakaran belum aktif</span>
                 </div>
               </div>
               <div className="hero-side">
@@ -240,14 +271,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
               <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" />
               <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" />
               <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" />
-              <article className="metric-card furan-card">
-                <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className="furan-level">{lot.furanLevel}</span></div>
+              <article className={"metric-card furan-card risk-border-" + risk.tone}>
+                <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
                 <div className="metric-body"><span className="metric-label">Indeks risiko furan</span>
                   <div className="metric-value">{fresh ? formatNumber(lot.furanIndex, 0) : "—"}<small>/100</small></div>
                   <div className="furan-track" role="meter" aria-label="Indeks risiko furan hasil aturan LoT" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh ? lot.furanIndex ?? 0 : 0}>
-                    <span style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
+                    <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <span className="metric-note">Estimasi LoT, bukan pengukuran furan</span>
+                  <span className="metric-note">Indeks proses dari aturan LoT, bukan hasil pengukuran furan.</span>
                 </div>
               </article>
             </section>
@@ -275,7 +306,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <section className="panel device-summary">
               <div className="panel-heading"><div><p className="section-kicker">Konektivitas</p><h2>Status perangkat</h2></div><ShieldCheck size={19} /></div>
               <div className="device-grid">
-                <DevicePill name={virtualSource ? "ESP32 virtual" : "Gateway JR-AIoT / ESP"} active={fresh} status={fresh ? "Data diterima" : "Menunggu koneksi"} />
+                <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : "Menunggu koneksi"} />
                 <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={sensorActive("co","voc","h2") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
@@ -310,9 +341,10 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
           <div className="panel full-span ai-analysis">
             <div className="panel-heading"><div><p className="section-kicker">Logic of Tree / Rule-Based</p><h2>Analisis AI otomatis</h2></div><BrainCircuit size={24} /></div>
             <div className="analysis-score-row">
-              <div><span>Status proses</span><strong>{lot.process}</strong></div>
-              <div><span>Indeks furan (estimasi)</span><strong>{fresh ? formatNumber(lot.furanIndex,0) : "—"} / 100 · {lot.furanLevel}</strong></div>
-              <div><span>Ketersediaan parameter</span><strong>{lot.validSensorCount} / 8 SENSOR</strong></div>
+              <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
+              <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
+              <div><span>Indeks furan (estimasi)</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh ? formatNumber(lot.furanIndex,0) : "—"} / 100</strong></div>
+              <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 SENSOR</strong></div>
             </div>
             <div className="analysis-copy">
               <h3>Kesimpulan dari aturan LoT</h3><p>{lot.summary}</p>
@@ -335,14 +367,14 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
         </section>}
 
         {tab === "perangkat" && <section className="page-grid">
-          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Perangkat & jaringan</p><h2>Koneksi JR-AIoT</h2></div><Wifi size={22} /></div>
+          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Perangkat & jaringan</p><h2>Koneksi perangkat</h2></div><Wifi size={22} /></div>
             <div className="device-table">
               <div className="device-table-row header"><span>Perangkat</span><span>Antarmuka</span><span>Status</span><span>Data terakhir</span></div>
-              <div className="device-table-row"><strong>{latest?.deviceId ?? "Gateway ESP / JR-AIoT"}</strong><span>HTTPS Telemetry API</span><span>{fresh ? "Terhubung" : "Tidak terhubung"}</span><span>{formatClock(latest?.receivedAt)}</span></div>
-              <div className="device-table-row"><strong>Suhu tungku & cerobong</strong><span>Sensor suhu / RS485</span><span>{sensorActive("furnace","stack") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
-              <div className="device-table-row"><strong>ZEH100 / Sensor gas</strong><span>RS485 / Gateway</span><span>{sensorActive("co","voc","h2") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
-              <div className="device-table-row"><strong>Sensor lingkungan</strong><span>RS485 / Gateway</span><span>{sensorActive("ambient","humidity") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
-              <div className="device-table-row"><strong>Server telemetry</strong><span>API / Penyimpanan</span><span>{storageReady ? "Siap" : "Belum dikonfigurasi"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>{virtualSource ? "Pengirim virtual" : "Alat pengirim data"}</strong><span>Koneksi data internet</span><span>{fresh ? "Terhubung" : "Tidak terhubung"}</span><span>{formatClock(latest?.receivedAt)}</span></div>
+              <div className="device-table-row"><strong>Suhu tungku &amp; cerobong</strong><span>Kabel sensor</span><span>{sensorActive("furnace","stack") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Sensor gas</strong><span>Kabel sensor</span><span>{sensorActive("co","voc","h2") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Sensor lingkungan</strong><span>Kabel sensor</span><span>{sensorActive("ambient","humidity") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Penyimpanan data</strong><span>Server pemantauan</span><span>{storageReady ? "Siap" : "Belum dikonfigurasi"}</span><span>—</span></div>
             </div>
           </div>
         </section>}
@@ -365,7 +397,10 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             </div>
           </div>
         </section>}
-        <footer className="site-footer"><span className="footer-dot" /><span><strong>ADI Smart Incinerator</strong> · by Omah Inovasi Universitas Ahmad Dahlan</span></footer>
+        <footer className="site-footer">
+          <div className="footer-main"><span className="footer-dot" /><span>© {new Date().getFullYear()} <strong>ADI Smart Incinerator</strong> · Omah Inovasi Universitas Ahmad Dahlan</span></div>
+          <div className="footer-sub">Didukung melalui Program Hibah Bestari · LPDP</div>
+        </footer>
       </main>
       <nav className="mobile-nav">
         {visibleNavItems.map(item => {
