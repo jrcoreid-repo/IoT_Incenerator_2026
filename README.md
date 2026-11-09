@@ -39,8 +39,8 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 - **Auto-hapus di Redis**: setiap sampel baru menghapus rekaman yang usianya melewati 7 hari menggunakan sorted-set score. Arsip juga diberi TTL 7 hari dan akan dihapus oleh Redis walaupun ESP berhenti total.
 - **Saat lokal tanpa Redis**: file `.local-data/telemetry-7days.jsonl` menyimpan arsip; rekaman kedaluwarsa tidak ditampilkan dan file dikompaksi paling lama setiap satu jam ketika masih ada kiriman baru. Jika komputer/server mati dan tidak menerima data, penghapusan fisik lokal terjadi pada kiriman berikutnya. File diabaikan Git.
 - **Riwayat → Rentang**: pilih 1–7 hari terakhir atau dua tanggal (termasuk rentang 1–2 hari), maksimal 7×24 jam dan tidak bisa membaca data lebih dari 7 hari lalu. Grafik dibatasi **300 titik** yang mewakili sampel terakhir tiap bucket; jumlah rekaman asli ditampilkan terpisah.
-- **Admin → Download CSV / Excel**: CSV UTF-8 siap dibuka Microsoft Excel maupun diolah menggunakan Python/pandas. CSV berisi **semua sampel mentah** dalam rentang yang dipilih, tidak dibatasi 300 titik. Saat ini **belum membuat file .xlsx native**. Operator boleh melihat grafik dan jumlah data tetapi tidak dapat mengunduh CSV.
-- API: `GET /api/history?days=1..7`, `GET /api/history?from=<UTC-ISO>&to=<UTC-ISO>` (Admin & Operator), dan `GET /api/history/export?... ` (Admin saja). Semua endpoint memerlukan sesi aktif, tanpa cache, dan menerapkan batas maksimal 7 hari di server.
+- **Admin dan Operator → Download CSV / Excel**: CSV UTF-8 siap dibuka Microsoft Excel maupun diolah menggunakan Python/pandas. Kedua role dapat mengunduh **semua sampel historis** dalam rentang yang dipilih, tanpa batas 300 titik grafik. Saat ini **belum membuat file .xlsx native**.
+- API: `GET /api/history?days=1..7`, `GET /api/history?from=<UTC-ISO>&to=<UTC-ISO>` (Admin & Operator), dan `GET /api/history/export?... ` (Admin & Operator). Semua endpoint memerlukan sesi aktif, tanpa cache, dan menerapkan batas maksimal 7 hari di server.
 
 **Penting:** interval kirim ESP 10 detik berarti sekitar 8.640 HTTP POST/hari atau 259.200 POST per 30 hari saat nonstop. Tetap pantau kuota hosting; sampling 10 detik pada backend juga membatasi arsip tanpa membuat data bertambah tanpa batas. Tidak ada histori yang dapat direkonstruksi sebelum fitur arsip ini diaktifkan.
 
@@ -65,7 +65,7 @@ Untuk menguji: jalankan ESP sender sampai grafik muncul, matikan ESP32 selama se
 **Satu halaman login** di `/login` menerima Admin utama dan Operator yang dibuat oleh Admin.
 
 - **Admin** (akun pemilik dari `ADMIN_USERNAME` / `ADMIN_PASSWORD` di `.env.local`) masuk ke `/admin`. Menu **Manajemen Pengguna** memungkinkan membuat akun Operator, mengaktifkan/menonaktifkan, dan reset password. Menu **Pengaturan** menyimpan ambang LoT di server dan berlaku untuk semua Operator.
-- **Operator / User** masuk ke `/dashboard` dan hanya dapat membaca Beranda, Riwayat, Analisis AI, Peringatan, dan Perangkat. Tidak ada menu Pengaturan maupun Manajemen Pengguna. Akses tulis dicegah di **API server**, bukan hanya UI.
+- **Operator / User** masuk ke `/dashboard` dengan fitur monitoring, grafik, analisis, peringatan, riwayat, dan **download CSV** yang sama seperti Admin. Hanya menu **Pengaturan** dan **Manajemen Pengguna** yang tidak tersedia bagi Operator. Larangan ubah ambang serta kelola akun ditegakkan di **API server**, bukan hanya UI.
 - Kedua halaman menampilkan badge hak akses (**ADMIN** atau **USER / OPERATOR**). Tidak ada registrasi publik.
 - Password Operator disimpan sebagai hash **scrypt bersalt acak**, tidak pernah dikirim kembali oleh API. Menonaktifkan akun atau reset password menaikkan versi sesi, sehingga sesi Operator lama langsung ditolak pada permintaan berikutnya.
 - Untuk **pengembangan lokal** tanpa Redis, akun serta ambang tersimpan dalam `.local-data/` (sudah diabaikan Git); data tetap ada setelah Next.js restart. Hati-hati bila folder proyek berada di OneDrive: file lokal itu mengandung hash akun dan sebaiknya tidak dibagikan.
@@ -100,7 +100,7 @@ Pemeriksaan IP hanya menggunakan alamat yang disediakan dan dinormalisasi oleh V
 
 - `POST /api/login` dan `POST /api/logout` memeriksa `Origin` dan `Sec-Fetch-Site` bila tersedia; cookie tetap **HttpOnly**, **SameSite=Strict**, dan **Secure** pada produksi.
 - Token sesi baru berisi subject, role `admin`, waktu terbit, expiry, dan ID acak, semuanya ditandatangani. Token versi lama otomatis tidak diterima; pengguna perlu login kembali.
-- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` sudah aktif melalui akun yang dibuat Admin, dengan izin baca-saja.
+- Route `/admin` dan pembacaan telemetry masih **khusus admin**, juga ditegakkan di backend. Role `operator` sudah aktif melalui akun yang dibuat Admin, dengan izin membaca data dan mengekspor CSV, tanpa hak ubah pengaturan/akun.
 - Tidak ada tombol registrasi terbuka. Saat database akun disiapkan, admin akan **mengundang/membuat pengguna**; operator hanya boleh memantau, tidak mengubah ambang atau konfigurasi.
 - `npm run test:auth` memverifikasi login salah/benar, token rusak, role operator tidak bisa mengakses admin, pemblokiran login, CSRF, dan logout.
 
@@ -119,7 +119,7 @@ Logo memakai aset `/adi-logo.png`; tidak ada data sensor fiktif yang ditampilkan
 - Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
 - Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan **Prediksi Risiko Furan** dengan label **Hasil Analisis AI**.
 - Parameter tambahan: suhu lingkungan, kelembapan, H₂, dan indikator asap (hanya muncul angkanya jika dikirim sensor).
-- Riwayat: suhu, gas, dan grafik prediksi risiko furan; arsip sampel tiap 10 detik dengan retensi otomatis maksimal 7 hari, pilihan rentang tanggal, dan CSV khusus Admin.
+- Riwayat: suhu, gas, dan grafik prediksi risiko furan; arsip sampel tiap 10 detik dengan retensi otomatis maksimal 7 hari, pilihan rentang tanggal, dan CSV tersedia bagi Admin dan Operator.
 - Analisis AI: **rule-based LoT / if–else**, tanpa ketergantungan API AI.
 - Peringatan saat nilai melewati ambang yang diatur.
 - Pengaturan ambang admin tersimpan **lokal di browser**, bukan di gateway maupun database.
