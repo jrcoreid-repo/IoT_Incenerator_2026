@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ADI Smart Incinerator | Monitoring Lingkungan",
-  description: "Dashboard ADI Smart Incinerator untuk pemantauan pembakaran, gas, dan kondisi lingkungan di Desa Caturharjo, Pandak, Bantul."
+  description: "Dashboard ADI Smart Incinerator untuk pemantauan pembakaran, gas, dan kondisi lingkungan di Desa Caturharjo, Pandak, Bantul.",
+  icons: { icon: "/adi-logo.png", shortcut: "/adi-logo.png" }
 };
 
 export default function RootLayout({
