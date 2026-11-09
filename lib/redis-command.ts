@@ -19,7 +19,7 @@ function localUrl(): string | null {
   if (parsed.protocol !== "redis:" ||
       !["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname) ||
       parsed.username || parsed.password || parsed.search || parsed.hash ||
-      !/^\/(?:[0-9]+)?$/.test(parsed.pathname)) {
+      !/^(?:\/[0-9]*)?$/.test(parsed.pathname)) {
     throw new Error("REDIS_URL_MUST_BE_LOCAL_LOOPBACK");
   }
   return parsed.toString();
