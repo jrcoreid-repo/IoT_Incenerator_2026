@@ -21,7 +21,7 @@ function run(fields, args = []) {
     const path = join(folder, ".env.deploy.local");
     writeFileSync(path, Object.entries(fields).map(([key, value]) => key + "=" + value).join("\n") + "\n");
     const env = { ...process.env };
-    for (const key of Object.keys(valid)) delete env[key];
+    for (const key of [...Object.keys(valid), "REDIS_URL"]) delete env[key];
     return spawnSync(process.execPath, [script, "--env-file", path, ...args], {
       encoding: "utf8", env, cwd: resolve(".")
     });
@@ -54,4 +54,28 @@ test("rejects using same token for login and device ingest", () => {
   const result = run({ ...valid, TELEMETRY_INGEST_KEY: valid.ADMIN_PASSWORD });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /harus berbeda/);
+});
+
+test("accepts local loopback Redis without Upstash subscription", () => {
+  const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, ...credentials } = valid;
+  const result = run({ ...credentials, REDIS_URL: "redis://127.0.0.1:6379" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /PASS/);
+});
+
+test("rejects an internet-facing Redis URL or ambiguous providers", () => {
+  const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, ...credentials } = valid;
+  const remote = run({ ...credentials, REDIS_URL: "redis://203.0.113.22:6379" });
+  assert.equal(remote.status, 1);
+  assert.match(remote.stderr, /loopback/);
+  const both = run({ ...valid, REDIS_URL: "redis://127.0.0.1:6379" });
+  assert.equal(both.status, 1);
+  assert.match(both.stderr, /jangan keduanya/);
+});
+
+test("rejects a fake localhost path that is not a Redis DB index", () => {
+  const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, ...credentials } = valid;
+  const result = run({ ...credentials, REDIS_URL: "redis://127.0.0.1:6379/../../tmp" });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /loopback/);
 });
