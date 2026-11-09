@@ -2,6 +2,7 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:cry
 import { promisify } from "node:util";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { hasRedisStorage, redisCommand } from "./redis-command";
 
 export const USERNAME_PATTERN = /^[a-z][a-z0-9._-]{2,31}$/;
 export const MAX_OPERATORS = 100;
@@ -30,32 +31,6 @@ export function normalizeUsername(value: string) {
 export function validPassword(password: string) {
   return password.length >= 12 && password.length <= 128 &&
     !/^(?:password|123456|admin)/i.test(password);
-}
-function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  return url && token ? { url, token } : null;
-}
-async function redisCommand(parts: (string | number)[]): Promise<unknown> {
-  const config = redisConfig();
-  if (!config) throw new Error("USER_STORAGE_MISSING");
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4000);
-  try {
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(parts),
-      cache: "no-store",
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error("USER_STORAGE_UNAVAILABLE");
-    const data = await response.json() as { result?: unknown; error?: string };
-    if (data.error) throw new Error("USER_STORAGE_ERROR");
-    return data.result;
-  } finally {
-    clearTimeout(timer);
-  }
 }
 async function localRead(): Promise<LocalDatabase> {
   if (process.env.NODE_ENV === "production") throw new Error("USER_STORAGE_REDIS_REQUIRED");
@@ -106,12 +81,12 @@ function parseRecord(raw: unknown): OperatorRecord | null {
 export async function getOperator(username: string): Promise<OperatorRecord | null> {
   const normalized = normalizeUsername(username);
   if (!USERNAME_PATTERN.test(normalized)) return null;
-  if (redisConfig()) return parseRecord(await redisCommand(["HGET", REDIS_USERS_KEY, normalized]));
+  if (hasRedisStorage()) return parseRecord(await redisCommand(["HGET", REDIS_USERS_KEY, normalized]));
   const local = await localRead();
   return local[normalized] ?? null;
 }
 export async function listOperators(): Promise<OperatorView[]> {
-  if (redisConfig()) {
+  if (hasRedisStorage()) {
     const raw = await redisCommand(["HGETALL", REDIS_USERS_KEY]);
     if (!Array.isArray(raw)) throw new Error("USER_STORAGE_INVALID");
     const users: OperatorView[] = [];
@@ -134,7 +109,7 @@ export async function createOperator(username: string, password: string): Promis
     active: true, sessionVersion: 1,
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
   };
-  if (redisConfig()) {
+  if (hasRedisStorage()) {
     // HSETNX atomically prevents duplicate usernames across serverless instances.
     const count = await redisCommand(["HLEN", REDIS_USERS_KEY]);
     if (typeof count !== "number") throw new Error("USER_STORAGE_INVALID");
@@ -165,7 +140,7 @@ export async function updateOperator(username: string, action: "enable" | "disab
     }
     return next;
   };
-  if (redisConfig()) {
+  if (hasRedisStorage()) {
     // Optimistic HSET update is acceptable for a single admin; operator tokens
     // are revalidated on each private request using sessionVersion.
     const existing = await getOperator(normalized);
