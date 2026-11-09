@@ -118,20 +118,32 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   useEffect(() => {
     const savedTheme = localStorage.getItem("adi-telemetry-theme-v2");
     if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
-    const savedThresholds = localStorage.getItem("jr-thresholds");
-    if (!savedThresholds) return;
-    try {
-      const parsed = JSON.parse(savedThresholds) as Partial<Thresholds>;
-      const candidate: Thresholds = { ...DEFAULT_THRESHOLDS, ...parsed };
-      if (thresholdKeys.some(key => typeof candidate[key] !== "number" || !Number.isFinite(candidate[key]))) return;
-      setThresholds(candidate);
-      setThresholdDraft({
-        activeTemp: String(candidate.activeTemp), transitionTemp: String(candidate.transitionTemp),
-        coWarning: String(candidate.coWarning), vocWarning: String(candidate.vocWarning),
-        riskWarning: String(candidate.riskWarning)
-      });
-    } catch { /* konfigurasi tidak valid diabaikan */ }
   }, []);
+
+  useEffect(() => {
+    // Limits belong to the server, never to operator-controlled localStorage.
+    // Both roles read the same shared configuration, refreshed every 30 seconds.
+    let active = true;
+    async function refreshThresholds() {
+      try {
+        const response = await fetch("/api/thresholds", { cache: "no-store", credentials: "same-origin" });
+        if (response.status === 401) { window.location.replace("/login"); return; }
+        const result = await response.json() as { thresholds?: Thresholds };
+        if (!response.ok || !result.thresholds) throw new Error("Pengaturan pusat belum dapat diakses.");
+        if (!active) return;
+        const values = result.thresholds;
+        setThresholds(values);
+        if (isAdmin && tab !== "pengaturan") {
+          setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(values[key])])) as ThresholdDraft);
+        }
+      } catch {
+        if (active && isAdmin && tab === "pengaturan") setSettingsMessage("Belum dapat membaca pengaturan dari server.");
+      }
+    }
+    void refreshThresholds();
+    const timer = window.setInterval(() => { void refreshThresholds(); }, 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isAdmin, tab]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -214,7 +226,26 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const monitoring = offline ? { label: "OFFLINE", tone: "caution" as const } : monitoringPresentation(lot.severity);
   const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan" && item.id !== "pengguna");
 
-  function applyThresholdSettings() {
+  async function saveLimits(values: Thresholds) {
+    if (!isAdmin) return;
+    setSettingsMessage("Menyimpan pengaturan...");
+    try {
+      const response = await fetch("/api/thresholds", {
+        method: "PUT", cache: "no-store", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values)
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      const result = await response.json() as { message?: string; thresholds?: Thresholds };
+      if (!response.ok || !result.thresholds) throw new Error(result.message ?? "Gagal menyimpan ambang.");
+      setThresholds(result.thresholds);
+      setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(result.thresholds![key])])) as ThresholdDraft);
+      setSettingsMessage("Pengaturan berhasil disimpan di server untuk semua pengguna.");
+    } catch (error) {
+      setSettingsMessage(error instanceof Error ? error.message : "Server tidak dapat dihubungi.");
+    }
+  }
+  async function applyThresholdSettings() {
     const values = Object.fromEntries(thresholdKeys.map(key => [key, Number(thresholdDraft[key])])) as Thresholds;
     if (thresholdKeys.some(key => !thresholdDraft[key].trim() || !Number.isFinite(values[key]) || values[key] < 0)) {
       setSettingsMessage("Isi seluruh ambang dengan angka yang valid."); return;
@@ -223,15 +254,10 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
         values.coWarning <= 0 || values.vocWarning <= 0 || values.riskWarning > 100) {
       setSettingsMessage("Pastikan suhu transisi lebih rendah dari suhu aktif, ambang gas positif, dan indeks maksimal 100."); return;
     }
-    setThresholds(values);
-    localStorage.setItem("jr-thresholds", JSON.stringify(values));
-    setSettingsMessage("Ambang tersimpan di browser pengelola ini.");
+    await saveLimits(values);
   }
-  function resetThresholds() {
-    setThresholds(DEFAULT_THRESHOLDS);
-    setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(DEFAULT_THRESHOLDS[key])])) as ThresholdDraft);
-    localStorage.removeItem("jr-thresholds");
-    setSettingsMessage("Pengaturan kembali ke nilai awal.");
+  async function resetThresholds() {
+    await saveLimits({ ...DEFAULT_THRESHOLDS });
   }
   async function logout() {
     setLogoutError("");
@@ -420,7 +446,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
 
         {isAdmin && tab === "pengaturan" && <section className="page-grid">
           <div className="panel full-span settings-panel"><div className="panel-heading"><div><p className="section-kicker">Khusus pengelola</p><h2>Ambang analisis proses</h2></div><Settings size={22} /></div>
-            <p className="muted">Nilai berikut mengatur analisis pada browser ini. Belum mengubah konfigurasi perangkat, server, atau batas regulasi.</p>
+            <p className="muted">Perubahan ambang disimpan di server dan berlaku untuk semua Operator. Ini hanya aturan analisis LoT, bukan batas regulasi atau perintah kendali perangkat.</p>
             <div className="settings-grid">{thresholdKeys.map(key => <label key={key}>{thresholdLabels[key]}
               <input inputMode="decimal" value={thresholdDraft[key]} onChange={event => {
                 const raw = event.target.value;
