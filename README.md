@@ -29,14 +29,14 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 ## Tampilan dan fungsi
 
 - Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
-- Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan indeks risiko furan.
+- Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan **Prediksi Risiko Furan** dengan label **Hasil Analisis AI**.
 - Parameter tambahan: suhu lingkungan, kelembapan, H₂, dan indikator asap (hanya muncul angkanya jika dikirim sensor).
-- Riwayat: suhu, gas dan indeks furan. Penyimpanan mendukung 120 pembacaan terakhir di Redis.
+- Riwayat: suhu, gas, dan grafik prediksi risiko furan. Penyimpanan mendukung 120 pembacaan terakhir di Redis.
 - Analisis AI: **rule-based LoT / if–else**, tanpa ketergantungan API AI.
 - Peringatan saat nilai melewati ambang yang diatur.
 - Pengaturan ambang admin tersimpan **lokal di browser**, bukan di gateway maupun database.
 
-### Catatan tentang furan
+\n### Bahasa pemantauan untuk operator\n\nKartu furan menampilkan **Prediksi Risiko Furan**, skor 0–100, tingkat risiko dengan warna, serta label **Hasil Analisis AI — Berdasarkan suhu dan gas**. Detail perhitungan berbasis aturan if–else (LoT) tersedia di halaman Analisis AI. Prediksi bersifat indikator awal proses dan perlu divalidasi dengan data lapangan serta pengukuran emisi yang sesuai sebelum dipakai untuk keputusan keselamatan atau regulasi.\n\n### Catatan tentang furan
 
 **Furan tidak dibaca langsung oleh sensor yang disebut dalam proyek.** `Indeks risiko furan` ditampilkan sebagai **indikator heuristik 0–100**, dihitung melalui kondisi suhu, CO, VOC dan asap oleh `lib/logic-tree.ts`. Indeks ini **bukan** konsentrasi furan atau dioksin, tidak tervalidasi sebagai prediksi emisi, dan tidak dapat dipakai untuk menyatakan kepatuhan lingkungan atau keselamatan. Penilaian emisi tetap membutuhkan metode pengukuran yang tervalidasi. Ambang dalam kode adalah ambang pemantauan internal awal, bukan baku mutu lingkungan.
 
