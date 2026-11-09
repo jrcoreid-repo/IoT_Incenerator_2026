@@ -4,19 +4,23 @@
   Sends DUMMY readings to Next.js /api/telemetry every 10 seconds.
 
   1) Copy config.example.h to config.h inside this sketch folder.
-  2) Fill Wi-Fi, laptop IPv4, TELEMETRY_INGEST_KEY (same as .env.local).
-  3) Start Next.js on the laptop: npm run dev -- -H 0.0.0.0
+  2) Fill Wi-Fi, HTTPS domain, and TELEMETRY_INGEST_KEY (same as VPS).
+  3) Ensure the domain uses a valid certificate chain and Redis is ready.
   4) Upload and open Serial Monitor @ 115200 baud.
 
   This is TEST DATA, not calibrated physical sensor measurements.
-  For local LAN HTTP only; use verified TLS HTTPS before remote deployment.
+  Remote HTTPS uses CA trust anchors, NTP clock sync and certificate validation.
+  No setInsecure(): TLS failures stop the request rather than leaking the token.
 */
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <time.h>
 #include <math.h>
 #include "config.h"
+#include "ca_roots.h"
 
 static const uint32_t SEND_INTERVAL_MS = 10000;
 static const uint32_t WIFI_RETRY_MS = 10000;
@@ -40,6 +44,8 @@ uint32_t lastSend = 0;
 uint32_t lastWiFiAttempt = 0;
 uint32_t startedAt = 0;
 bool firstSend = true;
+bool ntpConfigured = false;
+
 
 float clampValue(float v, float low, float high) {
   return fminf(fmaxf(v, low), high);
@@ -82,10 +88,28 @@ void sendTelemetry() {
     Serial.println("[ESP32] Invalid TELEMETRY_URL. Use http://<laptop-ip>:3000/api/telemetry");
     return;
   }
-  // Avoid silent insecure HTTPS fallback: remote TLS needs its own verified CA setup.
-  if (endpoint.startsWith("https://")) {
-    Serial.println("[ESP32] HTTPS requires a certificate-validated client. Use HTTP on isolated test LAN.");
-    return;
+  const bool https = endpoint.startsWith("https://");
+  if (https) {
+    if (!ntpConfigured) {
+      configTime(0, 0, "pool.ntp.org", "time.google.com");
+      ntpConfigured = true;
+    }
+    if (time(nullptr) < 1700000000) {
+      Serial.println("[ESP32] Waiting for NTP before verified HTTPS (will retry).");
+      return;
+    }
+  } else {
+    // Plain HTTP is allowed ONLY for local RFC1918 LAN development.
+    String host = endpoint.substring(7);
+    host = host.substring(0, host.indexOf('/'));
+    host = host.substring(0, host.indexOf(':'));
+    IPAddress ip;
+    if (!ip.fromString(host) ||
+        !(ip[0] == 10 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) ||
+          (ip[0] == 192 && ip[1] == 168))) {
+      Serial.println("[ESP32] Refusing HTTP outside a private LAN. Use verified HTTPS.");
+      return;
+    }
   }
 
   float v[8] = {};
@@ -102,11 +126,24 @@ void sendTelemetry() {
     return;
   }
 
-  WiFiClient client;
+  if (strlen(TELEMETRY_INGEST_KEY) < 24) {
+    Serial.println("[ESP32] TELEMETRY_INGEST_KEY missing or too short.");
+    return;
+  }
+
+  WiFiClient plainClient;
+  WiFiClientSecure secureClient;
+  if (https) {
+    secureClient.setCACert(ADI_TRUSTED_CA_ROOTS);
+    secureClient.setTimeout(HTTP_TIMEOUT_MS);
+    // Never use setInsecure(); certificate and hostname must validate.
+  }
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
-  if (!http.begin(client, endpoint)) {
-    Serial.println("[ESP32] HTTP connection setup failed.");
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+  const bool started = https ? http.begin(secureClient, endpoint) : http.begin(plainClient, endpoint);
+  if (!started) {
+    Serial.println("[ESP32] HTTP(S) connection setup failed.");
     return;
   }
 
@@ -121,7 +158,7 @@ void sendTelemetry() {
                 PHASES[stage], status, v[0], v[4], v[6]);
   if (status != 201) {
     Serial.printf("[ESP32] Error: %s\n", response.c_str());
-    if (status < 0) Serial.println("[ESP32] Check IP laptop, Next.js -H 0.0.0.0, Wi-Fi and Windows Firewall.");
+    if (status < 0) Serial.println("[ESP32] Check Wi-Fi, DNS, HTTPS CA chain, NTP clock, Caddy and server.");
     if (status == 401) Serial.println("[ESP32] Check TELEMETRY_INGEST_KEY matches .env.local.");
   }
 }
