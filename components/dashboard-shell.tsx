@@ -155,7 +155,8 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
   const showChart = history.length >= 2;
   const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
-  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : apiError ? "SERVER TIDAK TERHUBUNG" : fresh ? "TELEMETRY ONLINE" : latest ? "DATA TIDAK TERBARU" : "MENUNGGU DATA SENSOR";
+  const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
+  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : apiError ? "SERVER TIDAK TERHUBUNG" : fresh ? (virtualSource ? "PENGIRIM VIRTUAL TERHUBUNG" : "TELEMETRY ONLINE") : latest ? "DATA TIDAK TERBARU" : "MENUNGGU DATA SENSOR";
   const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan");
 
   function applyThresholdSettings() {
@@ -274,7 +275,7 @@ export default function DashboardShell({ mode = "client" }: { mode?: "client" | 
             <section className="panel device-summary">
               <div className="panel-heading"><div><p className="section-kicker">Konektivitas</p><h2>Status perangkat</h2></div><ShieldCheck size={19} /></div>
               <div className="device-grid">
-                <DevicePill name="Gateway JR-AIoT / ESP" active={fresh} status={fresh ? "Data diterima" : "Menunggu koneksi"} />
+                <DevicePill name={virtualSource ? "ESP32 virtual" : "Gateway JR-AIoT / ESP"} active={fresh} status={fresh ? "Data diterima" : "Menunggu koneksi"} />
                 <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={sensorActive("co","voc","h2") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
