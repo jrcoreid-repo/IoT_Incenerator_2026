@@ -222,7 +222,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     if (tab !== "riwayat" || !archiveRange.query) return;
     let active = true;
     let working = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timer: number | null = null;
     let nextDelayMs = 10000;
     const controller = new AbortController();
     async function refreshArchive(showLoading = false) {
