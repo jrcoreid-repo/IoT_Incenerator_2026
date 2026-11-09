@@ -30,6 +30,20 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 
 **Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 15 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
 
+## Arsip historis 10 detik / retensi otomatis 7 hari
+
+**Pengiriman ESP32 tetap setiap 3 detik** agar status LIVE dan OFFLINE tetap responsif. Namun **database riwayat hanya menyimpan satu sampel setiap paling cepat 10 detik**, sehingga arsip tidak tumbuh setiap 3 detik. Ini adalah *sampling*, bukan rata-rata semua pembacaan selama 10 detik.
+
+- **Riwayat live**: 120 pembacaan terbaru untuk dashboard dan analisis saat ini.
+- **Arsip riset**: sampel asli tiap >=10 detik, disimpan paling lama **7×24 jam**. Kapasitas maksimal teoritis satu perangkat: **8.640 baris/hari atau 60.480 baris/7 hari** jika perangkat aktif tanpa jeda.
+- **Auto-hapus di Redis**: setiap sampel baru menghapus rekaman yang usianya melewati 7 hari menggunakan sorted-set score. Arsip juga diberi TTL 7 hari dan akan dihapus oleh Redis walaupun ESP berhenti total.
+- **Saat lokal tanpa Redis**: file `.local-data/telemetry-7days.jsonl` menyimpan arsip; rekaman kedaluwarsa tidak ditampilkan dan file dikompaksi paling lama setiap satu jam ketika masih ada kiriman baru. Jika komputer/server mati dan tidak menerima data, penghapusan fisik lokal terjadi pada kiriman berikutnya. File diabaikan Git.
+- **Riwayat → Rentang**: pilih 1–7 hari terakhir atau dua tanggal (termasuk rentang 1–2 hari), maksimal 7×24 jam dan tidak bisa membaca data lebih dari 7 hari lalu. Grafik dibatasi **300 titik** yang mewakili sampel terakhir tiap bucket; jumlah rekaman asli ditampilkan terpisah.
+- **Admin → Download CSV / Excel**: CSV UTF-8 siap dibuka Microsoft Excel maupun diolah menggunakan Python/pandas. CSV berisi **semua sampel mentah** dalam rentang yang dipilih, tidak dibatasi 300 titik. Saat ini **belum membuat file .xlsx native**. Operator boleh melihat grafik dan jumlah data tetapi tidak dapat mengunduh CSV.
+- API: `GET /api/history?days=1..7`, `GET /api/history?from=<UTC-ISO>&to=<UTC-ISO>` (Admin & Operator), dan `GET /api/history/export?... ` (Admin saja). Semua endpoint memerlukan sesi aktif, tanpa cache, dan menerapkan batas maksimal 7 hari di server.
+
+**Penting:** menyimpan histori tiap 10 detik bukan berarti mengurangi jumlah HTTP POST dari ESP yang masih tiap 3 detik. Jika butuh penghematan request hosting, cadence pengiriman ESP juga bisa dikurangi nanti, tetapi ambang OFFLINE 15 detik wajib disesuaikan. Tidak ada histori yang dapat direkonstruksi sebelum fitur arsip ini diaktifkan.
+
 ## Status OFFLINE telemetry (ESP32 tidak mengirim)
 
 Dengan interval pengiriman ESP32 **3 detik**, dashboard memperlakukan data sebagai **OFFLINE** apabila pembacaan terbaru sudah melewati **15 detik** (sekitar lima siklus kirim yang terlewat), atau API tidak dapat dihubungi. Status dicek ulang oleh browser setiap 5 detik.
@@ -105,7 +119,7 @@ Logo memakai aset `/adi-logo.png`; tidak ada data sensor fiktif yang ditampilkan
 - Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
 - Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan **Prediksi Risiko Furan** dengan label **Hasil Analisis AI**.
 - Parameter tambahan: suhu lingkungan, kelembapan, H₂, dan indikator asap (hanya muncul angkanya jika dikirim sensor).
-- Riwayat: suhu, gas, dan grafik prediksi risiko furan. Penyimpanan mendukung 120 pembacaan terakhir di Redis.
+- Riwayat: suhu, gas, dan grafik prediksi risiko furan; arsip sampel tiap 10 detik dengan retensi otomatis maksimal 7 hari, pilihan rentang tanggal, dan CSV khusus Admin.
 - Analisis AI: **rule-based LoT / if–else**, tanpa ketergantungan API AI.
 - Peringatan saat nilai melewati ambang yang diatur.
 - Pengaturan ambang admin tersimpan **lokal di browser**, bukan di gateway maupun database.
