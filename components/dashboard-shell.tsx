@@ -222,6 +222,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     if (tab !== "riwayat" || !archiveRange.query) return;
     let active = true;
     let working = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let nextDelayMs = 10000;
     const controller = new AbortController();
     async function refreshArchive(showLoading = false) {
       if (working) return;
@@ -242,6 +244,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
         setArchiveTotal(data.total ?? 0);
         setArchiveBucketSeconds(data.chartBucketSeconds ?? 10);
         setArchiveSampled(Boolean(data.sampled));
+        // Large archives are costly to re-read; auto-refresh less frequently.
+        nextDelayMs = (data.total ?? 0) > 300 ? 60000 : 10000;
         setArchiveError("");
       } catch (error) {
         if (active && !controller.signal.aborted) {
@@ -251,17 +255,17 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
       } finally {
         working = false;
         if (active && showLoading) setArchiveBusy(false);
+        // Schedule only after previous request completes. Avoid overlapping scans.
+        if (active && archiveMode === "rolling") {
+          timer = window.setTimeout(() => { void refreshArchive(); }, nextDelayMs);
+        }
       }
     }
     void refreshArchive(true);
-    // Rolling range refreshes in sync with ESP32's 10s cadence.
-    const timer = archiveMode === "rolling"
-      ? window.setInterval(() => { void refreshArchive(); }, 10000)
-      : null;
     return () => {
       active = false;
       controller.abort();
-      if (timer !== null) window.clearInterval(timer);
+      if (timer !== null) window.clearTimeout(timer);
     };
   }, [tab, archiveRange.query, archiveRefresh, archiveMode]);
 
