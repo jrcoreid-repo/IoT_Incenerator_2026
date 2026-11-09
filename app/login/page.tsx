@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ArrowRight, Flame, LockKeyhole } from "lucide-react";
+import { ArrowRight, LockKeyhole } from "lucide-react";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function LoginPage() {
     <main className="login-simple">
       <div className="login-simple-shell">
         <div className="login-simple-brand">
-          <div className="login-simple-mark" aria-hidden="true"><Flame size={26} /></div>
+          <div className="login-simple-mark" aria-hidden="true">ADI</div>
           <div>
             <p className="login-simple-overline">JR-AIoT · Omah Inovasi UAD</p>
             <h1>ADI Smart Incinerator</h1>
