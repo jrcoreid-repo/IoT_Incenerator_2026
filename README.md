@@ -1,45 +1,110 @@
-# JR-AIoT — ADI Smart Incinerator
+# ADI Smart Incinerator · JR-AIoT
 
-Antarmuka telemetry pemantauan suhu dan gas proses pembakaran di Desa Caturharjo, Pandak, Bantul.
+Dashboard **environmental telemetry** untuk Desa Caturharjo, Pandak, Bantul. Antarmuka hijau industrial, angka monospaced, grafik sensor, peringatan parameter, dan **Analisis AI berbasis LoT** (*logic tree / aturan if–else*).
 
-## Antarmuka operator
+## Alur sistem
 
-- Gaya telemetry industrial: latar gelap, garis tipis, tanpa ilustrasi cerobong.
-- Font **Barlow / Barlow Condensed** untuk antarmuka dan **IBM Plex Mono** untuk pembacaan angka. Font mempunyai alternatif sistem jika sumber Google Fonts tidak tersedia.
-- Lima informasi di Beranda: suhu pembakaran, suhu cerobong, CO, VOC, **indeks risiko pembentukan furan**.
-- Empat parameter lanjutan ada dalam bagian yang dapat dibuka; halaman Riwayat tetap memuat grafik indeks furan.
-- Panel peringatan, daftar perangkat, analisis proses, dan pengaturan pengelola tetap tersedia.
-- Dapat dibuka melalui komputer maupun ponsel.
+```
+Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
+                                           ↓
+                                    Validasi token + data
+                                           ↓
+                                     Redis (produksi)
+                                           ↓
+                             GET /api/telemetry setiap 5 detik
+                                           ↓
+                      Dashboard + aturan LoT + indeks furan
+```
 
-## Sumber dan makna data
+**Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 90 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
 
-**Saat ini seluruh angka dan grafik berasal dari generator data contoh `lib/mock-data.ts`, bukan dari sensor RS485.** Tampilan secara eksplisit memperlihatkan **DATA CONTOH · SENSOR OFFLINE**.
+## Tampilan dan fungsi
 
-Indeks risiko furan ditunjukkan sebagai skala *0–100*, **bukan nilai konsentrasi gas atau hasil ukur sensor furan**. Angka dihitung secara heuristik dari suhu, CO, VOC, dan indikator asap dengan rumus pada `components/dashboard-shell.tsx`. Rumus tersebut belum divalidasi secara ilmiah, sehingga tidak boleh dijadikan indikator keselamatan, standar emisi, maupun hasil pengujian laboratorium.
+- Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
+- Beranda: status pembakaran, suhu tungku, suhu cerobong, CO, VOC, dan indeks risiko furan.
+- Parameter tambahan: suhu lingkungan, kelembapan, H₂, dan indikator asap (hanya muncul angkanya jika dikirim sensor).
+- Riwayat: suhu, gas dan indeks furan. Penyimpanan mendukung 120 pembacaan terakhir di Redis.
+- Analisis AI: **rule-based LoT / if–else**, tanpa ketergantungan API AI.
+- Peringatan saat nilai melewati ambang yang diatur.
+- Pengaturan ambang admin tersimpan **lokal di browser**, bukan di gateway maupun database.
 
-- Kategori peringatan CO/VOC memakai ambang yang dapat diedit untuk visualisasi data contoh, bukan standar resmi.
-- Status perangkat masih **Belum tersambung**.
-- Riwayat hanya mencakup data yang dibuat di browser selama sesi berjalan; belum disimpan di database.
-- Konfigurasi ambang saat ini disimpan di localStorage browser pengelola, bukan pada gateway.
+### Catatan tentang furan
 
-## Menjalankan di Windows (CMD / PowerShell)
+**Furan tidak dibaca langsung oleh sensor yang disebut dalam proyek.** `Indeks risiko furan` ditampilkan sebagai **indikator heuristik 0–100**, dihitung melalui kondisi suhu, CO, VOC dan asap oleh `lib/logic-tree.ts`. Indeks ini **bukan** konsentrasi furan atau dioksin, tidak tervalidasi sebagai prediksi emisi, dan tidak dapat dipakai untuk menyatakan kepatuhan lingkungan atau keselamatan. Penilaian emisi tetap membutuhkan metode pengukuran yang tervalidasi. Ambang dalam kode adalah ambang pemantauan internal awal, bukan baku mutu lingkungan.
 
-```powershell
-git fetch origin
+## Setup lokal (Windows)
+
+```cmd
 git switch design/minimal-operator-2026
-git pull --ff-only
+git pull --ff-only origin design/minimal-operator-2026
 npm install
+copy .env.example .env.local
+notepad .env.local
 npm run dev
 ```
 
-Jika belum tersedia, buat `.env.local` dari `.env.example` lalu ubah `ADMIN_USERNAME` dan `ADMIN_PASSWORD`. Buka `http://localhost:3000` atau `http://localhost:3000/login`.
+Isi `.env.local` (jika file tersebut sudah ada, jangan timpa). Syarat:
+- `ADMIN_USERNAME`: nama pengguna pengelola
+- `ADMIN_PASSWORD`: kata sandi kuat, minimum 12 karakter
+- `SESSION_SECRET`: string acak minimum 32 karakter, untuk sesi admin bertanda tangan
+- `TELEMETRY_INGEST_KEY`: token rahasia minimum 24 karakter untuk pengiriman data dari ESP
+- `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN`: diperlukan di produksi untuk menyimpan pembacaan secara persisten
 
-**Keamanan:** Autentikasi versi awal belum siap untuk deploy publik. Amankan mekanisme sesi, kredensial, serta akses API perangkat sebelum implementasi lapangan.
+Pada `npm run dev`, tanpa Redis data akan disimpan sementara di memori proses Node dan hilang saat restart. **Pada produksi, POST akan ditolak jika Redis belum dikonfigurasi.**
 
-## Branch
+Halaman umum: `http://localhost:3000`, admin: `http://localhost:3000/login`.
 
-- `main`: inisialisasi awal.
-- `dashboard-v1`: basis antarmuka sebelumnya.
-- `design/minimal-operator-2026`: antarmuka telemetry yang sedang dikembangkan.
+## Mengirim data dari ESP/gateway
 
-Integrasi data gateway USR-EG118/RS485, API telemetry, database, dan analisis terkalibrasi belum dilakukan.
+Endpoint:
+- `POST /api/telemetry` untuk ESP/gateway, wajib header `Authorization: Bearer <TELEMETRY_INGEST_KEY>`
+- `GET /api/telemetry` untuk dashboard, mengembalikan `latest`, `history`, dan `storageReady`
+
+Payload JSON:
+
+```json
+{
+  "deviceId": "JR-AIoT-01",
+  "furnace": 256.5,
+  "stack": 118.2,
+  "ambient": 30.7,
+  "humidity": 68,
+  "co": 23.4,
+  "h2": 8.1,
+  "voc": 38.5,
+  "smoke": 0.03
+}
+```
+
+Angka di atas hanya menunjukkan **format pengiriman**, bukan pembacaan perangkat. Semua nilai sensor opsional, tetapi setidaknya satu harus berupa angka. Sensor yang belum terpasang boleh dihilangkan atau diisi `null`. Field harus bernilai number (bukan string angka). `furanRisk` **tidak diterima dari firmware**; indeks dihitung oleh LoT saat suhu tungku, CO, dan VOC tersedia.
+
+Untuk menguji API dari Windows PowerShell (ganti token dengan nilai sebenarnya):
+
+```powershell
+$token = "<TOKEN_DARI_ENV_LOCAL>"
+$payload = @{ deviceId = "JR-AIoT-01"; furnace = 256.5; stack = 118.2; co = 23.4; voc = 38.5 } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/telemetry" -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body $payload
+```
+
+Pada perangkat ESP, gunakan HTTPS saat domain sudah aktif. **Token harus disimpan di firmware/konfigurasi perangkat, bukan pada JavaScript frontend.** Sesuaikan format dan kalibrasi pembacaan sensor dengan register serta satuan dari perangkat RS485 yang benar.
+
+## Logic of Tree (LoT)
+
+Lokasi: `lib/logic-tree.ts`. Aturan saat ini mencakup:
+- Status idle, pemanasan, aktif, pendinginan, dan suhu tungku tidak tersedia.
+- CO/VOC melampaui ambang dan dua kali ambang.
+- Penurunan suhu cepat, anomali perbandingan suhu cerobong dan tungku.
+- Lingkungan terlalu panas/lembap serta parameter sensor yang belum tersedia.
+- Indeks furan dihitung hanya bila nilai suhu tungku, CO, VOC tersedia. Setiap aturan yang terpicu ditampilkan, bersama saran pemeriksaan.
+
+**Jika sensor tidak terbaca, sistem tidak akan menyatakan kondisi aman.** Seluruh analisis bersifat bantuan pemantauan, bukan instruksi otomatis mengendalikan insinerator.
+
+## Sebelum deploy ke domain
+
+- Siapkan HTTPS dan Redis persisten, serta isi empat variabel keamanan di environment hosting.
+- Uji koneksi HTTPS ESP ke domain dan pembacaan register sensor per perangkat; jangan menyimpulkan status sensor hanya dari koneksi gateway.
+- Pengaturan ambang masih lokal per browser; perlu DB/otorisasi server jika ingin seragam untuk semua operator.
+- Tambahkan pembatasan percobaan login, rate limiting POST, monitoring kegagalan, backup, retensi, log audit, serta pembatasan perangkat yang boleh mengirim data sebelum penggunaan publik.
+- Uji hasil LoT dengan data lapangan, kalibrasi dan validasi laboratorium sebelum digunakan sebagai penilaian risiko emisi.
+
+Branch kerja: `design/minimal-operator-2026`. Basis sebelumnya: `dashboard-v1`; `main` masih inisialisasi.
