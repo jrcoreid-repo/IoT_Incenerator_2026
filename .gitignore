@@ -8,3 +8,6 @@ node_modules/
 
 # Local ESP32 secrets, never commit
 firmware/**/config.h
+
+# Local-only development account database and shared operator thresholds
+.local-data/
