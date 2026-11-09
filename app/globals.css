@@ -332,3 +332,8 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .hero-status .combustion-state {font-size:31px;}
   .hero-status.burn-burning,.hero-status.burn-idle,.hero-status.burn-unknown {border-left-width:6px;}
 }
+
+/* Prediksi furan: label ringkas untuk operator, metode di halaman Analisis AI. */
+.prediction-note {display:flex;flex-direction:column;gap:4px;margin-top:9px;line-height:1.35;}
+.prediction-note strong {font:700 9px/1.4 var(--font-mono);letter-spacing:.06em;color:var(--accent);}
+.prediction-note span {font:500 11px/1.35 var(--font-ui);color:var(--muted);}
