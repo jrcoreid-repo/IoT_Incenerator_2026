@@ -84,7 +84,7 @@ export default function UserManagement({ owner }: { owner: string }) {
 
       <div className="user-management-intro">
         <div><Lock size={18} /><span><strong>Admin utama: {owner}</strong><small>Dikelola lewat konfigurasi server. Tidak dapat diubah oleh Operator.</small></span></div>
-        <p>Admin membuat akun Operator menggunakan username dan password. Operator hanya dapat memantau dashboard, grafik, analisis, perangkat, dan peringatan.</p>
+        <p>Admin membuat akun Operator menggunakan username dan password. Operator mendapat seluruh fitur pemantauan, analisis, riwayat, dan unduh CSV. Hanya Admin yang bisa mengubah pengaturan atau mengelola akun.</p>
       </div>
 
       <div className="user-management-columns">
@@ -104,7 +104,7 @@ export default function UserManagement({ owner }: { owner: string }) {
               {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
             </button>
           </div>
-          <p className="user-password-hint">Akun dibuat sebagai Operator (hanya baca). Tidak ada registrasi publik.</p>
+          <p className="user-password-hint">Akun Operator dapat melihat data dan mengunduh CSV, tetapi tidak dapat mengubah pengaturan maupun akun. Tidak ada registrasi publik.</p>
           <button className="primary-button" type="submit" disabled={!!busy}>
             <UserPlus size={16} /> {busy === "create" ? "Menyimpan..." : "Buat Akun Operator"}
           </button>
