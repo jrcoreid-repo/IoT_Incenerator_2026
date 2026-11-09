@@ -10,7 +10,7 @@ const url = new URL(address);
 if (url.protocol !== "redis:" ||
     !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
     url.username || url.password || url.search || url.hash ||
-    !/^\/(?:[0-9]+)?$/.test(url.pathname)) {
+    !/^(?:\/[0-9]*)?$/.test(url.pathname)) {
   throw new Error("Test Redis hanya boleh memakai loopback pada server lokal.");
 }
 
