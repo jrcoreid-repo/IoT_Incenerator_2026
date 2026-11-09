@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Flame, Gauge, History, Home, LogOut, MapPin, Moon, Settings, ShieldCheck, Sun, Thermometer, Wifi, Wind } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Flame, Gauge, History, Home, LogOut, MapPin, Moon, Settings, ShieldCheck, Sun, Thermometer, Users, Wifi, Wind } from "lucide-react";
+import UserManagement from "@/components/user-management";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 
-type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan";
+type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
 type ThresholdDraft = Record<keyof Thresholds, string>;
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
@@ -14,7 +15,8 @@ const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "ai", label: "Analisis AI", icon: BrainCircuit },
   { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
-  { id: "pengaturan", label: "Pengaturan", icon: Settings }
+  { id: "pengaturan", label: "Pengaturan", icon: Settings },
+  { id: "pengguna", label: "Manajemen Pengguna", icon: Users }
 ];
 const thresholdKeys: (keyof Thresholds)[] = ["activeTemp", "transitionTemp", "coWarning", "vocWarning", "riskWarning"];
 const thresholdLabels: Record<keyof Thresholds, string> = {
@@ -91,7 +93,7 @@ function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
   );
 }
 
-export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
+export default function DashboardShell({ mode = "admin", username = "" }: { mode?: "admin" | "operator"; username?: string }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -210,7 +212,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
         : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
   const risk = offline ? { label: "OFFLINE", tone: "caution" as const } : riskPresentation(lot.furanIndex, fresh);
   const monitoring = offline ? { label: "OFFLINE", tone: "caution" as const } : monitoringPresentation(lot.severity);
-  const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan");
+  const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan" && item.id !== "pengguna");
 
   function applyThresholdSettings() {
     const values = Object.fromEntries(thresholdKeys.map(key => [key, Number(thresholdDraft[key])])) as Thresholds;
@@ -257,7 +259,8 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
         </nav>
         <div className="sidebar-footer">
           <div className="mini-status"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</div>
-          {isAdmin && <button className="logout-button" onClick={logout}><LogOut size={17} /> Keluar</button>}
+          <div className="account-role-meta"><ShieldCheck size={15} /><span>{isAdmin ? "ADMIN" : "USER · OPERATOR"}<small>{username}</small></span></div>
+          <button className="logout-button" onClick={logout}><LogOut size={17} /> Keluar</button>
           {logoutError && <p className="logout-error" role="alert">{logoutError}</p>}
         </div>
       </aside>
@@ -267,6 +270,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
           <div className="mobile-brand"><img src="/adi-logo.png" width={120} height={76} alt="" /><span>ADI Smart Incinerator</span></div>
           <div className="topbar-heading"><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
           <div className="top-actions">
+            <span className="account-role-chip" aria-label={"Hak akses: " + (isAdmin ? "Admin" : "Operator")}><ShieldCheck size={13}/>{isAdmin ? "ADMIN" : "USER / OPERATOR"}</span>
             <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -411,6 +415,8 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
             </div>
           </div>
         </section>}
+
+        {isAdmin && tab === "pengguna" && <section className="page-grid"><UserManagement owner={username} /></section>}
 
         {isAdmin && tab === "pengaturan" && <section className="page-grid">
           <div className="panel full-span settings-panel"><div className="panel-heading"><div><p className="section-kicker">Khusus pengelola</p><h2>Ambang analisis proses</h2></div><Settings size={22} /></div>
