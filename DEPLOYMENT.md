@@ -23,6 +23,21 @@ Laptop test sender -- HTTPS --> Next.js staging (login privat)
 
 **Tidak perlu membeli domain sekarang.** Vercel menyediakan URL otomatis `*.vercel.app`; custom domain bisa ditambahkan setelah staging stabil. Gunakan lingkungan Preview terpisah sebelum production.
 
+## Status preflight dan keputusan staging (9 November 2026)
+
+- [x] Branch aplikasi yang benar: `design/minimal-operator-2026`; `main` masih default repo dan **bukan** rilis aplikasi terbaru.
+- [x] Build dan tes integrasi Admin/Operator, akses data, logging 10 detik, retensi 7 hari, dan ekspor CSV lulus CI pada branch ini.
+- [x] File lokal sensitif (`.env*`, `.local-data/`, firmware `config.h`) diabaikan Git, dengan lapisan `.vercelignore` tambahan untuk deploy via Vercel CLI.
+- [ ] Buat proyek Vercel dari GitHub, **periksa branch yang di-deploy**. Jangan gunakan `main` lama sebagai produk terkini.
+- [ ] Aktifkan perlindungan Vercel Authentication pada Preview dan siapkan Upstash Redis **khusus staging**.
+- [ ] Simpan enam environment variables privat untuk Preview di Vercel; jangan membagikan `.env.local`/token ke chat.
+- [ ] Uji deployment Preview dengan Admin dan Operator, riwayat dan ekspor CSV, reset/revoke akun, serta pemulihan data setelah redeploy.
+- [ ] Kirim data dummy HTTPS menggunakan virtual sender + Vercel bypass (bila Preview dilindungi); firmware ESP32 fisik masih HTTP LAN, **belum siap** untuk HTTPS publik.
+- [ ] Pantau biaya: 10 detik nonstop berarti ~259.200 POST/30 hari; 1 browser yang terus terbuka dengan polling 5 detik menambah ~518.400 GET/30 hari. Free Redis 500.000 commands/bulan berisiko tidak cukup untuk nonstop.
+- [ ] Produksi setelah HTTPS perangkat terverifikasi, token dirotasi, retensi Redis sungguhan dan backup diuji, serta proteksi ingest/rate limit dan recovery disiapkan.
+
+**Hak akses final:** Admin dan Operator boleh monitoring, analisis, riwayat 1–7 hari, dan unduh CSV; hanya Admin boleh mengubah pengaturan serta membuat/menonaktifkan/reset akun.
+
 ## 1. Tentukan hosting dan buat staging terproteksi
 
 **Contoh Vercel** (hanya jika plan & ketentuan penggunaan sesuai):
@@ -154,7 +169,7 @@ Invoke-RestMethod -Uri "https://URL-STAGING/api/telemetry" -Method Post -Content
 - [x] Rate limiting Redis untuk login admin dan mitigasi percobaan password berulang; [ ] rate limiting endpoint ingest, monitoring kegagalan, audit login, serta WAF.
 - [ ] Kredensial acak kuat dan terpisah antar environment; proses rotasi token siap.
 - [ ] Redis/DB persisten, backup, retensi historis dan monitor biaya/kuota.
-- [ ] Pengaturan ambang LoT saat ini **lokal di browser**; jika multioperator perlu disimpan dan divalidasi di server.
+- [x] Pengaturan ambang LoT disimpan dan divalidasi **di server** (Redis di staging/production). Hanya Admin yang dapat mengubahnya; Operator memakai ambang bersama.
 - [ ] Data dummy dan real diberi pembeda jelas.
 - [ ] Error handling/retry/backoff ESP saat internet terganggu, Wi-Fi reconnect, jam/NTP dan HTTPS CA trust.
 - [ ] Uji akses admin tanpa sesi, akses telemetry, login/logout, cache browser, serta pengujian keamanan terpisah.
