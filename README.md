@@ -18,6 +18,14 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
 
 **Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 90 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
 
+## Tampilan operator dan arti warna
+
+- Panel **Status proses pembakaran** dibuat kontras: **merah = sedang membakar** (suhu tungku mencapai ambang aktif), **hijau = tidak membakar** (suhu di bawah ambang aktif), **abu-abu = suhu tidak tersedia / data tidak terbaru**. Status ini menunjukkan *aktivitas* pembakaran, **bukan bahaya atau keamanan emisi**.
+- Indikator risiko proses memiliki warna yang terpisah berdasarkan indeks LoT: **hijau NORMAL (0–24)**, **kuning WASPADA (25–49)**, **oranye BAHAYA (50–74)**, dan **merah KRITIS (75–100)**. Label tersebut hanya interpretasi indeks internal, bukan pengukuran furan/dioksin langsung.
+- Pada Analisis AI, status pemantauan dibedakan berdasarkan apakah aturan LoT menemukan pelampauan ambang internal: **NORMAL**, **WASPADA**, atau **BAHAYA**.
+- Identitas teknis internal seperti kode perangkat tetap ada dalam payload/API untuk integrasi, sedangkan antarmuka menggunakan bahasa awam: **Alat pengirim data**, **Sensor gas**, **Penyimpanan data**.
+- Informasi Hibah Bestari dan LPDP berada di bagian bawah halaman, bersama hak cipta dan identitas Omah Inovasi Universitas Ahmad Dahlan.
+
 ## Tampilan dan fungsi
 
 - Nuansa **hijau lingkungan** dengan komposisi industrial telemetry dan font Barlow, Barlow Condensed, IBM Plex Mono.
