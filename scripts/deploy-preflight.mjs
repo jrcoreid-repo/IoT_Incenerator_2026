@@ -13,14 +13,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const required = [
-  "ADMIN_USERNAME",
-  "ADMIN_PASSWORD",
-  "SESSION_SECRET",
-  "TELEMETRY_INGEST_KEY",
-  "UPSTASH_REDIS_REST_URL",
-  "UPSTASH_REDIS_REST_TOKEN"
-];
+const required = ["ADMIN_USERNAME", "ADMIN_PASSWORD", "SESSION_SECRET", "TELEMETRY_INGEST_KEY"];
+const redisSettings = ["REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"];
 
 function parseFile(text) {
   const values = {};
@@ -65,14 +59,34 @@ function report(values) {
   if (values.TELEMETRY_INGEST_KEY && [values.ADMIN_PASSWORD, values.SESSION_SECRET].includes(values.TELEMETRY_INGEST_KEY)) {
     issues.push("TELEMETRY_INGEST_KEY harus berbeda dari kredensial login.");
   }
-  if (values.UPSTASH_REDIS_REST_URL) {
+  const local = values.REDIS_URL?.trim();
+  const upstashUrl = values.UPSTASH_REDIS_REST_URL?.trim();
+  const upstashToken = values.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (local) {
     try {
-      const url = new URL(values.UPSTASH_REDIS_REST_URL);
-      if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.search || url.hash) {
-        issues.push("UPSTASH_REDIS_REST_URL harus berupa URL HTTPS REST Redis tanpa kredensial/query.");
+      const url = new URL(local);
+      if (url.protocol !== "redis:" ||
+          !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
+          url.username || url.password || url.search || url.hash ||
+          !/^\\/(?:[0-9]+)?$/.test(url.pathname)) {
+        issues.push("REDIS_URL wajib redis://127.0.0.1:6379 (hanya loopback; jangan expose Redis ke internet).");
       }
     } catch {
-      issues.push("UPSTASH_REDIS_REST_URL bukan URL valid.");
+      issues.push("REDIS_URL bukan URL valid.");
+    }
+    if (upstashUrl || upstashToken) issues.push("Gunakan REDIS_URL ATAU Upstash, jangan keduanya dalam satu server.");
+  } else {
+    if (!upstashUrl) issues.push("Konfigurasi database belum ada: isi REDIS_URL lokal atau UPSTASH_REDIS_REST_URL.");
+    if (!upstashToken) issues.push("UPSTASH_REDIS_REST_TOKEN belum terisi (atau gunakan REDIS_URL lokal).");
+    if (upstashUrl) {
+      try {
+        const url = new URL(upstashUrl);
+        if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.search || url.hash) {
+          issues.push("UPSTASH_REDIS_REST_URL harus berupa URL HTTPS REST Redis tanpa kredensial/query.");
+        }
+      } catch {
+        issues.push("UPSTASH_REDIS_REST_URL bukan URL valid.");
+      }
     }
   }
   if (values.SESSION_SECRET && values.SESSION_SECRET.length >= 32 && /^([a-z0-9])\1+$/i.test(values.SESSION_SECRET)) {
@@ -95,7 +109,8 @@ function main() {
   }
   const filename = resolve(process.cwd(), argPath);
   const fileValues = existsSync(filename) ? parseFile(readFileSync(filename, "utf8")) : {};
-  const values = { ...fileValues, ...Object.fromEntries(required.filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]])) };
+  const settings = [...required, ...redisSettings];
+  const values = { ...fileValues, ...Object.fromEntries(settings.filter((key) => process.env[key] !== undefined).map((key) => [key, process.env[key]])) };
   const { issues, warnings } = report(values);
   console.log("ADI deployment preflight (tanpa mencetak nilai rahasia)");
   console.log("Konfigurasi: " + (existsSync(filename) ? argPath : "environment variables"));
