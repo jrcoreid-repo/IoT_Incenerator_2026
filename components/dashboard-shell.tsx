@@ -317,7 +317,7 @@ export default function DashboardShell({ mode = "admin" }: { mode?: "admin" }) {
                 <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} tone="smoke" />
               </div>
             </section>
-            <section className="panel chart-panel">
+            <section className="panel chart-panel full-span">
               <div className="panel-heading"><div><p className="section-kicker">Grafik telemetry</p><h2>Tren suhu</h2></div><span className="chip">TEMPERATURE / °C</span></div>
               {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={28} /><YAxis /><Tooltip />
