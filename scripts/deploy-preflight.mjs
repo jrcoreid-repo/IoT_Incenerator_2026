@@ -68,7 +68,7 @@ function report(values) {
       if (url.protocol !== "redis:" ||
           !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
           url.username || url.password || url.search || url.hash ||
-          !/^\/(?:[0-9]+)?$/.test(url.pathname)) {
+          !/^(?:\/[0-9]*)?$/.test(url.pathname)) {
         issues.push("REDIS_URL wajib redis://127.0.0.1:6379 (hanya loopback; jangan expose Redis ke internet).");
       }
     } catch {
