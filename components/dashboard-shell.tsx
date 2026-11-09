@@ -35,7 +35,7 @@ function formatClock(iso: string | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "medium" });
 }
-const TELEMETRY_OFFLINE_AFTER_MS = 15_000; // Five missed reports at the ESP32 3-second interval.
+const TELEMETRY_OFFLINE_AFTER_MS = 35_000; // Three missed reports at ESP32 10-second interval, with 5-second margin.
 type SensorTone = "furnace" | "stack" | "co" | "voc" | "ambient" | "humidity" | "h2" | "smoke";
 function MetricCard({ title, value, unit, icon: Icon, note, tone, offline = false }: {
   title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone; offline?: boolean
