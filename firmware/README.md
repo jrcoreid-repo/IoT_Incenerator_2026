@@ -1,58 +1,70 @@
-# ESP32 — ADI Smart Incinerator (pengirim data dummy)
+# ESP32 — ADI Smart Incinerator (dummy 10 detik ke VPS)
 
-Firmware Arduino IDE untuk mengetes dashboard **tanpa sensor fisik**. ESP32 mengirim delapan parameter melalui `HTTP POST /api/telemetry` dengan token ingest. Data berubah setiap 10 detik dan berputar melalui enam fase: IDLE → HEATING → ACTIVE → WARNING → CRITICAL → COOLING. Hanya gunakan di jaringan lokal saat pengujian.
+Firmware **Arduino IDE** untuk menguji sistem cloud tanpa sensor fisik. ESP32 mengirim delapan parameter dummy via `HTTPS POST https://adi-incinerator.live/api/telemetry` setiap **10 detik**. Enam fase simulasi: IDLE → HEATING → ACTIVE → WARNING → CRITICAL → COOLING.
+
+**Penting:** Semua nilai adalah data sintetis untuk pengujian perangkat lunak, bukan pengukuran emisi maupun penilaian keamanan pembakaran. Jangan menyalakan alarm operasional berdasarkan nilai dummy.
 
 ## 1. Siapkan Arduino IDE
 
-- Pasang **ESP32 by Espressif Systems** melalui Boards Manager.
-- Pilih tipe board ESP32 yang cocok dan port USB perangkat.
-- Buka sketch `firmware/adi_esp32_sender/adi_esp32_sender.ino`.
-- Tidak perlu pustaka ArduinoJson; hanya `WiFi.h` dan `HTTPClient.h` bawaan core ESP32.
+- Instal **ESP32 by Espressif Systems** dari Boards Manager.
+- Pilih board dan COM port yang benar (ESP32 Dev Module, ESP32-S3 atau ESP32-C3).
+- Buka `firmware/adi_esp32_sender/adi_esp32_sender.ino`.
+- Library `WiFi.h`, `WiFiClientSecure.h`, dan `HTTPClient.h` sudah tersedia dalam paket board ESP32; ArduinoJson tidak dibutuhkan.
 
-## 2. Buat konfigurasi rahasia
+## 2. Konfigurasi Wi-Fi dan token VPS
 
-Di folder sketch, duplikasikan `config.example.h` lalu beri nama **`config.h`**.
+Duplikasikan `config.example.h` menjadi `config.h` di folder sketch. Isi **hanya** file `config.h` dengan data sebenarnya:
 
-Isi:
 ```cpp
-#define WIFI_SSID "Nama_WiFi_2_4GHz"
-#define WIFI_PASSWORD "Password_WiFi"
-#define TELEMETRY_URL "http://192.168.1.100:3000/api/telemetry"
-#define TELEMETRY_INGEST_KEY "TOKEN_INGEST_SAMA_SEPERTI_ENV_LOCAL"
+#define WIFI_SSID "WiFi_2_4GHz"
+#define WIFI_PASSWORD "PASSWORD_WIFI_PRIBADI"
+#define TELEMETRY_URL "https://adi-incinerator.live/api/telemetry"
+#define TELEMETRY_INGEST_KEY "TOKEN_INGEST_DARI_ENV_VPS"
 ```
 
-Ganti `192.168.1.100` sesuai IPv4 **laptop**, yang dapat dilihat melalui `ipconfig`. Jangan gunakan `localhost` di ESP32: itu alamat ESP32 sendiri. Hubungkan ESP32 dan laptop ke Wi-Fi/LAN yang sama, tanpa client isolation. Token harus **sama persis** dengan `TELEMETRY_INGEST_KEY` di `.env.local`, dan minimum 24 karakter. **Jangan commit `config.h` atau membagikan token/password.** File ini sudah masuk `.gitignore`.
+`TELEMETRY_INGEST_KEY` harus persis sama dengan nilai di lingkungan service Next.js **VPS**, panjang minimal 24 karakter. Ini **berbeda** dari username/password Admin. Untuk melihat lokasi env file tanpa menampilkan isinya: `sudo systemctl cat adi-smart-incinerator`. Jangan kirimkan token atau file `config.h` ke chat maupun GitHub—file tersebut diabaikan oleh `.gitignore`.
 
-## 3. Nyalakan server di laptop
+ESP32 memerlukan internet lewat Wi-Fi 2,4 GHz, akses DNS, dan akses NTP untuk menyetel jam UTC. Jika menggunakan hotspot HP, periksa fitur tethering dan pembatasan jaringan.
 
-Buka terminal di root proyek:
-```cmd
-npm run dev -- -H 0.0.0.0
+## 3. HTTPS dan sertifikat
+
+Firmware menggunakan `WiFiClientSecure::setCACert` dengan **CA root publik** dari `ca_roots.h` (ISRG Root X1 / USERTrust RSA), plus sinkronisasi waktu NTP. Firmware **tidak** menonaktifkan validasi sertifikat dan tidak mengikuti redirect. Token hanya dikirim setelah koneksi HTTPS berhasil divalidasi.
+
+Karena sertifikat server Caddy dapat diterbitkan oleh CA berbeda atau berganti saat pembaruan, **periksa chain sertifikat domain** sebelum mengandalkan firmware:
+
+```bash
+openssl s_client -connect adi-incinerator.live:443 -servername adi-incinerator.live -showcerts </dev/null
 ```
 
-Jika `.env.local` diubah, restart server. Jika Windows Firewall bertanya, izinkan Node.js untuk jaringan **Private** saja.
+Periksa issuer dan rantai ke ISRG Root X1 atau USERTrust RSA. Bila Caddy memakai root lainnya, perbarui `ca_roots.h` terlebih dahulu menggunakan CA root resmi, bukan sertifikat leaf yang berganti setiap beberapa bulan. Jangan mengganti kode dengan `setInsecure()`.
 
-## 4. Upload firmware dan periksa Serial Monitor
+Untuk uji **LAN terisolasi** tanpa HTTPS, `TELEMETRY_URL` masih boleh `http://192.168.x.x:3000/api/telemetry` atau alamat privat RFC1918; HTTP publik ditolak firmware.
 
-Upload sketch ke ESP32 lalu buka Serial Monitor di **115200 baud**. Jika berhasil, keluaran seperti:
+## 4. Upload dan jalankan
 
-```
+1. Hentikan sender dummy Node.js pada laptop (`npm run sender:virtual`) agar data uji tidak bercampur.
+2. Upload firmware melalui Arduino IDE.
+3. Buka **Serial Monitor, 115200 baud**.
+4. Tunggu `[WiFi] Connected`, lalu sinkronisasi NTP; kiriman berjalan tiap 10 detik.
+5. Hasil sukses berupa `HTTP 201`, contohnya:
+
+```text
 [WiFi] Connected, ESP IP: 192.168.1.124
 [ESP32] IDLE     | HTTP 201 | Tungku 54.0 C | CO 11.0 ppm | VOC 18.0 ppm
-[ESP32] HEATING  | HTTP 201 | Tungku 79.4 C | CO 14.7 ppm | VOC 25.1 ppm
 ```
 
-Contoh di atas hanya ilustrasi. **HTTP 201** berarti server sudah menerima payload. Buka `http://<IP-LAPTOP>:3000/login`, login, lalu lihat dashboard. Endpoint pembaca telemetry memerlukan sesi admin, tetapi **pengirim ESP32 tidak perlu login admin** karena menggunakan token sendiri.
+6. Login ke **https://adi-incinerator.live/login** lalu lihat dashboard dan grafik yang berubah.
 
-### Bila gagal
+## 5. Diagnosis error
 
-- **HTTP -1 / gagal koneksi:** IP laptop salah, beda Wi-Fi, firewall, atau server tidak memakai `-H 0.0.0.0`.
-- **HTTP 401:** token berbeda dari `.env.local`.
-- **HTTP 503:** `TELEMETRY_INGEST_KEY` belum disetel atau penyimpanan server belum tersedia.
-- **HTTP 400:** payload JSON gagal validasi (periksa nama/satuan field).
-- **Tidak ada angka pada dashboard:** pastikan kamu sudah login dan pengirim dummy dari Node dihentikan agar device tidak bercampur.
+- **HTTP 201:** server menerima pembacaan; periksa tampilannya di dashboard.
+- **HTTP 401:** token salah; cocokkan dengan `TELEMETRY_INGEST_KEY` di VPS, bukan password Admin.
+- **HTTP 503:** Redis/penyimpanan produksi belum siap atau kunci belum dikonfigurasi.
+- **HTTP 400:** field JSON ditolak, periksa skema.
+- **Kode HTTP negatif / NTP menunggu:** cek Wi-Fi, DNS, tanggal NTP, rantai CA TLS, Caddy/port 443, atau koneksi internet. Firmware tidak akan mengirim token lewat HTTPS yang gagal diverifikasi.
+- **Grafik tidak berubah:** pastikan pengirim dummy lain dihentikan, API Redis aktif, dan browser login ke domain yang benar.
 
-## Format JSON yang dikirim
+## Format payload
 
 ```json
 {
@@ -68,10 +80,8 @@ Contoh di atas hanya ilustrasi. **HTTP 201** berarti server sudah menerima paylo
 }
 ```
 
-ESP32 mengirim 1 data tiap **10 detik**. Dashboard memeriksa pembaruan tiap 5 detik dan menandai OFFLINE setelah **35 detik** tanpa kiriman baru. Arsip menyimpan sampel setiap paling cepat 10 detik dengan penghapusan otomatis setelah 7 hari.
+Sistem menyimpan hingga 120 pembacaan live terakhir dan arsip sampel dengan retensi **7 hari** di Redis (jika konfigurasi VPS sudah benar). Dengan satu ESP, interval 10 detik menghasilkan **8.640 POST per hari**. Jangan menganggap kapasitas VPS aman tanpa memonitor penggunaan RAM/CPU dan Redis saat tes sebenarnya.
 
-Nilai merupakan **hasil generator data uji**, bukan hasil sensor, nilai emisi, atau konsentrasi furan. Skor prediksi risiko furan dihitung di dashboard melalui LoT. Tidak ada perintah kendali ke insinerator.
+## Tahap setelah dummy
 
-## Tahap berikutnya
-
-Ganti sumber pembacaan `makeReadings()` dengan fungsi pembacaan sensor RS485 sesuai register dan kalibrasi perangkat, tetapi pertahankan nama field JSON dan autentikasi API. Di deployment domain, gunakan **HTTPS dengan sertifikat server diverifikasi**, bukan pengabaian validasi sertifikat (`setInsecure`). Firmware saat ini sengaja hanya mengizinkan HTTP untuk pengujian di LAN; belum siap untuk pengiriman data ke internet.
+Ganti `makeReadings()` dengan sensor RS485 setelah protokol, satuan, dan kalibrasi tervalidasi. Simpan cara membedakan perangkat simulasi dan pembacaan sesungguhnya agar tidak keliru saat analisis.
