@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { createServer as createHttpServer } from "node:http";
+import { createHmac } from "node:crypto";
 import { once } from "node:events";
 import { resolve } from "node:path";
 
@@ -164,6 +165,16 @@ test("dashboard requires a signed session; logout and telemetry are private", { 
 
     const privateTelemetry = await request("/api/telemetry", { headers: { cookie } });
     assert.equal(privateTelemetry.status, 200);
+
+    // Even a cryptographically valid operator token must NOT enter admin-only
+    // pages or the admin-only read API. Permission checks are server-side.
+    const [adminPayload] = cookie.slice("jr_admin=".length).split(".");
+    const claim = JSON.parse(Buffer.from(adminPayload, "base64url").toString("utf8"));
+    const operatorPayload = Buffer.from(JSON.stringify({ ...claim, role: "operator" })).toString("base64url");
+    const operatorSignature = createHmac("sha256", secret).update(operatorPayload).digest("base64url");
+    const operatorCookie = "jr_admin=" + operatorPayload + "." + operatorSignature;
+    assertRedirectTo(await request("/admin", { headers: { cookie: operatorCookie } }), "/login");
+    assert.equal((await request("/api/telemetry", { headers: { cookie: operatorCookie } })).status, 401);
 
     const [tokenPayload, tokenSignature] = cookie.slice("jr_admin=".length).split(".");
     const malformed = "jr_admin=" + tokenPayload + "." + (tokenSignature[0] === "A" ? "B" : "A") + tokenSignature.slice(1);
