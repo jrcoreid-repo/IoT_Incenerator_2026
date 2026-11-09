@@ -28,7 +28,15 @@ Sensor RS485 → ESP32 / Gateway JR-AIoT → HTTPS POST /api/telemetry
                       Dashboard + aturan LoT + indeks furan
 ```
 
-**Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 90 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
+**Tidak ada generator nilai sensor otomatis.** Saat ESP/gateway belum mengirim pembacaan, dashboard menampilkan **MENUNGGU DATA SENSOR** dan angka kosong (`—`). Jika data terakhir lebih dari 15 detik, status berganti **DATA TIDAK TERBARU** dan analisis otomatis tidak diberi status aktif.
+
+## Status OFFLINE telemetry (ESP32 tidak mengirim)
+
+Dengan interval pengiriman ESP32 **3 detik**, dashboard memperlakukan data sebagai **OFFLINE** apabila pembacaan terbaru sudah melewati **15 detik** (sekitar lima siklus kirim yang terlewat), atau API tidak dapat dihubungi. Status dicek ulang oleh browser setiap 5 detik.
+
+Ketika OFFLINE, status proses pembakaran serta seluruh kartu parameter (termasuk prediksi furan) diberi **aksen kuning/amber** dan label OFFLINE. Angka terakhir tetap terlihat sebagai **data historis, bukan nilai live**; prediksi furan dan peringatan berbasis data terkini tidak dilanjutkan sampai kiriman baru diterima. Bila ESP mengirim ulang, warna normal dan analisis live kembali otomatis. Jika belum pernah ada data sama sekali, tampilan awal tetap **MENUNGGU DATA SENSOR** tanpa mengarang nilai.
+
+Untuk menguji: jalankan ESP sender sampai grafik muncul, matikan ESP32 selama sekitar 15–20 detik, lalu amati perubahan ke kuning. Hidupkan ESP32 kembali; setelah kiriman HTTP 201 berikutnya, dashboard kembali ke status live.
 
 ## Tampilan operator dan arti warna
 
@@ -131,7 +139,7 @@ Mode `cycle` otomatis berpindah dari **idle → heating → active → warning �
 
 Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke`). **Nilai tersebut dihasilkan oleh program virtual**, tidak mewakili pengukuran atau tingkat emisi sebenarnya. Indeks risiko furan tetap dihitung di sisi dashboard melalui LoT, bukan dikirim sender.
 
-- **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 90 detik, dan analisis otomatis berhenti.
+- **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 15 detik, dan analisis otomatis berhenti.
 - **URL lain:** `npm run sender:virtual -- --url https://domainmu.id/api/telemetry`. Pengiriman non-lokal wajib HTTPS; gunakan token ingest yang sesuai pada server tujuan. Jangan gunakan ini untuk mengirim data uji ke instalasi produksi sungguhan.
 - **Sebelum ESP32 fisik dipasang:** matikan sender virtual, gunakan `deviceId` yang berbeda untuk perangkat asli, lalu kirim JSON dengan skema yang sama.
 - **Uji program sender:** `npm run test:sender` (Node.js 22).
