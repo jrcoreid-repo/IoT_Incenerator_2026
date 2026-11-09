@@ -1,7 +1,7 @@
 /*
   ADI Smart Incinerator - ESP32 Wi-Fi telemetry sender
   Arduino IDE, ESP32 by Espressif Systems (generic ESP32 / ESP32-S3 / ESP32-C3).
-  Sends DUMMY readings to Next.js /api/telemetry every 3 seconds.
+  Sends DUMMY readings to Next.js /api/telemetry every 10 seconds.
 
   1) Copy config.example.h to config.h inside this sketch folder.
   2) Fill Wi-Fi, laptop IPv4, TELEMETRY_INGEST_KEY (same as .env.local).
@@ -18,7 +18,7 @@
 #include <math.h>
 #include "config.h"
 
-static const uint32_t SEND_INTERVAL_MS = 3000;
+static const uint32_t SEND_INTERVAL_MS = 10000;
 static const uint32_t WIFI_RETRY_MS = 10000;
 static const uint32_t PHASE_DURATION_MS = 25000;
 static const uint32_t HTTP_TIMEOUT_MS = 4500;
