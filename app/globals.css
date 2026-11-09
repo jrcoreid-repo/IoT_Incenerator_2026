@@ -683,3 +683,50 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 
 /* Keep a visible sign-out failure message in the admin sidebar. */
 .logout-error {padding:7px 8px;margin:0;color:#ffbcbc;font-size:11px;line-height:1.5;}
+
+
+/* Sensor telemetry: fixed color identity per measurement.
+   These tones identify channels and do NOT imply safe/unsafe readings.
+   Furan remains separate and keeps its dynamic LoT severity colors. */
+.sensor-tone-furnace { --sensor-ink:#a44e24; --sensor-bright:#f4a071; }
+.sensor-tone-stack { --sensor-ink:#86601b; --sensor-bright:#efc66d; }
+.sensor-tone-co { --sensor-ink:#ab3e52; --sensor-bright:#f29aa7; }
+.sensor-tone-voc { --sensor-ink:#7650a9; --sensor-bright:#c7a5f7; }
+.sensor-tone-ambient { --sensor-ink:#24778b; --sensor-bright:#87d4e5; }
+.sensor-tone-humidity { --sensor-ink:#3366a5; --sensor-bright:#94baf3; }
+.sensor-tone-h2 { --sensor-ink:#237c70; --sensor-bright:#80d9c2; }
+.sensor-tone-smoke { --sensor-ink:#536d7b; --sensor-bright:#b1c6d1; }
+
+.sensor-card {
+  --sensor-active:var(--sensor-ink);
+  border:1px solid color-mix(in srgb,var(--sensor-active) 24%,var(--border));
+  border-top:4px solid var(--sensor-active);
+  background:color-mix(in srgb,var(--sensor-active) 6%,var(--surface));
+  transition:border-color .15s ease,background-color .15s ease;
+}
+.sensor-card .metric-icon {
+  color:var(--sensor-active);
+  background:color-mix(in srgb,var(--sensor-active) 9%,var(--surface));
+  border-color:color-mix(in srgb,var(--sensor-active) 22%,var(--border));
+}
+.sensor-card .metric-label { color:var(--sensor-active); }
+.sensor-card .metric-value { color:var(--text); }
+.sensor-card .metric-value small,.sensor-card .metric-note { color:var(--muted); }
+.extra-metrics .sensor-card {
+  background:color-mix(in srgb,var(--sensor-active) 8%,var(--surface-2));
+}
+.dark .sensor-card {
+  --sensor-active:var(--sensor-bright);
+  border-color:color-mix(in srgb,var(--sensor-active) 23%,var(--border));
+  border-top-color:var(--sensor-active);
+  background:color-mix(in srgb,var(--sensor-active) 8%,var(--surface));
+}
+.dark .sensor-card .metric-icon {
+  background:color-mix(in srgb,var(--sensor-active) 10%,var(--surface-2));
+}
+.dark .extra-metrics .sensor-card {
+  background:color-mix(in srgb,var(--sensor-active) 10%,var(--surface-2));
+}
+@media(prefers-reduced-motion:reduce) {
+  .sensor-card { transition:none; }
+}
