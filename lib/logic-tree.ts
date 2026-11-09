@@ -55,14 +55,11 @@ export function evaluateLoT(
     ["furnace", "stack", "ambient", "humidity", "co", "h2", "voc", "smoke"].includes(key) &&
     numberAvailable(current[key])
   ).length;
-  let severity: Severity = "normal";
   let process = "STATUS BELUM TERSEDIA";
 
   function warn(code: string, title: string, detail: string, critical = false, advice?: string) {
     events.push({ code, title, detail, severity: critical ? "critical" : "warning" });
     rules.push(code);
-    if (critical) severity = "critical";
-    else if (severity !== "critical") severity = "warning";
     if (advice) recommendations.push(advice);
   }
 
@@ -150,11 +147,14 @@ export function evaluateLoT(
     rules.push("NO_INTERNAL_ALERT");
     recommendations.push("Lanjutkan pengamatan tren suhu dan gas. Tidak ada ambang internal yang terlampaui pada data terkini.");
   }
+  const severity: Severity = events.some(event => event.severity === "critical") ? "critical" : events.length > 0 ? "warning" : !numberAvailable(furnace) || !numberAvailable(current.co) || !numberAvailable(current.voc) ? "unknown" : "normal";
   const summary = severity === "critical"
     ? "Terdapat pembacaan gas yang meningkat tajam. Periksa proses melalui prosedur operasi dan keselamatan yang berlaku."
     : severity === "warning"
       ? "Beberapa parameter memerlukan pemeriksaan. Rincian kondisi dan tindakan tercantum di bawah."
-      : "Belum ada parameter yang melewati batas internal yang ditetapkan. Status ini bukan sertifikasi keamanan emisi.";
+      : severity === "unknown"
+        ? "Parameter penting belum lengkap. Pemeriksaan kondisi gas belum bisa disimpulkan."
+        : "Belum ada parameter yang melewati batas internal yang ditetapkan. Status ini bukan sertifikasi keamanan emisi.";
   return {
     process, severity, furanIndex,
     furanLevel: furanIndex === null ? "TIDAK TERSEDIA" : level(furanIndex),
