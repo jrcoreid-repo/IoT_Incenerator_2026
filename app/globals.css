@@ -576,8 +576,10 @@ h1,h2,h3,p { margin-top: 0; }
 .range-tabs button.active { background:#147762; box-shadow:none; }
 .primary-button { background:#147762; box-shadow:none; }
 .device-pill { border-color:var(--border); }
+.device-placeholder-dot { background:#94a3a4; box-shadow:none; }
+.simple-alert-panel .demo-text { margin:12px 0 0; }
 .data-demo-note {
-  grid-column:1 / -1; display:flex; gap:9px; align-items:flex-start;
+  grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:5px; align-items:baseline; margin-bottom:16px;
   padding:11px 14px; color:var(--muted); font-size:12px;
   background:var(--surface-strong); border:1px solid var(--border); border-radius:12px;
 }
