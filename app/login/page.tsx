@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Activity, ArrowRight, Eye, EyeOff, Leaf, LockKeyhole, ShieldCheck, Thermometer, Wind } from "lucide-react";
+import { Activity, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, Thermometer, Wind } from "lucide-react";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -63,13 +63,8 @@ export default function LoginPage() {
             <span>by Universitas Ahmad Dahlan</span>
           </p>
 
-          <div className="login-visual-graphic" aria-hidden="true">
-            <div className="login-graphic-ring ring-a" />
-            <div className="login-graphic-ring ring-b" />
-            <div className="login-graphic-ring ring-c" />
-            <div className="login-graphic-cross cross-horizontal" />
-            <div className="login-graphic-cross cross-vertical" />
-            <div className="login-graphic-core"><Leaf size={30} strokeWidth={1.35} /></div>
+          <div className="login-facility-art" aria-hidden="true">
+            <img src="/incinerator-illustration.svg" width={1024} height={809} alt="" />
           </div>
           <div className="login-feature-list">
             <div><span className="login-feature-icon"><Thermometer size={18} /></span><span><strong>01 / SUHU</strong><small>Pemantauan suhu pembakaran</small></span></div>
