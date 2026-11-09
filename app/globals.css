@@ -128,7 +128,10 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .full-span {grid-column:1/-1;}
 .panel-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .panel-heading>svg {color:var(--accent);}
-.chart-wrap {height:260px;}
+.chart-wrap {height:260px;min-width:0;width:100%;}
+/* Beranda: grafik suhu sejajar dengan panel sensor dan peringatan di sekitarnya. */
+.page-grid > .chart-panel {grid-column:1 / -1;width:100%;min-width:0;}
+.page-grid > .chart-panel .chart-wrap {width:100%;height:clamp(260px,27vw,360px);min-width:0;}
 .chart-large {height:370px;}
 .recharts-cartesian-grid line {stroke:var(--grid);}
 .recharts-text {fill:var(--muted);font:500 10px var(--font-mono);}
