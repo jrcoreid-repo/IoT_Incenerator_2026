@@ -8,6 +8,10 @@ Sambil menunggu sensor RS485 fisik, dashboard bisa disiapkan sebagai **staging t
 
 Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi password/token). Pengujian otomatis konfigurasi melalui `npm run test:deploy`. Firmware ESP32 sekarang mendukung **HTTPS dengan verifikasi CA dan sinkronisasi NTP** untuk `adi-incinerator.live`; pastikan rantai sertifikat Caddy sesuai CA trust pada firmware sebelum dipakai.
 
+## EG118 firmware nyata v0.8.0 — sensor + status + telemetry
+
+Firmware pengembangan [EG118 v0.8.0](firmware/eg118-field-v0.8.0/README.md) menggabungkan metode Modbus dari baseline v0.7.4, SoftAP diagnostik/WORK-WDI, dan pengiriman HTTP(S) real telemetry + status warm-up/fault. **CH4 = cerobong; CH5 = tungku.** Ini **engineering candidate** yang masih harus di-compile dan diuji di hardware EG118 sebelum dipakai 24/7. Kontrak backend menerima field diagnostik opsional dan status-only heartbeat.
+
 ## Referensi EG118 RS485 v0.7.4 (baseline lapangan)
 
 Snapshot firmware sensor asli tiga perangkat serta pola LED/WORK-WDI tersimpan di [`firmware/eg118-reference-v0.7.4/`](firmware/eg118-reference-v0.7.4/README.md). Referensi ini memuat register Modbus, timing polling/CRC, status warm-up dan fault ZEH100, diagnostik termokopel CH4/CH5, serta peringatan penting GPIO3/UART0 RX. **Jangan ubah snapshot ini untuk fitur baru**; gunakan sebagai pembanding untuk firmware final. Password SoftAP disamarkan karena repository publik.
