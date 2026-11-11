@@ -8,6 +8,10 @@ Sambil menunggu sensor RS485 fisik, dashboard bisa disiapkan sebagai **staging t
 
 Cek kesiapan konfigurasi melalui `npm run deploy:check` (tidak menampilkan isi password/token). Pengujian otomatis konfigurasi melalui `npm run test:deploy`. Firmware ESP32 sekarang mendukung **HTTPS dengan verifikasi CA dan sinkronisasi NTP** untuk `adi-incinerator.live`; pastikan rantai sertifikat Caddy sesuai CA trust pada firmware sebelum dipakai.
 
+## Referensi EG118 RS485 v0.7.4 (baseline lapangan)
+
+Snapshot firmware sensor asli tiga perangkat serta pola LED/WORK-WDI tersimpan di [`firmware/eg118-reference-v0.7.4/`](firmware/eg118-reference-v0.7.4/README.md). Referensi ini memuat register Modbus, timing polling/CRC, status warm-up dan fault ZEH100, diagnostik termokopel CH4/CH5, serta peringatan penting GPIO3/UART0 RX. **Jangan ubah snapshot ini untuk fitur baru**; gunakan sebagai pembanding untuk firmware final. Password SoftAP disamarkan karena repository publik.
+
 ## Firmware ESP32 lokal
 
 Firmware Arduino IDE pengirim data sensor dummy tersedia pada [firmware/adi_esp32_sender/adi_esp32_sender.ino](firmware/adi_esp32_sender/adi_esp32_sender.ino), lengkap dengan [panduan setup](firmware/README.md).
