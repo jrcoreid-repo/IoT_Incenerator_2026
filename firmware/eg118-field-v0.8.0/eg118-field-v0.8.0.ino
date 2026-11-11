@@ -399,9 +399,11 @@ void setup() {
     esp_timer_start_periodic(heartbeatTimer,100000); // 100ms timer ticks
   }
 
-  WiFi.mode(WIFI_AP_STA);\n  WiFi.setAutoReconnect(true);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.setAutoReconnect(true);
   WiFi.setSleep(false);
-  WiFi.softAP(AP_SSID,AP_PASSWORD,1,0,2);\n  connectStation();
+  WiFi.softAP(AP_SSID,AP_PASSWORD,1,0,2);
+  connectStation();
   server.on("/",HTTP_GET,handleHome);
   server.on("/status",HTTP_GET,handleStatus);
   server.begin();
@@ -415,6 +417,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  maintainStation();
   if((uint32_t)(millis()-lastPoll)>=POLL_INTERVAL_MS) {
     lastPoll=millis();
     ++polls;
@@ -423,7 +426,11 @@ void loop() {
     readCWT();
     delay(INTER_SENSOR_MS);
     readEbyte();
-    updateHeartbeatMode();\n    if (WiFi.status()==WL_CONNECTED && (uint32_t)(millis()-lastSendAt)>=SEND_INTERVAL_MS) {\n      lastSendAt=millis();\n      pushTelemetry();\n    }
+    updateHeartbeatMode();
+    if (WiFi.status()==WL_CONNECTED && (uint32_t)(millis()-lastSendAt)>=SEND_INTERVAL_MS) {
+      lastSendAt=millis();
+      pushTelemetry();
+    }
   }
   delay(1);
 }
