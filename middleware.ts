@@ -6,13 +6,16 @@ function preventCache(response: NextResponse) {
   response.headers.set("Pragma", "no-cache");
   return response;
 }
-function redirect(_request: NextRequest, pathname: string) {
-  // Relative Location preserves the browser's public HTTPS origin behind
-  // Caddy/other reverse proxies. request.nextUrl can resolve to localhost:3000.
-  return preventCache(new NextResponse(null, {
-    status: 307,
-    headers: { Location: pathname }
-  }));
+function redirect(request: NextRequest, pathname: string) {
+  // Next.js middleware requires an absolute redirect URL. Behind Caddy,
+  // request.nextUrl can incorrectly have localhost:3000 as its origin.
+  // Only recognize our explicit public hostname; never redirect based on
+  // arbitrary user-provided Host or X-Forwarded-Host values.
+  const host = request.headers.get("host")?.toLowerCase();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.toLowerCase();
+  const publicHost = host === "adi-incinerator.live" || forwardedHost === "adi-incinerator.live";
+  const url = new URL(pathname, publicHost ? "https://adi-incinerator.live" : request.nextUrl.origin);
+  return preventCache(NextResponse.redirect(url));
 }
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
