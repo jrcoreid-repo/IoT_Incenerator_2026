@@ -2,6 +2,80 @@
 
 **Status:** persiapan untuk **staging/riser**. File ini bukan bukti web sudah online. Sensor fisik boleh belum lengkap; `furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke` bisa `null`/tidak dikirim (minimal satu nilai numerik). Data dummy tidak boleh diperlakukan sebagai pengukuran emisi.
 
+## Persiapan revisi VPS existing — November 2026 (Caddy + Next.js)
+
+**Konteks:** situs `https://adi-incinerator.live` telah berjalan melalui Caddy ke `127.0.0.1:3000`. Dokumen di bawah ini adalah runbook untuk memperbarui **instalasi VPS yang sudah ada**, bukan membuat staging Vercel baru. Target sumber kode adalah branch `design/minimal-operator-2026`, termasuk PNG desktop dan portrait, panel telemetry, serta simulator. **Jangan deploy branch `main` sebagai pengganti.**
+
+**Pemisahan lingkungan:** laptop boleh mengirim simulasi ke `http://localhost:3000/api/telemetry`; **jangan pernah mengarahkan sender virtual ke domain produksi**. Tidak perlu mengubah firmware EG118 untuk rilis website. Jangan mengubah `TELEMETRY_INGEST_KEY`, `SESSION_SECRET`, akun, atau database produksi kecuali sedang menjalankan rotasi kredensial yang direncanakan.
+
+### A. Audit VPS tanpa mengubah layanan (jalankan via SSH)
+
+```bash
+# Informasi versi Node.js (target Node 22) dan npm
+node --version
+npm --version
+
+# Identifikasi service yang benar; tidak mengasumsikan nama systemd/PM2
+systemctl list-units --type=service --all | grep -Ei 'adi|incinerator|next|caddy|redis' || true
+pm2 list 2>/dev/null || true
+sudo systemctl status caddy --no-pager
+sudo caddy validate --config /etc/caddy/Caddyfile
+
+# Periksa reverse proxy lokal dan domain, tanpa mencetak kredensial
+curl -I --max-time 10 http://127.0.0.1:3000/login
+curl -I --max-time 10 https://adi-incinerator.live/login
+```
+
+Catat **nama unit atau proses aktual, user service, path working directory, lokasi environment, dan commit Git lama**. Jangan menebak nama unit `adi-incinerator` sebelum melihat hasilnya. Status `/login` harus dicek **bersama halaman HTML/redirect di browser**, bukan hanya mengandalkan HTTP 200/3xx karena middleware dapat mengarahkan sesi yang sudah login.
+
+### B. Backup dan cek kesiapan data
+
+1. Dokumentasikan commit Git produksi saat ini: dari direktori kerja aplikasi yang benar, jalankan `git status --short`, `git branch --show-current`, dan `git rev-parse HEAD`. **Jika ada perubahan lokal, jangan paksa reset/pull** sampai dianalisis.
+2. Backup environment privat, konfigurasi Caddy/systemd, dan database Redis memakai metode backup server yang tersedia; batasi akses berkas rahasia. **Jangan commit, screenshot, atau kirim isi .env/token ke chat.**
+3. Pastikan sumber penyimpanan produksi sama dengan sebelumnya: `REDIS_URL=redis://127.0.0.1:6379` **atau** `UPSTASH_REDIS_REST_URL` bersama `UPSTASH_REDIS_REST_TOKEN`. Jangan mengganti provider tanpa rencana migrasi akun, ambang, dan riwayat.
+4. Redis menyimpan **akun Operator, pengaturan ambang, 120 data terbaru, arsip 7 hari, dan pembatasan login**; `npm run build` tidak seharusnya menghapus data ini, tetapi perubahan database/flush/recreate akan menghilangkannya. **Dilarang menjalankan `redis-cli FLUSHALL` atau `FLUSHDB`.**
+5. Verifikasi token ingest server tidak berubah agar gateway fisik kelak tetap diterima. Pastikan Caddy dan firewall tidak mengekspos port 3000 maupun 6379 ke internet; Caddy meneruskan HTTPS ke loopback.
+
+### C. Pengujian sebelum menyentuh aplikasi live (di laptop atau checkout terpisah)
+
+```bash
+git fetch origin design/minimal-operator-2026
+git rev-parse origin/design/minimal-operator-2026
+npm run test:sender
+npm run test:deploy
+npm run test:history
+npm run build
+npm run test:auth
+```
+
+`npm run test:auth` menjalankan **server uji pada port acak dengan mock Redis**, bukan untuk menulis telemetry produksi. Jangan menjalankannya ketika `npm run dev` memakai folder `.next` yang sama. Kalau proyek berada di folder sinkronisasi OneDrive dan terkena error `readlink EINVAL`, lakukan build di checkout lokal di luar OneDrive.
+
+**Catatan reproduktibilitas:** repository saat ini belum memuat `package-lock.json`; pipeline memakai `npm install` alih-alih `npm ci`. Pertahankan versi Node yang cocok dan jalankan instalasi di checkout uji terpisah. **Jangan mengklaim hasil build/CI lulus sampai log eksekusi terverifikasi**. Rilis dapat ditunda bila audit dependensi, build, atau test gagal.
+
+### D. Rilis terkontrol ke VPS
+
+1. **Prioritaskan checkout/release directory terpisah** untuk `npm install` dan `npm run build`, bukan menimpa `.next` dari proses Next.js yang sedang melayani pengguna. Gunakan branch dan commit yang lolos pengujian; jangan membawa file .env/secrets ke Git.
+2. Pastikan konfigurasi privat di release baru tersedia melalui mekanisme environment service yang sama dengan instalasi lama, tanpa mengubah nilainya. Cek `npm run deploy:check` dengan environment produksi **tanpa mencetak token**. Perintah ini hanya memeriksa bentuk konfigurasi, bukan konektivitas Redis.
+3. Dalam jendela maintenance singkat, arahkan **service nyata yang sudah teridentifikasi pada langkah A** ke release yang telah dibuild; restart satu proses Next.js saja. **Jangan mengubah Caddyfile atau sertifikat kalau tidak diperlukan.**
+4. Simpan release lama dan commit SHA sebagai target rollback. Jangan hapus database, environment, dan direktori live yang dipakai sebelumnya.
+5. Jika proses restart gagal, kembalikan unit/path ke release lama dan restart ulang; jika hanya perubahan kode, rollback **tidak** perlu menghapus Redis. Dokumentasikan penyebab sebelum mencoba lagi.
+
+**Perintah yang sensitif terhadap konfigurasi** (mengedit file service, `systemctl restart <nama-unit>`, `pm2 reload <nama-proses>`) sengaja tidak diberi nama fiktif. Gunakan hanya setelah output audit VPS menunjukkan nama dan lokasi yang benar.
+
+### E. Smoke test setelah restart
+
+- Pastikan `https://adi-incinerator.live/login` terbuka lewat HTTPS dengan sertifikat valid.
+- Tanpa login, `/admin` harus dialihkan ke `/login`; setelah login admin, Beranda, Grafik, Analisis, Riwayat, dan Logout bekerja.
+- Di HP, pastikan gambar `/incinerator-mobile.png`; pada desktop `/incinerator-v4.png`. Kedua file PNG harus HTTP 200, tidak ada request 404.
+- Login akun Operator yang sudah ada (jika dipakai) dan pastikan hak akses serta ambang tersimpan. Cek riwayat lama masih tersedia sesuai masa retensi 7 hari.
+- `GET /api/telemetry` tanpa cookie harus 401. `POST /api/telemetry` tanpa token harus 401. **Jangan mengirim payload virtual ke database produksi hanya untuk mengisi grafik.**
+- Bila gateway asli belum mengirim, status **OFFLINE / MENUNGGU** adalah benar. Jangan menyimpulkan website rusak dari ketiadaan angka sensor.
+- Periksa log service dan Caddy untuk error 5xx, serta ketahanan setelah restart. Jika ada kegagalan, lakukan rollback release kode dan ulang smoke test.
+
+**Kriteria GO:** backup tervalidasi, commit target tercatat, test/build lulus, Redis tetap, service lama bisa dipulihkan, HTTPS/login tidak terbuka untuk publik tanpa autentikasi. **Status:** prosedur rilis sudah didokumentasikan; audit langsung VPS, backup, build pada host dan restart **belum dilaksanakan dari percakapan ini**.
+
+---
+
 ## Pilihan arsitektur
 
 Untuk tahap awal, gunakan:
