@@ -31,7 +31,7 @@ function redirectTo(response, path) {
   assert.ok([301, 302, 303, 307, 308].includes(response.status), "Expected redirect, got HTTP " + response.status);
   const destination = response.headers.get("location");
   assert.ok(destination, "Redirect harus memiliki header Location.");
-  assert.equal(new URL(destination, "http://127.0.0.1").pathname, path);
+  assert.equal(destination, path, "Middleware redirects must remain relative behind public HTTPS proxies.");
 }
 function findCookie(response) {
   const header = response.headers.get("set-cookie") ?? "";
