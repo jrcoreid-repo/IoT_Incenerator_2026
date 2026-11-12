@@ -2,6 +2,18 @@
 
 Dashboard **environmental telemetry** untuk Desa Caturharjo, Pandak, Bantul. Antarmuka hijau industrial, angka monospaced, grafik sensor, peringatan parameter, dan **Analisis AI berbasis LoT** (*logic tree / aturan if–else*).
 
+## Rilis ulang situs VPS existing — 12 November 2026
+
+**Fokus aktif:** persiapan update `https://adi-incinerator.live` yang sudah online melalui Caddy dan Next.js. Mulai dengan [panduan revisi VPS / backup / rollback](DEPLOYMENT.md#persiapan-revisi-vps-existing--november-2026-caddy--nextjs). **Jangan langsung restart VPS** sebelum audit service, backup Redis dan environment, serta build dan smoke test.
+
+- Branch yang harus dideploy: `design/minimal-operator-2026`, **bukan** `main`; gunakan SHA terbaru yang sudah diuji.
+- PNG desktop `public/incinerator-v4.png` dan PNG HP `public/incinerator-mobile.png` **sudah masuk GitHub**. Layout desktop dan HP memakai gambar berbeda, tanpa perlu upload manual lagi saat checkout VPS.
+- Dashboard kini menggunakan label yang mudah dipahami operator dan mempertahankan status sensor READY, WARMING UP, FAULT, dan OFFLINE. Angka sensor tetap berasal dari telemetry; simulator tidak dijalankan ke VPS produksi.
+- Redis yang sudah dipakai oleh instalasi VPS **dipertahankan** agar akun Operator, pengaturan, dan arsip historis tidak terhapus.
+- `npm run deploy:check` memeriksa konfigurasi dasar, **bukan bukti koneksi VPS sudah sehat**. Build/test langsung VPS dan restart belum dilaksanakan dalam revisi dokumen ini.
+
+**Catatan:** beberapa catatan kronologis di bagian bawah README merupakan status historis saat PNG dan visual mobile belum diunggah; gunakan bagian rilis terkini serta kode repo sebagai acuan untuk tindakan deployment.
+
 ## Persiapan deploy (staging online)
 
 Sambil menunggu sensor RS485 fisik, dashboard bisa disiapkan sebagai **staging terproteksi**. Panduan langkah demi langkah untuk HTTPS, hosting, Upstash Redis, pemisahan token, perkiraan penggunaan dan syarat keamanan tersedia di [DEPLOYMENT.md](DEPLOYMENT.md).
