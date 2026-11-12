@@ -70,7 +70,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
     </div>
     <div className="inc-stage">
       {/* Traced from the image supplied for this dashboard. Coordinates are relative to 1920 × 1080. */}
-      <img src="/incinerator-overlay.svg" alt="Ilustrasi mesin incinerator: tungku pembakaran dan cerobong asap" width="1920" height="1080" className="inc-machine-art" />
+      <picture className="inc-machine-picture"><source type="image/avif" srcSet="/incinerator-scene.avif" /><img src="/incinerator-overlay.svg" alt="Ilustrasi mesin incinerator dengan lingkungan hijau, tungku pembakaran, dan cerobong asap" width="1920" height="1080" className="inc-machine-art" /></picture>
       <Overlay kind="ambient">
         <div className="inc-overlay-heading"><CloudSun size={18} /><span>LINGKUNGAN</span></div>
         <div className="inc-pair">
@@ -87,6 +87,14 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
           <Reading label="VOC" value={measured("voc")} unit="ppm" icon={Wind} digits={0}/>
         </div>
         <div className="inc-gas-module">Suhu modul <strong>{readable(fresh && gasValid ? latest?.gasModuleC : null, 0)} °C</strong></div>
+        <div className="inc-furan-prediction" aria-label="Prediksi risiko furan dari analisis suhu dan gas">
+          <div className="inc-furan-topline"><span>PREDIKSI RISIKO FURAN</span><small>ANALISIS BERBASIS ATURAN</small></div>
+          <div className="inc-furan-score">{fresh ? readable(riskIndex, 0) : "—"}<small>/100</small></div>
+          <div className="inc-furan-bar" role="meter" aria-label="Indeks risiko furan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) : undefined}>
+            <span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/>
+          </div>
+          <div className="inc-furan-subtitle">{!fresh || riskIndex === null ? "Belum tersedia · menunggu data sensor" : "Indikator risiko dari suhu dan gas, bukan pengukuran furan langsung"}</div>
+        </div>
         <Status health={gasHealth} detail={diagnostics?.zeh100.flags != null && diagnostics.zeh100.flags !== 0 ? "Flags: 0x" + diagnostics.zeh100.flags.toString(16).toUpperCase().padStart(2, "0") : "RS485 / ID 1"}/>
       </Overlay>
       <Overlay kind="stack">
