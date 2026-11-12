@@ -333,3 +333,25 @@ Komponen `components/incinerator-visual.tsx` sekarang **memprioritaskan PNG asli
 Kartu sensor memakai frost-glass semi-transparan, gradient tipis, blur 22px, border lembut dan shadow bertingkat. Geometri panel tetap: lingkungan 450×300 @(134,186), tungku 450×300 @(134,676), emisi/cerobong/furan 450×635 @(1365,153). Panah tetap ke (780,281), (1000,767), (989,73). Tidak ada perubahan mapping sensor, firmware atau LoT.
 
 **Perbaikan fallback 404:** Saat `public/incinerator-v4.png` belum tersedia, dashboard langsung merender `incinerator-lineart-v3.svg` yang valid. Setelah browser berhasil memuat PNG 1920×1080, ilustrasi otomatis berganti ke PNG. Ini menghindari ikon gambar rusak saat respons 404 datang sebelum hydration React. Untuk memastikan gambar asli digunakan, `dir public\\incinerator-v4.png` harus berhasil di komputer lokal, dan berkas harus tersedia di branch GitHub untuk `git pull` berikutnya. `npm run dev` membaca file lokal pada `public`, bukan attachment chat.
+
+
+## Visualisasi mobile portrait (artboard 1080 × 1920)
+
+Visual desktop 1920 × 1080 tetap menggunakan `public/incinerator-v4.png` dan tidak diubah. Visual khusus HP memakai **PNG portrait transparan** dengan nama **`public/incinerator-mobile.png`** dan dimensi persis **1080 × 1920 px**.
+
+Karena file portrait belum tersedia di repository, dashboard HP tetap menampilkan kartu metric sebelumnya sampai browser **berhasil memuat PNG mobile**. Jadi jangan mengubah nama berkasnya. Setelah menambahkan PNG ke folder `public`, commit/push ke branch `design/minimal-operator-2026` agar perangkat lain juga ikut mendapatkan aset.
+
+**Koordinat overlay mobile** (dari pojok kiri atas artboard, X ke kanan / Y ke bawah; dua angka desimal dalam pixel):
+
+| Elemen | X | Y | Lebar | Tinggi |
+| --- | ---: | ---: | ---: | ---: |
+| Panel cerobong + gas + indeks risiko furan | 48,15 | 37,81 | 990,79 | 432,04 |
+| Panel lingkungan (posisi sementara) | 55,00 | 1120,00 | 371,15 | 323,68 |
+| Panel tungku CH5 (posisi sementara) | 652,00 | 1120,00 | 371,15 | 323,68 |
+| Titik cerobong/asap | 550,36 | 558,66 | — | — |
+| Titik tungku | 567,75 | 1260,81 | — | — |
+
+**Tidak ada pointer lingkungan**, sesuai permintaan. Posisi panel lingkungan dan panel tungku masih sementara karena pengguna baru memberikan ukurannya (bukan posisi X/Y). Garis penunjuk dari panel gabungan menuju titik cerobong, dan dari panel CH5 menuju tungku. Font, status sensor, dan panel mengikuti lebar layar dengan styling mobile terpisah.
+
+Sebelum menjalankan pengujian pada HP, pastikan aset `public/incinerator-mobile.png` benar-benar ada; file chat/unduhan di luar `public` tidak bisa dilayani oleh Next.js. Buka `http://localhost:3000/incinerator-mobile.png` untuk memastikan HTTP 200 dan gambar yang benar. Jika belum diunggah, tidak ada perubahan tampilan mobile secara sengaja.
+
