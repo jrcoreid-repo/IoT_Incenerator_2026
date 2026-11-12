@@ -70,7 +70,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
     </div>
     <div className="inc-stage">
       {/* Traced from the image supplied for this dashboard. Coordinates are relative to 1920 × 1080. */}
-      <picture className="inc-machine-picture"><source type="image/avif" srcSet="/incinerator-scene.avif" /><img src="/incinerator-overlay.svg" alt="Ilustrasi mesin incinerator dengan lingkungan hijau, tungku pembakaran, dan cerobong asap" width="1920" height="1080" className="inc-machine-art" /></picture>
+      <picture className="inc-machine-picture"><img src="/incinerator-scene.svg" alt="Ilustrasi incinerator di lingkungan hijau dengan tungku pembakaran dan cerobong asap" width="1920" height="1080" className="inc-machine-art" /></picture>
       <Overlay kind="ambient">
         <div className="inc-overlay-heading"><CloudSun size={18} /><span>LINGKUNGAN</span></div>
         <div className="inc-pair">
@@ -109,7 +109,6 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
       </Overlay>
     </div>
     <div className="inc-visual-bottom">
-      <div className="inc-summary-cell"><Activity size={16}/><span>Indeks risiko berbasis aturan</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<small>/100</small></strong></div>
       <div className="inc-summary-cell"><ShieldCheck size={16}/><span>Diagnostik perangkat</span><strong>{diagnostics && fresh ? "TERSEDIA" : "BELUM TERSEDIA"}</strong></div>
       <div className="inc-summary-cell"><AlertTriangle size={16}/><span>Nilai saat gangguan</span><strong>N/A, bukan nol</strong></div>
     </div>
