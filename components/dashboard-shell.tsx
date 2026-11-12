@@ -7,6 +7,7 @@ import IncineratorVisual from "@/components/incinerator-visual";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
+import { explainReadings } from "@/lib/lot-insights";
 
 type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
 type ThresholdDraft = Record<keyof Thresholds, string>;
@@ -353,6 +354,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const offline = Boolean(apiError) || (!!latest && !fresh);
   const previous = history.length >= 2 ? history[history.length - 2] : null;
   const lot = useMemo(() => evaluateLoT(latest, previous, thresholds, fresh), [latest, previous, thresholds, fresh]);
+  const operatorReport = useMemo(() => explainReadings(latest, previous, lot, thresholds, fresh),
+    [latest, previous, lot, thresholds, fresh]);
   const chartData = useMemo(() => history.slice(-120).map((item, index, items) => ({
     ...item, waktu: new Date(item.receivedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
     furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
@@ -491,6 +494,16 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               </div>
             </section>
             <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} />
+            <section className="panel full-span lot-overview" aria-label="Penjelasan sederhana keadaan alat">
+              <div className="lot-overview-copy">
+                <p className="section-kicker">ARTI PEMBACAAN SEKARANG</p>
+                <h2>{operatorReport.headline}</h2>
+                <p>{operatorReport.subheading}</p>
+              </div>
+              <button className="secondary-button lot-insight-action" type="button" onClick={() => setTab("ai")}>
+                Baca penjelasan lengkap
+              </button>
+            </section>
             <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">PEMANTAUAN SENSOR</p><h2>Parameter utama</h2></div></div>
             <section className="metric-grid inc-legacy-metrics" aria-label="Lima indikator utama">
               <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
@@ -615,8 +628,31 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             <div className="analysis-score-row">
               <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
               <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
-              <div><span>Prediksi risiko furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh ? formatNumber(lot.furanIndex,0) : "—"} / 100</strong></div>
-              <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 SENSOR</strong></div>
+              <div><span>Indikator proses furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh && lot.furanIndex !== null ? formatNumber(lot.furanIndex,0) + " / 100" : "—"}</strong></div>
+              <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 PARAMETER</strong></div>
+            </div>
+            <div className="lot-report">
+              <div className="lot-report-headline">
+                <p className="section-kicker">PENJELASAN LENGKAP • BAHASA SEHARI-HARI</p>
+                <h3>{operatorReport.headline}</h3>
+                <p>{operatorReport.subheading}</p>
+                <small>{operatorReport.time ? "Data terakhir diterima: " + formatClock(operatorReport.time) : "Belum ada data dari alat"}</small>
+              </div>
+              <div className="lot-insight-grid">
+                {operatorReport.insights.map(insight =>
+                  <article key={insight.id} className={"lot-insight lot-insight-" + insight.tone}>
+                    <div className="lot-insight-header"><h4>{insight.label}</h4><span>{insight.status}</span></div>
+                    <p className="lot-insight-meaning">{insight.meaning}</p>
+                    <p className="lot-insight-detail">{insight.explanation}</p>
+                    <div className="lot-insight-next"><strong>Yang bisa dicek</strong><p>{insight.action}</p></div>
+                  </article>
+                )}
+              </div>
+              <div className="lot-quick-actions">
+                <h3>Yang sebaiknya dilakukan berikutnya</h3>
+                <ol>{operatorReport.actions.map(action => <li key={action}>{action}</li>)}</ol>
+              </div>
+              <p className="lot-data-note">{operatorReport.note}</p>
             </div>
             <div className="analysis-copy">
               <h3>Ringkasan kondisi</h3><p>{lot.summary}</p>
@@ -627,7 +663,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <h3>Kondisi yang terdeteksi</h3>
               <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{readableRule(rule)}</span>)}</div>
             </div>
-            <div className="prototype-note">Perkiraan risiko furan dihitung dari suhu pembakaran, CO, VOC, dan indikator asap. Ini bukan hasil pengukuran langsung. Gunakan hasil pengukuran lapangan serta uji laboratorium untuk evaluasi emisi resmi.</div>
+            <div className="prototype-note">LoT adalah penjelasan berdasarkan aturan dan data sensor. Skor proses furan masih percobaan: bukan kadar furan, bukan persentase kemungkinan emisi, dan bukan keputusan aman atau berbahaya. Evaluasi emisi resmi memerlukan pengukuran sesuai metode laboratorium.</div>
           </div>
         </section>}
 
