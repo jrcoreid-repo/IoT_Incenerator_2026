@@ -9,6 +9,28 @@ type ValueKey = "furnace" | "stack" | "ambient" | "humidity" | "co" | "h2" | "vo
 type IconType = typeof Flame;
 // Coordinates are fixed on the 1920×1080 artwork and scale together with the picture.
 const ARTWORK = { width: 1920, height: 1080 } as const;
+// Mobile uses an independent portrait coordinate system (1080 × 1920).
+// The gas panel and sensor dots are exact user-supplied positions.
+// Ambient and furnace panel positions are provisional until confirmed.
+const MOBILE_ARTWORK = { width: 1080, height: 1920 } as const;
+const MOBILE_PANELS = {
+  emission: { x: 48.15, y: 37.81, width: 990.79, height: 432.04 },
+  ambient: { x: 55, y: 1120, width: 371.15, height: 323.68 },
+  furnace: { x: 652, y: 1120, width: 371.15, height: 323.68 }
+} as const;
+const MOBILE_DOTS = {
+  emission: { x: 550.36, y: 558.66 },
+  furnace: { x: 567.75, y: 1260.81 }
+} as const;
+function mobilePanelStyle(name: keyof typeof MOBILE_PANELS) {
+  const box = MOBILE_PANELS[name];
+  return {
+    left: (box.x / MOBILE_ARTWORK.width * 100) + "%",
+    top: (box.y / MOBILE_ARTWORK.height * 100) + "%",
+    width: (box.width / MOBILE_ARTWORK.width * 100) + "%",
+    height: (box.height / MOBILE_ARTWORK.height * 100) + "%"
+  };
+}
 const PANELS = {
   ambient: { x: 134, y: 186, width: 450, height: 300 },
   furnace: { x: 134, y: 676, width: 450, height: 300 },
@@ -69,6 +91,67 @@ function Panel({ kind, children }: { kind: PanelName; children: React.ReactNode 
     <div className="inc-overlay-card inc-fixed-card">{children}</div>
   </div>;
 }
+function MobileStatus({ health, name }: { health: Health; name: string }) {
+  return <span className={"inc-mobile-status inc-mobile-" + health}>{name} · {STATUS[health]}</span>;
+}
+function IncineratorMobile({ latest, fresh, riskIndex }: {
+  latest: Telemetry | null; fresh: boolean; riskIndex: number | null;
+}) {
+  const cwt = sensorHealth("cwt", latest, fresh);
+  const ch4 = sensorHealth("ch4", latest, fresh);
+  const ch5 = sensorHealth("ch5", latest, fresh);
+  const zeh = sensorHealth("zeh", latest, fresh);
+  const read = (key: ValueKey, digits = 0) =>
+    readable(fresh && (key !== "co" && key !== "h2" && key !== "voc" || zeh === "ready") ? latest?.[key] : null, digits);
+  return <div className="inc-mobile-stage" aria-label="Skema incinerator mobile 1080 kali 1920">
+    <img className="inc-mobile-artwork" src="/incinerator-mobile.png" alt="Gambar incinerator portrait dengan posisi sensor cerobong dan tungku" width={1080} height={1920}/>
+    <svg className="inc-mobile-leaders" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
+      <path d={"M " + MOBILE_DOTS.emission.x + " " + MOBILE_DOTS.emission.y + " L 550.36 515 L 544 469.85"}/>
+      <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 613 1260.81 L 652 1260.81"}/>
+      <circle cx={MOBILE_DOTS.emission.x} cy={MOBILE_DOTS.emission.y} r="10"/>
+      <circle cx={MOBILE_DOTS.furnace.x} cy={MOBILE_DOTS.furnace.y} r="10"/>
+    </svg>
+    <div className="inc-mobile-panel inc-mobile-emission" style={mobilePanelStyle("emission")}>
+      <div className="inc-mobile-card">
+        <div className="inc-mobile-header"><span>CEROBONG · EMISI GAS</span><MobileStatus health={zeh} name="ZEH100"/></div>
+        <div className="inc-mobile-emission-values">
+          <div className="inc-mobile-stack"><small>CH4 · CEROBONG</small><strong>{read("stack", 1)}<i>°C</i></strong></div>
+          <div className="inc-mobile-three-gases">
+            <div><small>CO</small><strong>{read("co")}<i>ppm</i></strong></div>
+            <div><small>H₂</small><strong>{read("h2")}<i>ppm</i></strong></div>
+            <div><small>VOC</small><strong>{read("voc")}<i>ppm</i></strong></div>
+          </div>
+        </div>
+        <div className="inc-mobile-meta">
+          <MobileStatus health={ch4} name="EBYTE CH4"/>
+          <span>MODUL {readable(fresh && zeh === "ready" ? latest?.gasModuleC : null, 0)}°C</span>
+        </div>
+        <div className="inc-mobile-furan">
+          <div className="inc-mobile-furan-row"><span>INDEKS RISIKO FURAN <small>ATURAN / LoT</small></span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>/100</i></strong></div>
+          <div className="inc-mobile-furan-track"><span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/></div>
+        </div>
+      </div>
+    </div>
+    <div className="inc-mobile-panel inc-mobile-ambient" style={mobilePanelStyle("ambient")}>
+      <div className="inc-mobile-card">
+        <div className="inc-mobile-header"><span>LINGKUNGAN</span></div>
+        <div className="inc-mobile-double-values">
+          <div><small>UDARA</small><strong>{read("ambient", 1)}<i>°C</i></strong></div>
+          <div><small>RH</small><strong>{read("humidity", 1)}<i>%</i></strong></div>
+        </div>
+        <MobileStatus health={cwt} name="CWT · ID 3"/>
+      </div>
+    </div>
+    <div className="inc-mobile-panel inc-mobile-furnace" style={mobilePanelStyle("furnace")}>
+      <div className="inc-mobile-card">
+        <div className="inc-mobile-header"><span>TUNGKU · CH5</span></div>
+        <div className="inc-mobile-furnace-value"><strong>{read("furnace", 1)}<i>°C</i></strong></div>
+        <MobileStatus health={ch5} name="EBYTE · ID 2"/>
+      </div>
+    </div>
+  </div>;
+}
+
 export default function IncineratorVisual({ latest, fresh, riskIndex }: {
   latest: Telemetry | null; fresh: boolean; riskIndex: number | null;
 }) {
@@ -80,6 +163,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
   // Default to an existing asset so an absent PNG cannot leave a broken-image icon.
   // Switch to the original, lossless PNG only after the browser confirms it loads.
   const [artworkSrc, setArtworkSrc] = useState("/incinerator-lineart-v3.svg");
+  const [mobileArtworkReady, setMobileArtworkReady] = useState(false);
   useEffect(() => {
     let active = true;
     const candidate = new Image();
@@ -87,9 +171,18 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
       if (active) setArtworkSrc("/incinerator-v4.png");
     };
     candidate.src = "/incinerator-v4.png";
-    return () => { active = false; candidate.onload = null; };
+    // Keep the existing mobile metric cards visible until a real portrait PNG
+    // has been uploaded. No broken-image placeholder or misleading pointer dots.
+    const portrait = new Image();
+    portrait.onload = () => { if (active) setMobileArtworkReady(true); };
+    portrait.src = "/incinerator-mobile.png";
+    return () => {
+      active = false;
+      candidate.onload = null;
+      portrait.onload = null;
+    };
   }, []);
-  return <section className="inc-visual panel full-span" aria-label="Visualisasi incinerator dan pembacaan sensor">
+  return <section className={"inc-visual panel full-span" + (mobileArtworkReady ? " inc-mobile-ready" : "")} aria-label="Visualisasi incinerator dan pembacaan sensor">
     <div className="inc-visual-heading">
       <div><p className="section-kicker">LIVE MONITORING / ADI INCINERATOR</p><h2>Visualisasi Proses Pembakaran</h2><p className="muted">Nilai sensor mengikuti posisi fisik pada ilustrasi. CH4 cerobong · CH5 tungku.</p></div>
       <div className={"inc-live-pill " + (fresh ? "inc-live-on" : "inc-live-off")}><span className={fresh ? "status-dot" : "offline-dot"}/>{fresh ? "TELEMETRY TERBARU" : "OFFLINE / MENUNGGU"}</div>
@@ -146,6 +239,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
         </div>
       </Panel>
     </div>
+    {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex}/>}
     <div className="inc-visual-bottom">
       <div className="inc-summary-cell"><ShieldCheck size={16}/><span>Diagnostik perangkat</span><strong>{diagnostics && fresh ? "TERSEDIA" : "BELUM TERSEDIA"}</strong></div>
       <div className="inc-summary-cell"><AlertTriangle size={16}/><span>Nilai saat gangguan</span><strong>N/A, bukan nol</strong></div>
