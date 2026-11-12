@@ -269,3 +269,12 @@ Lokasi: `lib/logic-tree.ts`. Aturan saat ini mencakup:
 - Uji hasil LoT dengan data lapangan, kalibrasi dan validasi laboratorium sebelum digunakan sebagai penilaian risiko emisi.
 
 Branch kerja: `design/minimal-operator-2026`. Basis sebelumnya: `dashboard-v1`; `main` masih inisialisasi.
+
+## Tampilan incinerator desktop (light-only)
+
+Beranda desktop kini memakai visual mesin incinerator di `public/incinerator-overlay.svg` dan komponen `components/incinerator-visual.tsx`. Gambar merupakan **vector trace transparan** dari ilustrasi PNG acuan; sumber aslinya berkanvas 1920×1080. Overlay sensor memakai koordinat asli dari sudut kiri-atas: lingkungan (700,350), gas (1170,200), cerobong/CH4 (1235,640), tungku/CH5 (900,780). Koordinat disimpan di `POINTS` dan diskalakan sesuai lebar gambar. Untuk penyesuaian posisi, ubah `POINTS` atau offset `.inc-overlay-*` di `app/globals.css`.
+
+Hanya untuk **desktop >850px**; tampilan mobile memakai kartu sensor yang sudah ada. Theme switcher dihapus dan dashboard dipaksa light, termasuk ketika pengguna sebelumnya menyimpan dark mode. Status READY/WARMING UP/FAULT memakai `latest.sensors` jika gateway mengirim diagnostik; **sender virtual/legacy tanpa flag tidak dianggap READY**. Status sensor yang tidak tersedia ditandai belum terkonfirmasi; gas module temp dan error flags memerlukan payload dari firmware EG118 yang sedang dibekukan untuk uji terpisah. Panel grafik, analisis, riwayat, dan perangkat tetap tersedia.
+
+**Uji lokal dulu**: `git pull --ff-only origin design/minimal-operator-2026` kemudian `npm run dev -- -H 0.0.0.0`; buka `http://localhost:3000/admin` setelah login. Perubahan ini belum otomatis dideploy ke VPS.
+
