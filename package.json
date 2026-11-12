@@ -13,7 +13,8 @@
     "deploy:check": "node scripts/deploy-preflight.mjs",
     "test:deploy": "node --test scripts/deploy-preflight.test.mjs",
     "test:history": "node --test scripts/archive-sampler.test.mjs",
-    "test:furan": "node --test scripts/furan-process.test.mjs"
+    "test:furan": "node --test scripts/furan-process.test.mjs",
+    "test:insights": "node --test scripts/lot-insights.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
