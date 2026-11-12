@@ -1196,7 +1196,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-fixed-emission .inc-gas-readings {gap:9px;}
 .inc-fixed-emission .inc-gas-readings .inc-reading-value {font-size:clamp(20px,1.8vw,27px);white-space:nowrap;}
 .inc-fixed-emission .inc-gas-module {margin-top:6px;}
-.inc-fixed-emission .inc-furan-prediction {margin-top:auto;padding:10px 11px 9px;background:rgba(221,247,231,.79);}
+.inc-fixed-emission .inc-furan-prediction {margin-top:6px;padding:10px 11px 9px;background:rgba(221,247,231,.79);}
 .inc-fixed-emission .inc-furan-score {font-size:clamp(25px,2.35vw,36px);}
 .inc-fixed-emission .inc-furan-topline>span {font-size:10px;}
 /* Desktop narrow: retain exact panel geometry in a scrollable artwork, rather than
