@@ -15,8 +15,8 @@ const ARTWORK = { width: 1920, height: 1080 } as const;
 const MOBILE_ARTWORK = { width: 1080, height: 1920 } as const;
 const MOBILE_PANELS = {
   emission: { x: 48.15, y: 37.81, width: 990.79, height: 432.04 },
-  ambient: { x: 55, y: 1500, width: 371.15, height: 323.68 },
-  furnace: { x: 652, y: 1500, width: 371.15, height: 323.68 }
+  ambient: { x: 55, y: 1570, width: 371.15, height: 323.68 },
+  furnace: { x: 652, y: 1570, width: 371.15, height: 323.68 }
 } as const;
 const MOBILE_DOTS = {
   emission: { x: 550.36, y: 558.66 },
@@ -74,9 +74,9 @@ function sensorHealth(kind: "cwt" | "ch4" | "ch5" | "zeh", data: Telemetry | nul
   return "ready";
 }
 
-function Status({ health, detail }: { health: Health; detail?: string }) {
+function Status({ health }: { health: Health }) {
   const Icon = health === "ready" ? ShieldCheck : health === "fault" ? ShieldAlert : health === "warmup" ? Activity : AlertTriangle;
-  return <div className={"inc-health inc-health-" + health}><Icon size={12} aria-hidden="true" /><span>{STATUS[health]}</span>{detail && <small>{detail}</small>}</div>;
+  return <div className={"inc-health inc-health-" + health}><Icon size={12} aria-hidden="true" /><span>{STATUS[health]}</span></div>;
 }
 function Reading({ label, value, unit, icon: Icon, digits = 1 }: {
   label: string; value: number | null | undefined; unit: string; icon: IconType; digits?: number;
@@ -112,15 +112,15 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
     <img className="inc-mobile-artwork" src="/incinerator-mobile.png" alt="Gambar incinerator portrait dengan posisi sensor cerobong dan tungku" width={1080} height={1920}/>
     <svg className="inc-mobile-leaders" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
       <path d={"M " + MOBILE_DOTS.emission.x + " " + MOBILE_DOTS.emission.y + " L 550.36 515 L 544 469.85"}/>
-      <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 613 1340 L 613 1545 L 652 1545"}/>
+      <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 613 1340 L 613 1615 L 652 1615"}/>
       <circle cx={MOBILE_DOTS.emission.x} cy={MOBILE_DOTS.emission.y} r="10"/>
       <circle cx={MOBILE_DOTS.furnace.x} cy={MOBILE_DOTS.furnace.y} r="10"/>
     </svg>
     <div className="inc-mobile-panel inc-mobile-emission" style={mobilePanelStyle("emission")}>
       <div className="inc-mobile-card">
-        <div className="inc-mobile-header"><span>CEROBONG · EMISI GAS</span><MobileStatus health={zeh} name="ZEH100"/></div>
+        <div className="inc-mobile-header"><span>CEROBONG &amp; GAS</span><MobileStatus health={zeh} name="GAS"/></div>
         <div className="inc-mobile-emission-values">
-          <div className="inc-mobile-stack"><small>CH4 · CEROBONG</small><strong>{read("stack", 1)}<i>°C</i></strong></div>
+          <div className="inc-mobile-stack"><small>SUHU CEROBONG</small><strong>{read("stack", 1)}<i>°C</i></strong></div>
           <div className="inc-mobile-three-gases">
             <div><small>CO</small><strong>{read("co")}<i>ppm</i></strong></div>
             <div><small>H₂</small><strong>{read("h2")}<i>ppm</i></strong></div>
@@ -128,11 +128,10 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
           </div>
         </div>
         <div className="inc-mobile-meta">
-          <MobileStatus health={ch4} name="EBYTE CH4"/>
-          <span>MODUL {readable(fresh && zeh === "ready" ? latest?.gasModuleC : null, 0)}°C</span>
+          <MobileStatus health={ch4} name="SUHU"/>
         </div>
         <div className="inc-mobile-furan">
-          <div className="inc-mobile-furan-row"><span>INDEKS RISIKO FURAN <small>ATURAN / LoT</small></span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>/100</i></strong></div>
+          <div className="inc-mobile-furan-row"><span>PREDIKSI RISIKO FURAN</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>/100</i></strong></div>
           <div className="inc-mobile-furan-track"><span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/></div>
         </div>
       </div>
@@ -142,16 +141,16 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
         <div className="inc-mobile-header"><span>LINGKUNGAN</span></div>
         <div className="inc-mobile-double-values">
           <div><small>UDARA</small><strong>{read("ambient", 1)}<i>°C</i></strong></div>
-          <div><small>RH</small><strong>{read("humidity", 1)}<i>%</i></strong></div>
+          <div><small>LEMBAP</small><strong>{read("humidity", 1)}<i>%</i></strong></div>
         </div>
-        <MobileStatus health={cwt} name="CWT · ID 3"/>
+        <MobileStatus health={cwt} name="SENSOR"/>
       </div>
     </div>
     <div className="inc-mobile-panel inc-mobile-furnace" style={mobilePanelStyle("furnace")}>
       <div className="inc-mobile-card">
-        <div className="inc-mobile-header"><span>TUNGKU · CH5</span></div>
+        <div className="inc-mobile-header"><span>SUHU TUNGKU</span></div>
         <div className="inc-mobile-furnace-value"><strong>{read("furnace", 1)}<i>°C</i></strong></div>
-        <MobileStatus health={ch5} name="EBYTE · ID 2"/>
+        <MobileStatus health={ch5} name="SENSOR"/>
       </div>
     </div>
   </div>;
@@ -164,7 +163,6 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
   const gasValid = fresh && (!latest?.sensors || latest.sensors.zeh100.dataValid);
   const measured = (key: ValueKey) => fresh && (key !== "co" && key !== "h2" && key !== "voc" || gasValid)
     ? latest?.[key] : null;
-  const diagnostics = latest?.sensors;
   // Default to an existing asset so an absent PNG cannot leave a broken-image icon.
   // Switch to the original, lossless PNG only after the browser confirms it loads.
   const [artworkSrc, setArtworkSrc] = useState("/incinerator-lineart-v3.svg");
@@ -189,8 +187,8 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
   }, []);
   return <section className={"inc-visual panel full-span" + (mobileArtworkReady ? " inc-mobile-ready" : "")} aria-label="Visualisasi incinerator dan pembacaan sensor">
     <div className="inc-visual-heading">
-      <div><p className="section-kicker">LIVE MONITORING / ADI INCINERATOR</p><h2>Visualisasi Proses Pembakaran</h2><p className="muted">Nilai sensor mengikuti posisi fisik pada ilustrasi. CH4 cerobong · CH5 tungku.</p></div>
-      <div className={"inc-live-pill " + (fresh ? "inc-live-on" : "inc-live-off")}><span className={fresh ? "status-dot" : "offline-dot"}/>{fresh ? "TELEMETRY TERBARU" : "OFFLINE / MENUNGGU"}</div>
+      <div><p className="section-kicker">PEMANTAUAN LANGSUNG</p><h2>Visualisasi Proses Pembakaran</h2><p className="muted">Pantau suhu, kondisi udara, dan gas pembakaran.</p></div>
+      <div className={"inc-live-pill " + (fresh ? "inc-live-on" : "inc-live-off")}><span className={fresh ? "status-dot" : "offline-dot"}/>{fresh ? "DATA TERBARU" : "OFFLINE / MENUNGGU"}</div>
     </div>
     <div className="inc-stage inc-stage-v4">
       {/* Artwork and overlays share the same 1920×1080 coordinate system. */}
@@ -206,36 +204,35 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
         <circle cx={TARGETS.emission.x} cy={TARGETS.emission.y} r="11"/>
       </svg>
       <Panel kind="ambient">
-        <div className="inc-overlay-heading"><CloudSun size={19} /><span>PARAMETER LINGKUNGAN</span></div>
+        <div className="inc-overlay-heading"><CloudSun size={19} /><span>KONDISI LINGKUNGAN</span></div>
         <div className="inc-pair">
           <Reading label="Suhu udara" value={measured("ambient")} unit="°C" icon={Thermometer}/>
           <Reading label="Kelembapan" value={measured("humidity")} unit="%RH" icon={Wind}/>
         </div>
-        <Status health={sensorHealth("cwt", latest, fresh)} detail="CWT / ID 3"/>
+        <Status health={sensorHealth("cwt", latest, fresh)}/>
       </Panel>
       <Panel kind="furnace">
         <div className="inc-overlay-heading"><Flame size={19}/><span>SUHU TUNGKU</span></div>
-        <Reading label="CH5 · Suhu pembakaran" value={measured("furnace")} unit="°C" icon={Flame}/>
-        <Status health={sensorHealth("ch5", latest, fresh)} detail="EBYTE / ID 2"/>
+        <Reading label="Suhu pembakaran" value={measured("furnace")} unit="°C" icon={Flame}/>
+        <Status health={sensorHealth("ch5", latest, fresh)}/>
       </Panel>
       <Panel kind="emission">
-        <div className="inc-overlay-heading"><RadioTower size={19}/><span>CEROBONG &amp; EMISI GAS</span></div>
+        <div className="inc-overlay-heading"><RadioTower size={19}/><span>CEROBONG &amp; GAS</span></div>
         <div className="inc-combined-section inc-combined-stack">
-          <Reading label="CH4 · Suhu cerobong" value={measured("stack")} unit="°C" icon={Thermometer}/>
-          <Status health={sensorHealth("ch4", latest, fresh)} detail="EBYTE / ID 2"/>
+          <Reading label="Suhu cerobong" value={measured("stack")} unit="°C" icon={Thermometer}/>
+          <Status health={sensorHealth("ch4", latest, fresh)}/>
         </div>
         <div className="inc-combined-section inc-combined-gas">
-          <div className="inc-combined-label"><Gauge size={15} aria-hidden="true"/> SENSOR GAS / ZEH100</div>
+          <div className="inc-combined-label"><Gauge size={15} aria-hidden="true"/> KADAR GAS</div>
           <div className="inc-gas-readings">
             <Reading label="CO" value={measured("co")} unit="ppm" icon={Gauge} digits={0}/>
             <Reading label="H₂" value={measured("h2")} unit="ppm" icon={Activity} digits={0}/>
             <Reading label="VOC" value={measured("voc")} unit="ppm" icon={Wind} digits={0}/>
           </div>
-          <div className="inc-gas-module">Suhu modul <strong>{readable(fresh && gasValid ? latest?.gasModuleC : null, 0)} °C</strong></div>
-          <Status health={gasHealth} detail={diagnostics?.zeh100.flags != null && diagnostics.zeh100.flags !== 0 ? "Flags: 0x" + diagnostics.zeh100.flags.toString(16).toUpperCase().padStart(2, "0") : "RS485 / ID 1"}/>
+          <Status health={gasHealth}/>
         </div>
         <div className="inc-furan-prediction" aria-label="Prediksi risiko furan dari analisis suhu dan gas">
-          <div className="inc-furan-topline"><span>PREDIKSI RISIKO FURAN</span><small>ANALISIS BERBASIS ATURAN</small></div>
+          <div className="inc-furan-topline"><span>PREDIKSI RISIKO FURAN</span></div>
           <div className="inc-furan-score">{fresh ? readable(riskIndex, 0) : "—"}<small>/100</small></div>
           <div className="inc-furan-bar" role="meter" aria-label="Indeks risiko furan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) : undefined}>
             <span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/>
@@ -245,10 +242,6 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
       </Panel>
     </div>
     {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex}/>}
-    <div className="inc-visual-bottom">
-      <div className="inc-summary-cell"><ShieldCheck size={16}/><span>Diagnostik perangkat</span><strong>{diagnostics && fresh ? "TERSEDIA" : "BELUM TERSEDIA"}</strong></div>
-      <div className="inc-summary-cell"><AlertTriangle size={16}/><span>Nilai saat gangguan</span><strong>N/A, bukan nol</strong></div>
-    </div>
-    <p className="inc-visual-note">Status READY/FAULT mengacu pada diagnostik gateway jika tersedia. Pengirim dummy/legacy tidak mempunyai konfirmasi kesehatan sensor. Indeks risiko bukan hasil pengukuran emisi furan.</p>
+    <p className="inc-visual-note">Status menunjukkan kondisi sensor dari perangkat. Prediksi risiko furan adalah perkiraan dari suhu dan gas, bukan hasil pengukuran langsung.</p>
   </section>;
 }
