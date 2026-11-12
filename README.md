@@ -306,3 +306,11 @@ Dashboard sekarang memuat `public/incinerator-lineart-v3.svg`: trace vektor tran
 - Status per sensor tetap terpisah di dalam kartu gabungan. Nilai hilang/offline tidak diganti nol. Prediksi furan tetap indeks *rule-based*, bukan pengukuran furan langsung. Tema light + kartu semi-transparan tetap diterapkan, firmware tidak diubah.
 - Layar desktop sempit `851–1380px` memakai bidang gambar minimal 1330px yang bisa di-scroll secara horizontal sehingga font/nilai tidak menjadi terlalu kecil; di layar `<=850px` tetap memakai kartu sensor mobile.
 - Uji lokal: `git -c gc.auto=0 -c maintenance.auto=false pull --ff-only origin design/minimal-operator-2026`, lalu restart `npm run dev`. Update tidak otomatis dideploy ke VPS.
+
+### Aset PNG asli & tampilan frosted glass (12 Nov 2026)
+
+Komponen `components/incinerator-visual.tsx` sekarang **memprioritaskan PNG asli** pada path `public/incinerator-v4.png` dengan ukuran native 1920×1080 dan tanpa tag AVIF `<source>`. Jika berkas itu belum tersedia, `onError` akan memakai `public/incinerator-v4.avif` sebagai fallback agar visual mesin tidak rusak.
+
+**Status aset:** file PNG asli dari lampiran chat *belum* masuk repository melalui konektor ini. API tulis file yang tersedia tidak menerima attachment PNG biner langsung. Sebelum review final/deploy, unggah berkas asli `inceneratorv4(1).png` ke branch `design/minimal-operator-2026` dengan nama **`public/incinerator-v4.png`**, tanpa resize, konversi atau kompresi. Jangan menganggap tampilan fallback AVIF sebagai hasil PNG asli.
+
+Kartu sensor memakai frost-glass semi-transparan, gradient tipis, blur 22px, border lembut dan shadow bertingkat. Geometri panel tetap: lingkungan 450×300 @(134,186), tungku 450×300 @(134,676), emisi/cerobong/furan 450×635 @(1365,153). Panah tetap ke (780,281), (1000,767), (989,73). Tidak ada perubahan mapping sensor, firmware atau LoT.
