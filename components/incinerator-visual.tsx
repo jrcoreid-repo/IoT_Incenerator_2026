@@ -50,6 +50,7 @@ function Reading({ label, value, unit, icon: Icon, digits = 1 }: {
 function Overlay({ kind, children }: { kind: keyof typeof POINTS; children: React.ReactNode }) {
   const point = POINTS[kind];
   return <div className={"inc-overlay inc-overlay-" + kind} style={{ left: point.x + "%", top: point.y + "%" }}>
+    <span className="inc-connector" aria-hidden="true" />
     <span className="inc-target" aria-hidden="true" />
     <div className="inc-overlay-card">{children}</div>
   </div>;
