@@ -101,8 +101,13 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
   const ch4 = sensorHealth("ch4", latest, fresh);
   const ch5 = sensorHealth("ch5", latest, fresh);
   const zeh = sensorHealth("zeh", latest, fresh);
-  const read = (key: ValueKey, digits = 0) =>
-    readable(fresh && (key !== "co" && key !== "h2" && key !== "voc" || zeh === "ready") ? latest?.[key] : null, digits);
+  const read = (key: ValueKey, digits = 0) => {
+    const invalid = ((key === "ambient" || key === "humidity") && cwt === "fault")
+      || (key === "stack" && ch4 === "fault")
+      || (key === "furnace" && ch5 === "fault")
+      || ((key === "co" || key === "h2" || key === "voc") && (zeh === "fault" || zeh === "warmup"));
+    return readable(fresh && !invalid ? latest?.[key] : null, digits);
+  };
   return <div className="inc-mobile-stage" aria-label="Skema incinerator mobile 1080 kali 1920">
     <img className="inc-mobile-artwork" src="/incinerator-mobile.png" alt="Gambar incinerator portrait dengan posisi sensor cerobong dan tungku" width={1080} height={1920}/>
     <svg className="inc-mobile-leaders" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
