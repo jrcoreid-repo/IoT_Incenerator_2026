@@ -51,10 +51,17 @@ export function evaluateLoT(
   const rules: string[] = [];
   const events: RuleEvent[] = [];
   const recommendations: string[] = [];
-  const count = (Object.keys(current) as SensorKey[]).filter(key =>
-    ["furnace", "stack", "ambient", "humidity", "co", "h2", "voc", "smoke"].includes(key) &&
-    numberAvailable(current[key])
-  ).length;
+  const diag = current.sensors;
+  const validProbe = (key: "ch4Connected" | "ch5Connected") =>
+    !diag || (diag.ebyte.online && diag.ebyte[key]);
+  const validGas = !diag || (diag.zeh100.online && diag.zeh100.dataValid);
+  const validCwt = !diag || diag.cwt.online;
+  const count = (["furnace", "stack", "ambient", "humidity", "co", "h2", "voc", "smoke"] as SensorKey[])
+    .filter(key => numberAvailable(current[key]) &&
+      (key === "furnace" ? validProbe("ch5Connected") :
+       key === "stack" ? validProbe("ch4Connected") :
+       key === "ambient" || key === "humidity" ? validCwt :
+       key === "co" || key === "h2" || key === "voc" ? validGas : true)).length;
   let process = "STATUS BELUM TERSEDIA";
 
   function warn(code: string, title: string, detail: string, critical = false, advice?: string) {
@@ -63,9 +70,18 @@ export function evaluateLoT(
     if (advice) recommendations.push(advice);
   }
 
-  const furnace = current.furnace;
-  const previousFurnace = previous?.furnace ?? null;
-  const tempDelta = numberAvailable(furnace) && numberAvailable(previousFurnace) ? furnace - previousFurnace : null;
+  const furnace = validProbe("ch5Connected") ? current.furnace : null;
+  const stack = validProbe("ch4Connected") ? current.stack : null;
+  const gasCo = validGas ? current.co : null;
+  const gasVoc = validGas ? current.voc : null;
+  const previousProbeOk = !previous?.sensors ||
+    (previous.sensors.ebyte.online && previous.sensors.ebyte.ch5Connected);
+  const previousFurnace = previousProbeOk ? previous?.furnace ?? null : null;
+  const gapMs = previous ? Date.parse(current.receivedAt) - Date.parse(previous.receivedAt) : Infinity;
+  const comparable = !!previous && previous.deviceId === current.deviceId &&
+    Number.isFinite(gapMs) && gapMs >= 0 && gapMs <= 60_000;
+  const tempDelta = comparable && numberAvailable(furnace) && numberAvailable(previousFurnace)
+    ? furnace - previousFurnace : null;
   if (!numberAvailable(furnace)) {
     process = "SUHU TIDAK TERBACA";
     warn("TEMP_MISSING", "Sensor suhu tungku belum terbaca", "Status proses tidak dapat dipastikan.", false, "Periksa sensor suhu tungku dan sambungan kabelnya.");
@@ -79,22 +95,22 @@ export function evaluateLoT(
     process = "TIDAK AKTIF"; rules.push("FURNACE_IDLE");
   }
 
-  if (numberAvailable(current.co)) {
-    if (current.co >= thresholds.coWarning * 2) {
-      warn("CO_HIGH", "CO meningkat tajam", `CO ${current.co.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa kondisi pembakaran dan jalur keluaran gas dengan prosedur keselamatan yang berlaku.");
-    } else if (current.co >= thresholds.coWarning) {
-      warn("CO_WARNING", "CO di atas ambang", `CO ${current.co.toFixed(1)} ppm melebihi ambang internal.`, false, "Pantau kenaikan CO dan verifikasi proses pembakaran.");
+  if (numberAvailable(gasCo)) {
+    if (gasCo >= thresholds.coWarning * 2) {
+      warn("CO_HIGH", "CO meningkat tajam", `CO ${gasCo.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa kondisi pembakaran dan jalur keluaran gas dengan prosedur keselamatan yang berlaku.");
+    } else if (gasCo >= thresholds.coWarning) {
+      warn("CO_WARNING", "CO di atas ambang", `CO ${gasCo.toFixed(1)} ppm melebihi ambang internal.`, false, "Pantau kenaikan CO dan verifikasi proses pembakaran.");
     } else rules.push("CO_BELOW_INTERNAL_THRESHOLD");
   } else {
     rules.push("CO_MISSING");
     recommendations.push("Periksa pembacaan CO sebelum menyimpulkan kondisi gas.");
   }
 
-  if (numberAvailable(current.voc)) {
-    if (current.voc >= thresholds.vocWarning * 2) {
-      warn("VOC_HIGH", "VOC meningkat tajam", `VOC ${current.voc.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa tren gas organik dan kondisi pengoperasian.");
-    } else if (current.voc >= thresholds.vocWarning) {
-      warn("VOC_WARNING", "VOC di atas ambang", `VOC ${current.voc.toFixed(1)} ppm melebihi ambang internal.`, false, "Periksa pola kenaikan VOC pada grafik.");
+  if (numberAvailable(gasVoc)) {
+    if (gasVoc >= thresholds.vocWarning * 2) {
+      warn("VOC_HIGH", "VOC meningkat tajam", `VOC ${gasVoc.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa tren gas organik dan kondisi pengoperasian.");
+    } else if (gasVoc >= thresholds.vocWarning) {
+      warn("VOC_WARNING", "VOC di atas ambang", `VOC ${gasVoc.toFixed(1)} ppm melebihi ambang internal.`, false, "Periksa pola kenaikan VOC pada grafik.");
     } else rules.push("VOC_BELOW_INTERNAL_THRESHOLD");
   } else {
     rules.push("VOC_MISSING");
@@ -109,13 +125,13 @@ export function evaluateLoT(
     } else rules.push("TEMP_STABLE_TREND");
   }
 
-  if (numberAvailable(current.humidity) && current.humidity >= 90) {
+  if (validCwt && numberAvailable(current.humidity) && current.humidity >= 90) {
     warn("HUMIDITY_HIGH", "Kelembapan tinggi", "Kelembapan udara sekitar melewati 90%.", false, "Periksa kondisi lingkungan dan perlindungan panel elektronik.");
   }
-  if (numberAvailable(current.ambient) && current.ambient >= 50) {
+  if (validCwt && numberAvailable(current.ambient) && current.ambient >= 50) {
     warn("AMBIENT_HIGH", "Suhu lingkungan tinggi", "Suhu lingkungan sekitar melebihi 50°C.", false, "Periksa pendinginan dan ventilasi panel.");
   }
-  if (numberAvailable(current.stack) && numberAvailable(furnace) && current.stack > furnace + 60) {
+  if (numberAvailable(stack) && numberAvailable(furnace) && stack > furnace + 60) {
     warn("STACK_TEMP_ANOMALY", "Perbandingan suhu tidak biasa", "Suhu cerobong melebihi suhu tungku secara signifikan.", false, "Periksa posisi sensor suhu dan sambungan kabelnya.");
   }
 
@@ -127,24 +143,24 @@ export function evaluateLoT(
   let furanIndex: number | null = null;
   const furnaceIdle = numberAvailable(furnace) && furnace < thresholds.transitionTemp;
   if (furnaceIdle) {
-    if (numberAvailable(current.stack) && current.stack >= thresholds.transitionTemp) {
+    if (numberAvailable(stack) && stack >= thresholds.transitionTemp) {
       rules.push("FURAN_COOLING_UNEVALUATED");
       recommendations.push("Cerobong masih hangat; pantau fase pendinginan tanpa menyimpulkan kadar furan dari skor ini.");
-    } else if (!numberAvailable(current.stack)) {
+    } else if (!numberAvailable(stack)) {
       rules.push("FURAN_IDLE_STACK_UNKNOWN");
     } else {
       rules.push("FURAN_PROCESS_IDLE");
     }
-  } else if (numberAvailable(furnace) && numberAvailable(current.co) && numberAvailable(current.voc)) {
+  } else if (numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
     let points = 8;
     if (furnace < thresholds.transitionTemp) { points += 26; rules.push("FURAN_T_LOW"); }
     else if (furnace < thresholds.activeTemp) { points += 18; rules.push("FURAN_T_TRANSITION"); }
     else { rules.push("FURAN_T_ACTIVE"); }
-    if (current.co >= thresholds.coWarning * 2) { points += 27; rules.push("FURAN_CO_HIGH"); }
-    else if (current.co >= thresholds.coWarning) { points += 17; rules.push("FURAN_CO_WARN"); }
+    if (gasCo >= thresholds.coWarning * 2) { points += 27; rules.push("FURAN_CO_HIGH"); }
+    else if (gasCo >= thresholds.coWarning) { points += 17; rules.push("FURAN_CO_WARN"); }
     else { points += 4; }
-    if (current.voc >= thresholds.vocWarning * 2) { points += 27; rules.push("FURAN_VOC_HIGH"); }
-    else if (current.voc >= thresholds.vocWarning) { points += 17; rules.push("FURAN_VOC_WARN"); }
+    if (gasVoc >= thresholds.vocWarning * 2) { points += 27; rules.push("FURAN_VOC_HIGH"); }
+    else if (gasVoc >= thresholds.vocWarning) { points += 17; rules.push("FURAN_VOC_WARN"); }
     else { points += 4; }
     if (numberAvailable(tempDelta) && tempDelta <= -25) { points += 12; rules.push("FURAN_TEMP_DROP"); }
     if (numberAvailable(current.smoke) && current.smoke >= 0.08) { points += 12; rules.push("FURAN_SMOKE_RISE"); }
@@ -160,7 +176,7 @@ export function evaluateLoT(
     rules.push("NO_INTERNAL_ALERT");
     recommendations.push("Lanjutkan pengamatan tren suhu dan gas. Tidak ada ambang internal yang terlampaui pada data terkini.");
   }
-  const severity: Severity = events.some(event => event.severity === "critical") ? "critical" : events.length > 0 ? "warning" : !numberAvailable(furnace) || !numberAvailable(current.co) || !numberAvailable(current.voc) ? "unknown" : "normal";
+  const severity: Severity = events.some(event => event.severity === "critical") ? "critical" : events.length > 0 ? "warning" : !numberAvailable(furnace) || !numberAvailable(gasCo) || !numberAvailable(gasVoc) ? "unknown" : "normal";
   const summary = severity === "critical"
     ? "Terdapat pembacaan gas yang meningkat tajam. Periksa proses melalui prosedur operasi dan keselamatan yang berlaku."
     : severity === "warning"
