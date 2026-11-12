@@ -252,7 +252,8 @@ void handleStatus() {
   s+=",\"telemetry_queue_ready\":"+asJSONBool(telemetryQueue!=nullptr);
   const bool busOnline=cwt.online || ebyte.online || zeh.online;
   const bool ready=cwt.online && ebyte.online && ch4Valid && ch5Valid && zeh.online && gasDataValid;
-  const bool fault=(!ready && !gasWarmupLike) || (gasDataValid && gasFlags!=0);
+  const bool fault=!cwt.online || !ebyte.online || !zeh.online ||
+                   !ch4Valid || !ch5Valid || (gasDataValid && gasFlags!=0);
   s+=",\"bus_online\":"+asJSONBool(busOnline);
   s+=",\"sensor_ready\":"+asJSONBool(ready);
   s+=",\"sensor_fault\":"+asJSONBool(fault);
