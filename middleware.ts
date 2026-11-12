@@ -6,11 +6,13 @@ function preventCache(response: NextResponse) {
   response.headers.set("Pragma", "no-cache");
   return response;
 }
-function redirect(request: NextRequest, pathname: string) {
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = "";
-  return preventCache(NextResponse.redirect(url));
+function redirect(_request: NextRequest, pathname: string) {
+  // Relative Location preserves the browser's public HTTPS origin behind
+  // Caddy/other reverse proxies. request.nextUrl can resolve to localhost:3000.
+  return preventCache(new NextResponse(null, {
+    status: 307,
+    headers: { Location: pathname }
+  }));
 }
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
