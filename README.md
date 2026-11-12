@@ -285,3 +285,11 @@ Posisi **titik sensor** (`POINTS`) tidak berubah. Yang disesuaikan hanya CSS `.i
 ### Revisi posisi card dan garis penunjuk (12 Nov 2026)
 
 Setelah evaluasi screenshot desktop, posisi card **lingkungan tetap**; card **tungku** dipindah lebih jauh ke kiri dan naik, sementara card **gas** dan **cerobong** dijauhkan ke kanan. Setiap card kini memiliki garis penunjuk (`.inc-connector`) dari titik sensor ke sisi card, dengan jarak yang menggunakan variabel CSS `--inc-card-gap` bersama-sama untuk posisi card dan panjang garis. Media query laptop 851–1100 px memiliki offset sendiri. Titik `POINTS` 1920×1080, firmware, payload sensor, dan mapping CH4/CH5 tetap tidak berubah. Untuk menguji: `git pull --ff-only origin design/minimal-operator-2026`, restart `npm run dev`, lalu refresh browser.
+
+### Pembaruan visual hijau & furan di panel gas (12 Nov 2026)
+
+- Komponen visual desktop masih memakai kanvas 1920×1080 dan titik sensor yang sama; **posisi dan offset kartu tidak diganti**.
+- Gambar desktop sekarang merujuk ke `public/incinerator-scene.svg`, ilustrasi **SVG rekonstruksi sementara** dari arahan latar bersih/rumput/langit dan susunan tungku–cerobong pada gambar PNG pengguna, **bukan** salinan byte-identik dari PNG unggahan. Keterbatasan unggah berkas biner lewat konektor GitHub pada sesi penyuntingan ini menjadi alasan penggunaan SVG yang dapat dicommit langsung.
+- Semua panel sensor desktop memakai permukaan semi-transparan dengan efek `backdrop-filter`, border lembut, dan shadow bertingkat; angka tetap berkontras tinggi. Ini perubahan tampilan saja.
+- Prediksi indeks risiko furan berbasis aturan (`riskIndex`) dipindah ke dalam panel gas ZEH100, bersama CO, H₂, dan VOC. Komponen indikator di bawah visual tidak lagi mengulang nilai indeks. Saat data tidak valid/offline, tampil tanda `—` dan keterangan menunggu data; **furan tidak diukur langsung**.
+- Firmware, `POINTS`, mapping CH4/CH5, dan aturan LoT tidak berubah. Uji desktop lokal dengan `git pull --ff-only origin design/minimal-operator-2026` lalu restart `npm run dev`.
