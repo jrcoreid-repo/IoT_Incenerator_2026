@@ -196,7 +196,24 @@ npm run sender:virtual -- --dry-run
 
 Mode `cycle` otomatis berpindah dari **idle → heating → active → warning → critical → cooling**, dengan transisi halus antar tahap. Mode lain mempertahankan satu tahap untuk memeriksa LoT, grafik, dan alarm. Mode `--dry-run` menampilkan JSON tanpa mengirim apa pun.
 
-Payload berisi `deviceId: "ESP32-VIRTUAL-01"` dan delapan pembacaan numerik (`furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke`). **Nilai tersebut dihasilkan oleh program virtual**, tidak mewakili pengukuran atau tingkat emisi sebenarnya. Indeks risiko furan tetap dihitung di sisi dashboard melalui LoT, bukan dikirim sender.
+Payload pengirim virtual kini mencakup `deviceId: "ESP32-VIRTUAL-01"`, delapan parameter utama (`furnace`, `stack`, `ambient`, `humidity`, `co`, `h2`, `voc`, `smoke`), `gasModuleC`, serta objek diagnostik `sensors` untuk CWT (ID 3), Ebyte (ID 2; CH4 cerobong, CH5 tungku), dan ZEH100 (ID 1). Data tetap **simulasi**, bukan hasil pembacaan Modbus atau pengukuran emisi nyata. Indeks risiko furan tetap dihitung dashboard melalui LoT dan **bukan** dikirim oleh sender.
+
+**Tes status sensor sebelum deploy** (semua perintah di bawah mengirim hanya ke `http://localhost:3000/api/telemetry` secara bawaan):
+
+```cmd
+npm run test:sender
+npm run sender:virtual -- --dry-run
+npm run sender:virtual -- --scenario cycle --phase-seconds 20 --count 12
+npm run sender:virtual -- --scenario active --sensor-state warmup --count 3
+npm run sender:virtual -- --scenario active --sensor-state ch4-fault --count 3
+npm run sender:virtual -- --scenario active --sensor-state ch5-fault --count 3
+npm run sender:virtual -- --scenario active --sensor-state cwt-fault --count 3
+npm run sender:virtual -- --scenario active --sensor-state zeh-fault --count 3
+npm run sender:virtual -- --scenario active --sensor-state zeh-flags --count 3
+npm run sender:virtual -- --scenario active --sensor-state ready --count 3
+```
+
+Default `--sensor-state ready` menampilkan status **READY** untuk semua sensor bila data masih fresh. `warmup` menandai ZEH100 **WARMING UP** (`dataValid=false`, CO/H₂/VOC = `null`, suhu modul -40°C). Mode `*-fault` menandai sensor bermasalah **FAULT** dengan pembacaan sensor terkait `null`, bukan angka nol. `zeh-flags` mengirim kode flags nonnol (0x01) untuk menguji alarm modul. Semua status virtual ini hanya untuk uji UI, bukan diagnosis sensor lapangan. Hentikan simulator dengan Ctrl+C lalu tunggu sekitar 35 detik untuk menguji **OFFLINE**. **Tidak ada perubahan firmware EG118 pada pengujian ini.**
 
 - **Hentikan sender:** tekan `Ctrl+C` di Terminal 2. Pembacaan terakhir akan menjadi kedaluwarsa setelah sekitar 35 detik, dan analisis otomatis berhenti.
 - **URL lain:** `npm run sender:virtual -- --url https://domainmu.id/api/telemetry`. Pengiriman non-lokal wajib HTTPS; gunakan token ingest yang sesuai pada server tujuan. Jangan gunakan ini untuk mengirim data uji ke instalasi produksi sungguhan.
