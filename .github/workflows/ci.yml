@@ -28,6 +28,8 @@ jobs:
         run: npm run test:history
       - name: Test furan process idle gating
         run: npm run test:furan
+      - name: Validate operator explanations
+        run: npm run test:insights
       - name: Build
         run: npm run build
       - name: Verify protected routes and login
