@@ -297,3 +297,12 @@ Setelah evaluasi screenshot desktop, posisi card **lingkungan tetap**; card **tu
 ### Gambar incinerator v3 (12 Nov 2026)
 
 Dashboard sekarang memuat `public/incinerator-lineart-v3.svg`: trace vektor transparan dari gambar garis hijau `inceneratorv3.png` yang diberikan pengguna. Ilustrasi sebelumnya `public/incinerator-scene.svg` dipertahankan sebagai arsip dan tidak lagi digunakan pada komponen utama. Kanvas tetap 1920×1080 dengan rasio 16:9. `POINTS`, posisi kotak overlay, garis connector, panel furan yang digabung dalam sensor gas, dan efek glass tetap seperti commit sebelumnya. Catatan: aset yang tampil adalah trace SVG dari PNG, bukan salinan berkas PNG identik secara bit.
+
+### Relayout desktop v4 sesuai koordinat artboard (12 Nov 2026)
+
+- Sumber baru: `public/incinerator-v4.avif`, **berasal dari gambar teknis v4 asli yang diunggah pengguna**, dioptimasi ke AVIF transparan 1120×630 supaya ringan; ditampilkan pada kanvas 1920×1080. Browser tanpa dukungan AVIF memakai SVG v3 sebagai fallback.
+- Posisi panel dihitung proporsional dari sudut kiri-atas kanvas 1920×1080 agar tidak berubah saat desktop di-*resize*: **lingkungan** `(134,186), 450×300`; **tungku CH5** `(134,676), 450×300`; **gabungan cerobong CH4 + gas ZEH100 + prediksi risiko furan** `(1365,153), 450×635`.
+- Garis penunjuk memakai SVG `viewBox=1920 1080` dengan titik **lingkungan** `(780,281)`, **tungku** `(1000,767)`, dan **asap/cerobong** `(989,73)`. Garis diteruskan ke batas panel masing-masing.
+- Status per sensor tetap terpisah di dalam kartu gabungan. Nilai hilang/offline tidak diganti nol. Prediksi furan tetap indeks *rule-based*, bukan pengukuran furan langsung. Tema light + kartu semi-transparan tetap diterapkan, firmware tidak diubah.
+- Layar desktop sempit `851–1380px` memakai bidang gambar minimal 1330px yang bisa di-scroll secara horizontal sehingga font/nilai tidak menjadi terlalu kecil; di layar `<=850px` tetap memakai kartu sensor mobile.
+- Uji lokal: `git -c gc.auto=0 -c maintenance.auto=false pull --ff-only origin design/minimal-operator-2026`, lalu restart `npm run dev`. Update tidak otomatis dideploy ke VPS.
