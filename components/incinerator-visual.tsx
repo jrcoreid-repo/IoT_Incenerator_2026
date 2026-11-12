@@ -34,7 +34,7 @@ function mobilePanelStyle(name: keyof typeof MOBILE_PANELS) {
 const PANELS = {
   ambient: { x: 134, y: 186, width: 450, height: 300 },
   furnace: { x: 134, y: 676, width: 450, height: 300 },
-  emission: { x: 1365, y: 153, width: 450, height: 635 }
+  emission: { x: 1365, y: 153, width: 450, height: 675 }
 } as const;
 const TARGETS = {
   ambient: { x: 780, y: 281 },
