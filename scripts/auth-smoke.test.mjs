@@ -31,7 +31,7 @@ function redirectTo(response, path) {
   assert.ok([301, 302, 303, 307, 308].includes(response.status), "Expected redirect, got HTTP " + response.status);
   const destination = response.headers.get("location");
   assert.ok(destination, "Redirect harus memiliki header Location.");
-  assert.equal(destination, path, "Middleware redirects must remain relative behind public HTTPS proxies.");
+  assert.equal(new URL(destination, "http://127.0.0.1").pathname, path);
 }
 function findCookie(response) {
   const header = response.headers.get("set-cookie") ?? "";
@@ -177,6 +177,10 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
 
     redirectTo(await request("/"), "/login");
     redirectTo(await request("/admin"), "/login");
+    const publicHostRedirect = await request("/admin", {
+      headers: { Host: "adi-incinerator.live", "X-Forwarded-Host": "adi-incinerator.live" }
+    });
+    assert.equal(publicHostRedirect.headers.get("location"), "https://adi-incinerator.live/login");
     redirectTo(await request("/dashboard"), "/login");
     assert.equal((await request("/api/telemetry")).status, 401);
     assert.equal((await request("/api/users")).status, 403);
