@@ -26,6 +26,8 @@ jobs:
         run: npm run test:deploy
       - name: Verify adaptive archive chart sampling
         run: npm run test:history
+      - name: Test furan process idle gating
+        run: npm run test:furan
       - name: Build
         run: npm run build
       - name: Verify protected routes and login

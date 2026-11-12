@@ -94,8 +94,8 @@ function Panel({ kind, children }: { kind: PanelName; children: React.ReactNode 
 function MobileStatus({ health, name }: { health: Health; name: string }) {
   return <span className={"inc-mobile-status inc-mobile-" + health}>{name} · {STATUS[health]}</span>;
 }
-function IncineratorMobile({ latest, fresh, riskIndex }: {
-  latest: Telemetry | null; fresh: boolean; riskIndex: number | null;
+function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
+  latest: Telemetry | null; fresh: boolean; riskIndex: number | null; riskPaused: boolean;
 }) {
   const cwt = sensorHealth("cwt", latest, fresh);
   const ch4 = sensorHealth("ch4", latest, fresh);
@@ -131,7 +131,7 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
           <MobileStatus health={ch4} name="SUHU"/>
         </div>
         <div className="inc-mobile-furan">
-          <div className="inc-mobile-furan-row"><span>PREDIKSI RISIKO FURAN</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>/100</i></strong></div>
+          <div className="inc-mobile-furan-row"><span>{riskPaused && fresh ? "FURAN · ANALISIS DIJEDA" : "PREDIKSI RISIKO FURAN"}</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>{riskPaused && fresh ? "" : "/100"}</i></strong></div>
           <div className="inc-mobile-furan-track"><span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/></div>
         </div>
       </div>
@@ -156,8 +156,8 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
   </div>;
 }
 
-export default function IncineratorVisual({ latest, fresh, riskIndex }: {
-  latest: Telemetry | null; fresh: boolean; riskIndex: number | null;
+export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused = false }: {
+  latest: Telemetry | null; fresh: boolean; riskIndex: number | null; riskPaused?: boolean;
 }) {
   const gasHealth = sensorHealth("zeh", latest, fresh);
   const gasValid = fresh && (!latest?.sensors || latest.sensors.zeh100.dataValid);
@@ -237,7 +237,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
           <div className="inc-furan-bar" role="meter" aria-label="Indeks risiko furan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) : undefined}>
             <span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/>
           </div>
-          <div className="inc-furan-subtitle">{!fresh || riskIndex === null ? "Belum tersedia · menunggu data sensor" : "Indikator risiko dari suhu dan gas, bukan pengukuran furan langsung"}</div>
+          <div className="inc-furan-subtitle">{!fresh ? "Menunggu data sensor terbaru" : riskPaused ? "Pembakaran tidak aktif · analisis tidak dinilai" : riskIndex === null ? "Belum tersedia · parameter belum lengkap" : "Indikator proses, bukan pengukuran furan langsung"}</div>
         </div>
         <div className="inc-gas-device-temperature" aria-label="Suhu pada sensor gas">
           <div className="inc-gas-device-temperature-label"><Thermometer size={15} aria-hidden="true"/><span>SUHU SENSOR GAS</span></div>
@@ -245,7 +245,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
         </div>
       </Panel>
     </div>
-    {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex}/>}
+    {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex} riskPaused={riskPaused}/>}
     <p className="inc-visual-note">Status menunjukkan kondisi sensor dari perangkat. Prediksi risiko furan adalah perkiraan dari suhu dan gas, bukan hasil pengukuran langsung.</p>
   </section>;
 }

@@ -119,10 +119,23 @@ export function evaluateLoT(
     warn("STACK_TEMP_ANOMALY", "Perbandingan suhu tidak biasa", "Suhu cerobong melebihi suhu tungku secara signifikan.", false, "Periksa posisi sensor suhu dan sambungan kabelnya.");
   }
 
-  // LoT: indikator proses, bukan konsentrasi dioksin/furan dan belum tervalidasi ilmiah.
-  // Sengaja hanya dihitung bila suhu tungku, CO dan VOC tersedia.
+  // LoT is an experimental combustion-process indicator, NOT a furan
+  // concentration estimate or an emission-safety assessment.
+  // Do not assign penalty points to ambient-temperature idle equipment:
+  // no active combustion means no meaningful in-process furan score.
+  // CO/VOC alerts remain independent and are still evaluated above.
   let furanIndex: number | null = null;
-  if (numberAvailable(furnace) && numberAvailable(current.co) && numberAvailable(current.voc)) {
+  const furnaceIdle = numberAvailable(furnace) && furnace < thresholds.transitionTemp;
+  if (furnaceIdle) {
+    if (numberAvailable(current.stack) && current.stack >= thresholds.transitionTemp) {
+      rules.push("FURAN_COOLING_UNEVALUATED");
+      recommendations.push("Cerobong masih hangat; pantau fase pendinginan tanpa menyimpulkan kadar furan dari skor ini.");
+    } else if (!numberAvailable(current.stack)) {
+      rules.push("FURAN_IDLE_STACK_UNKNOWN");
+    } else {
+      rules.push("FURAN_PROCESS_IDLE");
+    }
+  } else if (numberAvailable(furnace) && numberAvailable(current.co) && numberAvailable(current.voc)) {
     let points = 8;
     if (furnace < thresholds.transitionTemp) { points += 26; rules.push("FURAN_T_LOW"); }
     else if (furnace < thresholds.activeTemp) { points += 18; rules.push("FURAN_T_TRANSITION"); }
@@ -157,7 +170,7 @@ export function evaluateLoT(
         : "Parameter yang tersedia berada di bawah ambang peringatan internal. Lanjutkan pemantauan suhu dan gas secara berkala.";
   return {
     process, severity, furanIndex,
-    furanLevel: furanIndex === null ? "TIDAK TERSEDIA" : level(furanIndex),
+    furanLevel: furanIndex === null ? (furnaceIdle ? "TIDAK DINILAI" : "TIDAK TERSEDIA") : level(furanIndex),
     summary, rules, events, recommendations: [...new Set(recommendations)].slice(0, 6),
     validSensorCount: count
   };

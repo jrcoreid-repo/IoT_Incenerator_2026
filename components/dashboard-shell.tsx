@@ -62,6 +62,9 @@ const ruleLabels: Record<string, string> = {
   FURAN_SMOKE_RISE: "Indikator asap memengaruhi perkiraan risiko",
   FURAN_INDEX_WARNING: "Perkiraan risiko perlu diperiksa",
   FURAN_UNAVAILABLE: "Perkiraan risiko belum tersedia",
+  FURAN_PROCESS_IDLE: "Pembakaran tidak aktif; indeks furan tidak dinilai",
+  FURAN_COOLING_UNEVALUATED: "Cerobong masih hangat; pantau pendinginan tanpa skor furan",
+  FURAN_IDLE_STACK_UNKNOWN: "Tungku belum aktif; suhu cerobong tidak tersedia",
   NO_INTERNAL_ALERT: "Tidak ada peringatan terdeteksi"
 };
 function readableRule(rule: string) {
@@ -103,8 +106,10 @@ function DevicePill({ name, status, active }: { name: string; status: string; ac
 type StatusTone = "safe" | "caution" | "danger" | "critical" | "muted";
 
 // Warna menunjukkan kondisi indikator internal, bukan hasil uji emisi lingkungan.
-function riskPresentation(index: number | null, fresh: boolean): { label: string; tone: StatusTone } {
-  if (!fresh || index === null) return { label: "BELUM TERSEDIA", tone: "muted" };
+function riskPresentation(index: number | null, fresh: boolean, paused = false): { label: string; tone: StatusTone } {
+  if (!fresh) return { label: "BELUM TERSEDIA", tone: "muted" };
+  if (paused) return { label: "TIDAK DINILAI", tone: "muted" };
+  if (index === null) return { label: "BELUM TERSEDIA", tone: "muted" };
   if (index < 25) return { label: "NORMAL", tone: "safe" };
   if (index < 50) return { label: "WASPADA", tone: "caution" };
   if (index < 75) return { label: "BAHAYA", tone: "danger" };
@@ -381,7 +386,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
       : isBurning
         ? `Suhu tungku mencapai batas aktif ${thresholds.activeTemp}°C. Pantau indikator gas secara terpisah.`
         : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
-  const risk = offline ? { label: "OFFLINE", tone: "caution" as const } : riskPresentation(lot.furanIndex, fresh);
+  const furanPaused = lot.rules.some(rule => ["FURAN_PROCESS_IDLE", "FURAN_COOLING_UNEVALUATED", "FURAN_IDLE_STACK_UNKNOWN"].includes(rule));
+  const risk = offline ? { label: "OFFLINE", tone: "caution" as const } : riskPresentation(lot.furanIndex, fresh, furanPaused);
   const monitoring = offline ? { label: "OFFLINE", tone: "caution" as const } : monitoringPresentation(lot.severity);
   const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan" && item.id !== "pengguna");
 
@@ -484,7 +490,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 <div className="hero-time"><span>Data terakhir diterima</span><strong>{formatClock(latest?.receivedAt)}</strong></div>
               </div>
             </section>
-            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} />
+            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} />
             <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">PEMANTAUAN SENSOR</p><h2>Parameter utama</h2></div></div>
             <section className="metric-grid inc-legacy-metrics" aria-label="Lima indikator utama">
               <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
@@ -495,10 +501,10 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
                 <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
                   <div className="metric-value">{fresh ? formatNumber(lot.furanIndex, 0) : "—"}<small>/100</small></div>
-                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : undefined}>
+                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : furanPaused ? "Pembakaran tidak aktif; indeks furan tidak dinilai" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>{offline ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : "Berdasarkan suhu dan gas"}</span></div>
+                  <div className="prediction-note"><strong>{offline || furanPaused ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : furanPaused ? "Tidak ada pembakaran aktif; bukan berarti emisi furan nol" : "Indikator proses dari suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
