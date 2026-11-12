@@ -1329,3 +1329,221 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 @media(prefers-reduced-motion:reduce) {
   .inc-mobile-furan-track>span {transition:none;}
 }
+
+
+/* ==========================================================================
+   ADI GLASS DESIGN SYSTEM v1 — cohesive light, translucent operator surfaces
+   Shared by desktop and mobile. Status colors/units/telemetry stay unchanged.
+   Intentionally does not override the measured values in inc-fixed-card or
+   inc-mobile-card; their existing frosted layout is the visual reference.
+   ========================================================================== */
+.app-shell {
+  --adi-glass:linear-gradient(145deg,rgba(255,255,255,.89),rgba(244,253,248,.75) 58%,rgba(229,247,237,.69));
+  --adi-glass-raised:linear-gradient(150deg,rgba(255,255,255,.94),rgba(239,250,244,.83));
+  --adi-glass-subtle:linear-gradient(140deg,rgba(255,255,255,.65),rgba(225,244,232,.51));
+  --adi-glass-stroke:rgba(102,158,126,.31);
+  --adi-glass-shadow:0 18px 38px rgba(29,79,52,.095),0 5px 14px rgba(29,79,52,.052),inset 0 1px 0 rgba(255,255,255,.93);
+  background:radial-gradient(ellipse at 18% 8%,rgba(205,238,218,.58),transparent 42%),
+    radial-gradient(ellipse at 90% 55%,rgba(223,242,232,.75),transparent 45%),
+    linear-gradient(165deg,#eff8f1 0%,#eaf4ec 65%,#e3efe6 100%);
+  background-attachment:fixed;
+}
+.app-shell .main-content {position:relative;}
+/* Primary cards including charts, history, alerts, device list and settings. */
+.app-shell :is(.panel:not(.inc-visual),.project-context,.metric-card,
+  .user-management-intro,.user-create-form,.user-list) {
+  background:var(--adi-glass);
+  border:1px solid var(--adi-glass-stroke);
+  border-radius:17px;
+  box-shadow:var(--adi-glass-shadow);
+  -webkit-backdrop-filter:blur(16px) saturate(128%);
+  backdrop-filter:blur(16px) saturate(128%);
+}
+.app-shell .project-context {border-radius:14px;}
+.app-shell :is(.metric-card,.panel:not(.inc-visual)) {transition:box-shadow .22s ease,border-color .22s ease;}
+@media(hover:hover) and (pointer:fine) {
+  .app-shell :is(.metric-card,.panel:not(.inc-visual)):hover {
+    border-color:rgba(78,153,111,.4);
+    box-shadow:0 22px 44px rgba(29,79,52,.11),0 6px 18px rgba(29,79,52,.065),inset 0 1px 0 rgba(255,255,255,.95);
+  }
+}
+/* Nested cards receive their own lighter pane without competing with primary values. */
+.app-shell :is(.hero-mini,.hero-time,.device-pill,.analysis-score-row>div,
+  .event-row,.lot-recommendations p,.rule-tag,.no-data,.user-record,
+  .prototype-note,.user-feedback-ok,.archive-meta,.project-context-icon,
+  .metric-icon,.hero-icon-wrap,.device-table-row:not(.header)) {
+  background:var(--adi-glass-subtle);
+  border-color:rgba(116,168,135,.23);
+  border-radius:11px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.76),0 3px 10px rgba(31,84,54,.035);
+}
+.app-shell .device-table-row:not(.header) {
+  margin-top:5px;
+  padding:13px 11px;
+  border:1px solid rgba(116,168,135,.20);
+}
+/* Retain full contrast in temperature charts and their tooltips. */
+.app-shell .chart-panel .chart-wrap {border-radius:12px;}
+.app-shell .recharts-default-tooltip {
+  background:rgba(251,255,252,.97)!important;
+  border:1px solid rgba(95,151,121,.42)!important;
+  border-radius:11px!important;
+  box-shadow:0 12px 28px rgba(21,69,42,.13)!important;
+}
+.app-shell .recharts-tooltip-item,.app-shell .recharts-tooltip-label {color:#244e37;}
+/* Buttons, chips, form controls and actions share one glass language. */
+.app-shell :is(.secondary-button,.icon-button,.user-refresh,.account-role-chip,
+  .live-badge,.chip,.soft-badge,.archive-action.secondary-button) {
+  background:var(--adi-glass-raised);
+  color:var(--text);
+  border:1px solid var(--adi-glass-stroke);
+  border-radius:10px;
+  box-shadow:0 5px 15px rgba(26,78,48,.065),inset 0 1px 0 rgba(255,255,255,.94);
+  -webkit-backdrop-filter:blur(12px) saturate(130%);
+  backdrop-filter:blur(12px) saturate(130%);
+}
+.app-shell :is(.primary-button,.archive-action.primary-button) {
+  background:linear-gradient(135deg,#2e9466,#156b47);
+  border:1px solid rgba(13,99,59,.64);
+  border-radius:10px;
+  color:#fff;
+  box-shadow:0 9px 19px rgba(29,103,65,.2),inset 0 1px 0 rgba(255,255,255,.22);
+}
+.app-shell :is(.primary-button,.secondary-button,.icon-button,.user-refresh,
+  .archive-action,.side-nav button,.logout-button,.mobile-nav button) {
+  transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+@media(hover:hover) and (pointer:fine) {
+  .app-shell :is(.primary-button,.secondary-button,.icon-button,.user-refresh,.archive-action):hover:not(:disabled) {
+    transform:translateY(-1px);
+    box-shadow:0 11px 23px rgba(24,94,57,.16),inset 0 1px 0 rgba(255,255,255,.3);
+  }
+}
+.app-shell :is(.settings-grid input,.archive-field input,.archive-field select,
+  .user-create-form input,.user-reset-control input) {
+  background:rgba(255,255,255,.76);
+  border:1px solid rgba(101,155,122,.35);
+  color:var(--text);
+  border-radius:10px;
+  box-shadow:inset 0 1px 3px rgba(29,87,52,.04),0 1px 0 rgba(255,255,255,.75);
+  -webkit-backdrop-filter:blur(9px);
+  backdrop-filter:blur(9px);
+}
+.app-shell :is(.settings-grid input,.archive-field input,.archive-field select,
+  .user-create-form input,.user-reset-control input):focus-visible {
+  outline:2px solid rgba(46,150,97,.72);outline-offset:2px;border-color:#58a77a;
+}
+/* Red / green / yellow process state remains obvious under the frosted coat. */
+.app-shell .hero-status {
+  border-radius:17px;
+  box-shadow:var(--adi-glass-shadow);
+  -webkit-backdrop-filter:blur(15px) saturate(130%);
+  backdrop-filter:blur(15px) saturate(130%);
+}
+.app-shell .hero-status.burn-burning {
+  background:linear-gradient(135deg,rgba(255,237,237,.91),rgba(255,219,223,.76));
+  border-color:#d74e57;border-left-color:#c72a38;
+}
+.app-shell .hero-status.burn-idle {
+  background:linear-gradient(135deg,rgba(233,252,239,.91),rgba(210,245,222,.77));
+  border-color:#2c9a59;border-left-color:#188547;
+}
+.app-shell .hero-status.burn-unknown {
+  background:var(--adi-glass);border-color:var(--adi-glass-stroke);border-left-color:#879c91;
+}
+.app-shell.telemetry-offline .hero-status.burn-offline {
+  background:linear-gradient(135deg,rgba(255,250,233,.92),rgba(255,237,199,.8));
+}
+.app-shell.telemetry-offline .sensor-card,
+.app-shell.telemetry-offline .furan-card {
+  background:linear-gradient(140deg,rgba(255,251,237,.92),rgba(250,239,210,.78));
+}
+.app-shell .metric-card.risk-border-safe {border-top:4px solid #258c55;}
+.app-shell .metric-card.risk-border-caution {border-top:4px solid #d6a625;}
+.app-shell .metric-card.risk-border-danger {border-top:4px solid #df753d;}
+.app-shell .metric-card.risk-border-critical {border-top:4px solid #d63d50;}
+/* Dark forest-green sidebar: translucent depth, but white navigation is legible. */
+.app-shell .sidebar {
+  background:linear-gradient(175deg,rgba(10,45,29,.97),rgba(10,50,33,.94) 54%,rgba(9,35,25,.98));
+  border-right:1px solid rgba(155,217,175,.22);
+  box-shadow:10px 0 35px rgba(10,47,29,.16),inset -1px 0 0 rgba(230,255,234,.055);
+  -webkit-backdrop-filter:blur(22px) saturate(135%);
+  backdrop-filter:blur(22px) saturate(135%);
+}
+.app-shell .brand {border-bottom-color:rgba(180,227,191,.24);}
+.app-shell .side-nav button {border-radius:11px;border:1px solid transparent;}
+.app-shell .side-nav button:hover {
+  background:rgba(145,219,171,.14);
+  border-color:rgba(158,222,180,.17);
+}
+.app-shell .side-nav button.active {
+  background:linear-gradient(110deg,rgba(92,172,120,.30),rgba(147,222,168,.14));
+  border:1px solid rgba(154,230,180,.36);
+  box-shadow:inset 3px 0 0 #9cdeb5,0 5px 15px rgba(0,19,10,.13),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.app-shell .logout-button,.app-shell .account-role-meta {
+  background:linear-gradient(125deg,rgba(66,142,95,.25),rgba(50,112,76,.14));
+  border:1px solid rgba(167,219,183,.26);
+  border-radius:11px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.085);
+}
+.app-shell .logout-button:hover {background:rgba(112,198,140,.24);}
+/* Existing illustration overlays are intentionally not resized or repositioned. */
+.app-shell .inc-visual {
+  background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(240,251,245,.67));
+  border:1px solid rgba(116,168,133,.3);
+  border-radius:19px;
+  box-shadow:var(--adi-glass-shadow);
+  -webkit-backdrop-filter:blur(17px);
+  backdrop-filter:blur(17px);
+}
+@media(max-width:850px) {
+  .app-shell .main-content {padding-left:12px;padding-right:12px;}
+  .app-shell .mobile-nav {
+    background:linear-gradient(180deg,rgba(11,49,31,.96),rgba(8,36,24,.97));
+    border-top:1px solid rgba(163,228,184,.25);
+    -webkit-backdrop-filter:blur(20px) saturate(130%);
+    backdrop-filter:blur(20px) saturate(130%);
+    box-shadow:0 -8px 23px rgba(13,51,31,.17);
+  }
+  .app-shell .mobile-nav button {border:1px solid transparent;border-radius:11px;}
+  .app-shell .mobile-nav button.active {
+    color:#eaffef;
+    background:linear-gradient(135deg,rgba(105,191,137,.35),rgba(94,169,123,.19));
+    border-color:rgba(167,235,188,.28);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .app-shell :is(.panel:not(.inc-visual),.project-context,.metric-card) {
+    border-radius:14px;
+    -webkit-backdrop-filter:blur(12px) saturate(125%);
+    backdrop-filter:blur(12px) saturate(125%);
+  }
+  .app-shell .hero-status {border-radius:15px;}
+  .app-shell .inc-visual.inc-mobile-ready {border-radius:15px;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .app-shell :is(.metric-card,.panel,.primary-button,.secondary-button,.icon-button,
+    .user-refresh,.archive-action,.side-nav button,.logout-button,.mobile-nav button) {transition:none;}
+}
+/* Login remains light and readable; elevate the two access surfaces gently. */
+.login-split .login-split-access {
+  background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(242,251,245,.93));
+}
+.login-split .login-access-form input {
+  background:rgba(255,255,255,.83);
+  border-color:rgba(100,156,121,.34);
+  border-radius:11px;
+  box-shadow:inset 0 1px 3px rgba(25,70,45,.045);
+}
+.login-split .login-access-submit {
+  border-radius:11px;
+  background:linear-gradient(130deg,#268654,#145d3d);
+  box-shadow:0 11px 25px rgba(25,99,57,.19),inset 0 1px 0 rgba(255,255,255,.18);
+}
+.login-split .login-feature-list>div {
+  background:rgba(255,255,255,.43);
+  border:1px solid rgba(100,156,121,.17);
+  border-radius:11px;
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+}
