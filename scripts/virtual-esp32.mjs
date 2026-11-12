@@ -18,6 +18,7 @@ import { resolve } from "node:path";
 
 export const STAGES = ["idle", "heating", "active", "warning", "critical", "cooling"];
 export const SCENARIOS = ["cycle", ...STAGES];
+export const SENSOR_STATES = ["ready", "warmup", "cwt-fault", "ch4-fault", "ch5-fault", "ebyte-fault", "zeh-fault", "zeh-flags"];
 
 const stageTargets = {
   idle:     { furnace: 54,  stack: 41,  ambient: 29.4, humidity: 70, co: 11,  h2: 2.3,  voc: 18,  smoke: 0.012 },
@@ -36,6 +37,9 @@ npm run sender:virtual
 npm run sender:virtual -- --scenario warning
 npm run sender:virtual -- --scenario critical --count 10
 npm run sender:virtual -- --scenario cycle --phase-seconds 20
+npm run sender:virtual -- --sensor-state warmup --count 3
+npm run sender:virtual -- --sensor-state ch4-fault --count 3
+npm run sender:virtual -- --sensor-state zeh-fault --count 3
 npm run sender:virtual -- --dry-run
 
 Pilihan:
@@ -45,6 +49,8 @@ Pilihan:
   --count <n>             Jumlah payload; 0 = terus sampai Ctrl+C (default)
   --url <url>             Endpoint target, default http://localhost:3000/api/telemetry
   --device-id <id>        Identitas pengirim, default ESP32-VIRTUAL-01
+  --sensor-state <state>  ready (default) | warmup | cwt-fault | ch4-fault |
+                          ch5-fault | ebyte-fault | zeh-fault | zeh-flags
   --dry-run               Tampilkan JSON tanpa mengirim ke API
   --help                  Tampilkan bantuan
 
@@ -60,6 +66,7 @@ export function parseOptions(argv) {
     count: 0,
     url: "http://localhost:3000/api/telemetry",
     deviceId: "ESP32-VIRTUAL-01",
+    sensorState: "ready",
     dryRun: false,
     help: false
   };
@@ -70,7 +77,7 @@ export function parseOptions(argv) {
     const aliases = {
       "--scenario": "scenario", "--interval": "interval",
       "--phase-seconds": "phaseSeconds", "--count": "count",
-      "--url": "url", "--device-id": "deviceId"
+      "--url": "url", "--device-id": "deviceId", "--sensor-state": "sensorState"
     };
     const [flag, inline] = raw.split(/=(.*)/s, 2);
     const key = aliases[flag];
@@ -85,6 +92,7 @@ export function parseOptions(argv) {
     }
   }
   if (!SCENARIOS.includes(options.scenario)) throw new Error("Skenario tidak dikenal. Gunakan --help.");
+  if (!SENSOR_STATES.includes(options.sensorState)) throw new Error("Status sensor tidak dikenal. Gunakan --help.");
   if (!Number.isInteger(options.count) || options.count < 0) throw new Error("--count harus bilangan bulat >= 0.");
   if (!Number.isFinite(options.interval) || options.interval < 1 || options.interval > 3600) throw new Error("--interval harus 1–3600 detik.");
   if (!Number.isFinite(options.phaseSeconds) || options.phaseSeconds < 5 || options.phaseSeconds > 3600) throw new Error("--phase-seconds harus 5–3600 detik.");
@@ -121,7 +129,7 @@ export function stageAt(elapsedSeconds, scenario, phaseSeconds) {
   return { name, from, progress };
 }
 
-export function generatePayload({ scenario = "cycle", phaseSeconds = 25, deviceId = "ESP32-VIRTUAL-01" }, elapsedSeconds = 0) {
+export function generatePayload({ scenario = "cycle", phaseSeconds = 25, deviceId = "ESP32-VIRTUAL-01", sensorState = "ready" }, elapsedSeconds = 0) {
   const stage = stageAt(elapsedSeconds, scenario, phaseSeconds);
   const result = { deviceId };
   for (const key of keys) {
@@ -135,6 +143,40 @@ export function generatePayload({ scenario = "cycle", phaseSeconds = 25, deviceI
     const bounded = key === "humidity" ? clamp(value, 0, 100) : Math.max(0, value);
     result[key] = round(bounded, key === "smoke" ? 3 : 1);
   }
+
+  // Model the diagnostics schema used by the physical EG118 gateway, with
+  // separate Modbus CWT (ID 3), Ebyte (ID 2, CH4/CH5), and ZEH100 (ID 1).
+  // The virtual sender NEVER claims these are real hardware measurements.
+  const cwtFault = sensorState === "cwt-fault";
+  const ebyteFault = sensorState === "ebyte-fault";
+  const ch4Fault = ebyteFault || sensorState === "ch4-fault";
+  const ch5Fault = ebyteFault || sensorState === "ch5-fault";
+  const zehFault = sensorState === "zeh-fault";
+  const warmup = sensorState === "warmup";
+  const zehFlags = sensorState === "zeh-flags";
+
+  result.sensors = {
+    cwt: { online: !cwtFault, errors: cwtFault ? 1 : 0 },
+    ebyte: {
+      online: !ebyteFault, ch4Connected: !ch4Fault, ch5Connected: !ch5Fault,
+      errors: (ch4Fault ? 1 : 0) + (ch5Fault ? 1 : 0)
+    },
+    zeh100: {
+      online: !zehFault, dataValid: !zehFault && !warmup,
+      warmupLike: warmup, flags: zehFault || warmup ? null : zehFlags ? 1 : 0,
+      errors: zehFault || zehFlags ? 1 : 0
+    }
+  };
+  // A disconnected or warming-up sensor has no trustworthy live reading.
+  // Preserve null rather than inventing 0°C / 0ppm.
+  if (cwtFault) { result.ambient = null; result.humidity = null; }
+  if (ch4Fault) result.stack = null;
+  if (ch5Fault) result.furnace = null;
+  if (zehFault || warmup) {
+    result.co = null; result.h2 = null; result.voc = null;
+  }
+  // The ZEH100 can report -40°C during warm-up; this is not ambient temperature.
+  result.gasModuleC = zehFault ? null : warmup ? -40 : round(result.ambient === null ? 34.5 : result.ambient + 5.1, 1);
   return { stage: stage.name, payload: result };
 }
 
@@ -180,7 +222,7 @@ async function main() {
   }
   console.log("\nADI Smart Incinerator / Virtual ESP32 sender");
   console.log(`Target: ${options.url}`);
-  console.log(`Device: ${options.deviceId} | Skenario: ${options.scenario} | Interval: ${options.interval}s`);
+  console.log(`Device: ${options.deviceId} | Skenario: ${options.scenario} | Status sensor: ${options.sensorState} | Interval: ${options.interval}s`);
   if (options.dryRun) {
     for (const name of (options.scenario === "cycle" ? STAGES : [options.scenario])) {
       console.log(`\n[${name.toUpperCase()}] ${JSON.stringify(generatePayload({ ...options, scenario: name }, 4).payload, null, 2)}`);
