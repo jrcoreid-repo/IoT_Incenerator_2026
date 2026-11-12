@@ -83,7 +83,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
     </div>
     <div className="inc-stage inc-stage-v4">
       {/* Artwork and overlays share the same 1920×1080 coordinate system. */}
-      <picture className="inc-machine-picture"><img src="/incinerator-v4.svg" alt="Gambar teknis incinerator dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art" /></picture>
+      <picture className="inc-machine-picture"><source type="image/avif" srcSet="/incinerator-v4.avif" /><img src="/incinerator-lineart-v3.svg" alt="Gambar teknis incinerator dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art" /></picture>
       <svg className="inc-v4-leaders" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 780 281 L 676 281 L 584 315" />
         <path d="M 1000 767 L 730 767 L 584 826" />
