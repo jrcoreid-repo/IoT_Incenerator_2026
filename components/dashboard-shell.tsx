@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, Moon, RefreshCcw, Settings, ShieldCheck, Sun, Thermometer, Users, Wifi, Wind } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, RefreshCcw, Settings, ShieldCheck, Thermometer, Users, Wifi, Wind } from "lucide-react";
 import UserManagement from "@/components/user-management";
+import IncineratorVisual from "@/components/incinerator-visual";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
@@ -96,7 +97,6 @@ function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
 export default function DashboardShell({ mode = "admin", username = "" }: { mode?: "admin" | "operator"; username?: string }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [latest, setLatest] = useState<Telemetry | null>(null);
   const [history, setHistory] = useState<Telemetry[]>([]);
   const [storageReady, setStorageReady] = useState(true);
@@ -150,11 +150,6 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   }, [archiveMode, archiveDays, archiveFromDate, archiveToDate]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("adi-telemetry-theme-v2");
-    if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
-  }, []);
-
-  useEffect(() => {
     // Limits belong to the server, never to operator-controlled localStorage.
     // Both roles read the same shared configuration, refreshed every 30 seconds.
     let active = true;
@@ -180,9 +175,10 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   }, [isAdmin, tab, thresholdDraftDirty]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("adi-telemetry-theme-v2", theme);
-  }, [theme]);
+    // Dashboard uses one light appearance. Clear legacy saved dark mode.
+    document.documentElement.classList.remove("dark");
+    localStorage.removeItem("adi-telemetry-theme-v2");
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -422,9 +418,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
           <div className="top-actions">
             <span className="account-role-chip" aria-label={"Hak akses: " + (isAdmin ? "Admin" : "Operator")}><ShieldCheck size={13}/>{isAdmin ? "ADMIN" : "USER / OPERATOR"}</span>
             <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
-            <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+
           </div>
         </header>
 
@@ -450,8 +444,9 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 <div className="hero-time"><span>Data terakhir diterima</span><strong>{formatClock(latest?.receivedAt)}</strong></div>
               </div>
             </section>
-            <div className="section-title-row"><div><p className="section-kicker">Telemetry / Sensor</p><h2>Parameter utama</h2></div><span className="soft-badge">05 / PARAMETER</span></div>
-            <section className="metric-grid" aria-label="Lima indikator utama">
+            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} />
+            <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">Telemetry / Sensor</p><h2>Parameter utama</h2></div><span className="soft-badge">05 / PARAMETER</span></div>
+            <section className="metric-grid inc-legacy-metrics" aria-label="Lima indikator utama">
               <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
               <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" offline={offline} />
               <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" tone="co" offline={offline} />
@@ -467,7 +462,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                 </div>
               </article>
             </section>
-            <section className="panel extra-metrics" aria-labelledby="extra-metrics-title">
+            <section className="panel extra-metrics inc-legacy-extra" aria-labelledby="extra-metrics-title">
               <div className="panel-heading">
                 <div><p className="section-kicker">Pemantauan lingkungan</p><h2 id="extra-metrics-title">Parameter lingkungan dan gas lainnya</h2></div>
               </div>
