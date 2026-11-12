@@ -1199,6 +1199,28 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-fixed-emission .inc-furan-prediction {margin-top:6px;padding:10px 11px 9px;background:rgba(221,247,231,.79);}
 .inc-fixed-emission .inc-furan-score {font-size:clamp(25px,2.35vw,36px);}
 .inc-fixed-emission .inc-furan-topline>span {font-size:10px;}
+
+/* Desktop only: ZEH100 module temperature displayed as an operator-readable
+   gas sensor temperature, beneath (not inside) the furan risk estimate.
+   Missing, offline and warming-up values are rendered as — by the component. */
+.inc-fixed-emission .inc-gas-device-temperature {
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-width:0;margin-top:12px;padding:12px 11px 10px;
+  border-top:1px solid rgba(44,104,72,.2);
+}
+.inc-fixed-emission .inc-gas-device-temperature-label {
+  display:flex;align-items:center;gap:7px;min-width:0;
+  color:#2b7853;font:800 10px/1.25 var(--font-mono);letter-spacing:.035em;
+}
+.inc-fixed-emission .inc-gas-device-temperature-label svg {flex:none;color:#318d61;}
+.inc-fixed-emission .inc-gas-device-temperature-value {
+  color:#174931;font:800 clamp(23px,2vw,30px)/1 var(--font-mono);
+  font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.045em;
+}
+.inc-fixed-emission .inc-gas-device-temperature-value small {
+  margin-left:5px;color:#658270;font:700 11px/1 var(--font-mono);letter-spacing:normal;
+}
+
 /* Desktop narrow: retain exact panel geometry in a scrollable artwork, rather than
    squeeze the 450×300 and 450×635 panels until their readings become illegible. */
 @media (min-width:851px) and (max-width:1380px) {
