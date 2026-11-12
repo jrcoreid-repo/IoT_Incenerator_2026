@@ -1,3 +1,9 @@
+# Firmware EG118 terbaru (sensor RS485 asli)
+
+**Firmware monitoring sensor asli yang terbaru:** [eg118_field_v1_0_0](eg118_field_v1_0_0/README.md). Ini berbeda dari dummy sender di bawah. Uji compile dan commissioning hardware sebelum flashing; jangan menyamakan tes server dengan tes fisik.
+
+---
+
 # ESP32 — ADI Smart Incinerator (dummy 10 detik ke VPS)
 
 Firmware **Arduino IDE** untuk menguji sistem cloud tanpa sensor fisik. ESP32 mengirim delapan parameter dummy via `HTTPS POST https://adi-incinerator.live/api/telemetry` setiap **10 detik**. Enam fase simulasi: IDLE → HEATING → ACTIVE → WARNING → CRITICAL → COOLING.
