@@ -86,9 +86,12 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
       <picture className="inc-machine-picture">
         <img src="/incinerator-v4.png" alt="Gambar teknis incinerator resolusi asli dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art"
           onError={event => {
-            // Keep the existing artwork visible until the original PNG is added to /public.
+            // The exact-resolution PNG is preferred; until it is committed, render the
+            // valid line-art SVG instead of the over-compressed / possibly broken AVIF.
             const image = event.currentTarget;
-            if (!image.src.endsWith("/incinerator-v4.avif")) image.src = "/incinerator-v4.avif";
+            if (!image.src.endsWith("/incinerator-lineart-v3.svg")) {
+              image.src = "/incinerator-lineart-v3.svg";
+            }
           }}
         />
       </picture>
