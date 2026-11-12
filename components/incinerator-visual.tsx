@@ -15,8 +15,8 @@ const ARTWORK = { width: 1920, height: 1080 } as const;
 const MOBILE_ARTWORK = { width: 1080, height: 1920 } as const;
 const MOBILE_PANELS = {
   emission: { x: 48.15, y: 37.81, width: 990.79, height: 432.04 },
-  ambient: { x: 55, y: 1120, width: 371.15, height: 323.68 },
-  furnace: { x: 652, y: 1120, width: 371.15, height: 323.68 }
+  ambient: { x: 55, y: 1500, width: 371.15, height: 323.68 },
+  furnace: { x: 652, y: 1500, width: 371.15, height: 323.68 }
 } as const;
 const MOBILE_DOTS = {
   emission: { x: 550.36, y: 558.66 },
@@ -112,7 +112,7 @@ function IncineratorMobile({ latest, fresh, riskIndex }: {
     <img className="inc-mobile-artwork" src="/incinerator-mobile.png" alt="Gambar incinerator portrait dengan posisi sensor cerobong dan tungku" width={1080} height={1920}/>
     <svg className="inc-mobile-leaders" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
       <path d={"M " + MOBILE_DOTS.emission.x + " " + MOBILE_DOTS.emission.y + " L 550.36 515 L 544 469.85"}/>
-      <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 613 1260.81 L 652 1260.81"}/>
+      <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 613 1340 L 613 1545 L 652 1545"}/>
       <circle cx={MOBILE_DOTS.emission.x} cy={MOBILE_DOTS.emission.y} r="10"/>
       <circle cx={MOBILE_DOTS.furnace.x} cy={MOBILE_DOTS.furnace.y} r="10"/>
     </svg>
