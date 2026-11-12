@@ -149,6 +149,11 @@ test("role-based admin/operator flow, persistent account actions, shared limits 
     stdio: "ignore",
     env: {
       ...process.env,
+      // Force the test server to use ONLY the ephemeral HTTP Redis mock.
+      // Production .env.local may define REDIS_URL; without this override,
+      // local TCP Redis takes precedence over the test's UPSTASH REST mock,
+      // writing test telemetry and login counters into the live database.
+      REDIS_URL: "",
       ADMIN_USERNAME: adminName,
       ADMIN_PASSWORD: adminPassword,
       SESSION_SECRET: secret,
