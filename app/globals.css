@@ -1097,15 +1097,15 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-gas-module {display:flex;justify-content:space-between;gap:10px;font:500 10px var(--font-ui);color:#617b69;margin-top:13px;}
 .inc-gas-module strong {font:700 12px var(--font-mono);color:#1f4e38;}
 /* Furan estimate shares the gas sensor card: this is a calculated index, not an exhaust measurement. */
-.inc-furan-prediction {margin-top:13px;padding:11px 12px 10px;border-radius:11px;border:1px solid rgba(33,117,82,.18);background:rgba(228,246,237,.66);box-shadow:inset 0 1px 0 rgba(255,255,255,.65);}
-.inc-furan-topline {display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+.inc-furan-prediction {display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title score" "description score" "bar bar";align-items:center;column-gap:8px;row-gap:3px;margin-top:10px;padding:9px 11px;border-radius:11px;border:1px solid rgba(33,117,82,.18);background:rgba(228,246,237,.69);box-shadow:inset 0 1px 0 rgba(255,255,255,.65);}
+.inc-furan-topline {grid-area:title;display:flex;align-items:center;gap:6px;min-width:0;}
 .inc-furan-topline>span {font:800 10px/1.3 var(--font-mono);letter-spacing:.03em;color:#1a7852;}
-.inc-furan-topline small {font:600 8px/1.3 var(--font-mono);color:#648a77;}
-.inc-furan-score {font:800 clamp(29px,3vw,40px)/1.1 var(--font-mono);color:#1b4734;margin:5px 0 7px;letter-spacing:-.045em;}
+.inc-furan-topline small {display:none;}
+.inc-furan-score {grid-area:score;white-space:nowrap;font:800 clamp(28px,2.2vw,35px)/1.1 var(--font-mono);color:#1b4734;margin:0;letter-spacing:-.045em;}
 .inc-furan-score small {font:700 11px var(--font-mono);letter-spacing:0;color:#738e7b;margin-left:4px;}
-.inc-furan-bar {height:5px;overflow:hidden;background:rgba(54,116,86,.17);border-radius:10px;}
+.inc-furan-bar {grid-area:bar;height:5px;overflow:hidden;background:rgba(54,116,86,.17);border-radius:10px;margin-top:3px;}
 .inc-furan-bar>span {display:block;height:100%;background:linear-gradient(90deg,#6acb8e,#d1a05f,#de6c62);border-radius:10px;transition:width .4s ease;}
-.inc-furan-subtitle {font:500 9px/1.5 var(--font-ui);color:#597867;margin-top:7px;}
+.inc-furan-subtitle {grid-area:description;font:500 9px/1.3 var(--font-ui);color:#597867;margin:0;}
 @media(prefers-reduced-motion:reduce){.inc-furan-bar>span{transition:none;}}
 
 .inc-visual-bottom {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:7px 0 11px;}
