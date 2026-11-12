@@ -346,12 +346,12 @@ Karena file portrait belum tersedia di repository, dashboard HP tetap menampilka
 | Elemen | X | Y | Lebar | Tinggi |
 | --- | ---: | ---: | ---: | ---: |
 | Panel cerobong + gas + indeks risiko furan | 48,15 | 37,81 | 990,79 | 432,04 |
-| Panel lingkungan (posisi sementara) | 55,00 | 1500,00 | 371,15 | 323,68 |
-| Panel tungku CH5 (posisi sementara) | 652,00 | 1500,00 | 371,15 | 323,68 |
+| Panel lingkungan (posisi sementara) | 55,00 | 1570,00 | 371,15 | 323,68 |
+| Panel tungku (posisi sementara) | 652,00 | 1570,00 | 371,15 | 323,68 |
 | Titik cerobong/asap | 550,36 | 558,66 | — | — |
 | Titik tungku | 567,75 | 1260,81 | — | — |
 
-**Tidak ada pointer lingkungan**, sesuai permintaan. Posisi panel lingkungan dan panel tungku masih sementara karena pengguna baru memberikan ukurannya (bukan posisi X/Y). Garis penunjuk dari panel gabungan menuju titik cerobong, dan dari panel CH5 menuju tungku. Font, status sensor, dan panel mengikuti lebar layar dengan styling mobile terpisah. Revisi lanjutan: kedua panel kecil digeser turun 380 px pada kanvas; angka CO/H₂/VOC, suhu CH4/CH5, serta label diperbesar khusus HP, tanpa memodifikasi desktop.
+**Tidak ada pointer lingkungan**, sesuai permintaan. Posisi panel lingkungan dan panel tungku masih sementara karena pengguna baru memberikan ukurannya (bukan posisi X/Y). Garis penunjuk dari panel gabungan menuju titik cerobong, dan dari panel CH5 menuju tungku. Font, status sensor, dan panel mengikuti lebar layar dengan styling mobile terpisah. Revisi lanjutan: kedua panel kecil telah digeser ke Y=1570 px (total +450 px dari posisi awal) pada kanvas mobile; angka CO/H₂/VOC serta suhu cerobong/tungku telah diperbesar khusus HP. Pada antarmuka, label teknis channel, merek modul, alamat bus, dan kode aturan internal disederhanakan menjadi bahasa operator. Status READY, WARMING UP, FAULT, OFFLINE tetap ditampilkan. Payload sensor, diagnostik internal, aturan, dan firmware EG118 tidak berubah.
 
 Sebelum menjalankan pengujian pada HP, pastikan aset `public/incinerator-mobile.png` benar-benar ada; file chat/unduhan di luar `public` tidak bisa dilayani oleh Next.js. Buka `http://localhost:3000/incinerator-mobile.png` untuk memastikan HTTP 200 dan gambar yang benar. Jika belum diunggah, tidak ada perubahan tampilan mobile secara sengaja.
 
