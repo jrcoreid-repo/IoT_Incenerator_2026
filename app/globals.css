@@ -1058,6 +1058,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-live-pill {display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font:700 10px/1 var(--font-mono);padding:11px 13px;border:1px solid #c8e6d3;border-radius:22px;background:#ebf8ee;color:#187346;}
 .inc-live-off {border-color:#f1dba7;background:#fff8e8;color:#986b14;}
 .inc-stage {width:100%;max-width:1330px;margin:18px auto 35px;position:relative;aspect-ratio:16/9;isolation:isolate;min-width:0;}
+.inc-machine-picture {display:block;width:100%;height:100%;}
 .inc-machine-art {display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;}
 .inc-overlay {position:absolute;z-index:3;transform:translate(-50%,-50%);width:0;height:0;}
 .inc-target {position:absolute;z-index:3;left:-8px;top:-8px;width:16px;height:16px;border:3px solid #fff;border-radius:50%;background:#15885b;box-shadow:0 0 0 2px #15885b,0 0 0 7px rgba(21,136,91,.12);}
@@ -1071,14 +1072,14 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-overlay-ambient .inc-connector {right:0;width:calc(var(--inc-card-gap) + 7px);transform-origin:right center;transform:rotate(24deg);}
 .inc-overlay-gas .inc-connector,.inc-overlay-stack .inc-connector {left:0;width:var(--inc-card-gap);}
 .inc-overlay-furnace .inc-connector {right:0;width:var(--inc-card-gap);}
-.inc-overlay-card {position:absolute;z-index:2;width:clamp(228px,19vw,272px);background:rgba(255,255,255,.98);border:1px solid #d5e4da;border-radius:14px;box-shadow:0 15px 34px rgba(27,60,36,.14);padding:15px 17px 13px;backdrop-filter:blur(8px);}
+.inc-overlay-card {position:absolute;z-index:2;width:clamp(228px,19vw,272px);background:rgba(250,255,252,.78);border:1px solid rgba(255,255,255,.83);border-radius:17px;box-shadow:0 20px 42px rgba(12,52,40,.19),0 5px 15px rgba(12,52,40,.11),inset 0 1px 0 rgba(255,255,255,.85);padding:15px 17px 13px;backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);}
 .inc-overlay-heading {display:flex;align-items:center;gap:9px;margin-bottom:12px;color:#246d4b;font:800 12px/1.15 var(--font-display);letter-spacing:.065em;}
 .inc-overlay-heading svg {background:#e8f6ee;width:27px;height:27px;border-radius:8px;padding:5px;flex-shrink:0;}
 .inc-reading-label {display:flex;align-items:center;gap:5px;font:600 10px/1.3 var(--font-ui);color:#5a7967;}
 .inc-reading-label svg {color:#328f67;}
 .inc-reading-value {margin-top:7px;font:750 clamp(31px,3.2vw,45px)/1.08 var(--font-mono);letter-spacing:-.065em;color:#193f30;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .inc-reading-value>span {font:600 11px var(--font-mono);letter-spacing:0;color:#627d6b;margin-left:5px;}
-.inc-health {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-top:11px;margin-top:11px;border-top:1px solid #e6eee7;font:700 10px/1.4 var(--font-mono);letter-spacing:.02em;color:#677e70;}
+.inc-health {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-top:11px;margin-top:11px;border-top:1px solid rgba(68,118,95,.18);font:700 10px/1.4 var(--font-mono);letter-spacing:.02em;color:#677e70;}
 .inc-health small {margin-left:auto;font:500 9px/1.2 var(--font-mono);color:#8aa194;}
 .inc-health-ready {color:#167a4c;}
 .inc-health-warmup {color:#bc842b;}
@@ -1095,6 +1096,18 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-gas-readings .inc-reading-value span {display:block;margin:4px 0 0;font-size:10px;}
 .inc-gas-module {display:flex;justify-content:space-between;gap:10px;font:500 10px var(--font-ui);color:#617b69;margin-top:13px;}
 .inc-gas-module strong {font:700 12px var(--font-mono);color:#1f4e38;}
+/* Furan estimate shares the gas sensor card: this is a calculated index, not an exhaust measurement. */
+.inc-furan-prediction {margin-top:13px;padding:11px 12px 10px;border-radius:11px;border:1px solid rgba(33,117,82,.18);background:rgba(228,246,237,.66);box-shadow:inset 0 1px 0 rgba(255,255,255,.65);}
+.inc-furan-topline {display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+.inc-furan-topline>span {font:800 10px/1.3 var(--font-mono);letter-spacing:.03em;color:#1a7852;}
+.inc-furan-topline small {font:600 8px/1.3 var(--font-mono);color:#648a77;}
+.inc-furan-score {font:800 clamp(29px,3vw,40px)/1.1 var(--font-mono);color:#1b4734;margin:5px 0 7px;letter-spacing:-.045em;}
+.inc-furan-score small {font:700 11px var(--font-mono);letter-spacing:0;color:#738e7b;margin-left:4px;}
+.inc-furan-bar {height:5px;overflow:hidden;background:rgba(54,116,86,.17);border-radius:10px;}
+.inc-furan-bar>span {display:block;height:100%;background:linear-gradient(90deg,#6acb8e,#d1a05f,#de6c62);border-radius:10px;transition:width .4s ease;}
+.inc-furan-subtitle {font:500 9px/1.5 var(--font-ui);color:#597867;margin-top:7px;}
+@media(prefers-reduced-motion:reduce){.inc-furan-bar>span{transition:none;}}
+
 .inc-visual-bottom {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:7px 0 11px;}
 .inc-summary-cell {min-width:0;display:flex;gap:9px;align-items:center;border:1px solid #d7e7dc;border-radius:8px;background:#fff;padding:10px 12px;}
 .inc-summary-cell>svg {color:#379268;flex-shrink:0;}
@@ -1117,7 +1130,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-overlay-furnace {--inc-card-gap:clamp(78px,8vw,108px);}
   .inc-overlay-ambient .inc-connector {width:calc(var(--inc-card-gap) + 5px);transform:rotate(34deg);}
   .inc-overlay-ambient .inc-overlay-card {width:205px;right:var(--inc-card-gap);bottom:15px;}
-  .inc-overlay-gas .inc-overlay-card {width:242px;left:var(--inc-card-gap);top:-23px;}
+  .inc-overlay-gas .inc-overlay-card {width:255px;left:var(--inc-card-gap);top:-23px;}
   .inc-overlay-stack .inc-overlay-card {width:210px;left:var(--inc-card-gap);top:-28px;}
   .inc-overlay-furnace .inc-overlay-card {width:211px;right:var(--inc-card-gap);top:-110px;}
   .inc-reading-value {font-size:30px;margin-top:4px;}
