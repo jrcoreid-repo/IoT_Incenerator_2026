@@ -293,3 +293,7 @@ Setelah evaluasi screenshot desktop, posisi card **lingkungan tetap**; card **tu
 - Semua panel sensor desktop memakai permukaan semi-transparan dengan efek `backdrop-filter`, border lembut, dan shadow bertingkat; angka tetap berkontras tinggi. Ini perubahan tampilan saja.
 - Prediksi indeks risiko furan berbasis aturan (`riskIndex`) dipindah ke dalam panel gas ZEH100, bersama CO, H₂, dan VOC. Komponen indikator di bawah visual tidak lagi mengulang nilai indeks. Saat data tidak valid/offline, tampil tanda `—` dan keterangan menunggu data; **furan tidak diukur langsung**.
 - Firmware, `POINTS`, mapping CH4/CH5, dan aturan LoT tidak berubah. Uji desktop lokal dengan `git pull --ff-only origin design/minimal-operator-2026` lalu restart `npm run dev`.
+
+### Gambar incinerator v3 (12 Nov 2026)
+
+Dashboard sekarang memuat `public/incinerator-lineart-v3.svg`: trace vektor transparan dari gambar garis hijau `inceneratorv3.png` yang diberikan pengguna. Ilustrasi sebelumnya `public/incinerator-scene.svg` dipertahankan sebagai arsip dan tidak lagi digunakan pada komponen utama. Kanvas tetap 1920×1080 dengan rasio 16:9. `POINTS`, posisi kotak overlay, garis connector, panel furan yang digabung dalam sensor gas, dan efek glass tetap seperti commit sebelumnya. Catatan: aset yang tampil adalah trace SVG dari PNG, bukan salinan berkas PNG identik secara bit.
