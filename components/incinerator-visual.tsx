@@ -239,6 +239,10 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
           </div>
           <div className="inc-furan-subtitle">{!fresh || riskIndex === null ? "Belum tersedia · menunggu data sensor" : "Indikator risiko dari suhu dan gas, bukan pengukuran furan langsung"}</div>
         </div>
+        <div className="inc-gas-device-temperature" aria-label="Suhu pada sensor gas">
+          <div className="inc-gas-device-temperature-label"><Thermometer size={15} aria-hidden="true"/><span>SUHU SENSOR GAS</span></div>
+          <div className="inc-gas-device-temperature-value">{readable(fresh && gasHealth === "ready" ? latest?.gasModuleC : null, 1)}<small>°C</small></div>
+        </div>
       </Panel>
     </div>
     {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex}/>}
