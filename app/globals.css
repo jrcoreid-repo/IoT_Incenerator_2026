@@ -1252,10 +1252,10 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   }
   .inc-mobile-header {display:flex;justify-content:space-between;align-items:center;gap:5px;min-width:0;font:800 clamp(9px,2.55cqw,12px)/1.25 var(--font-display);letter-spacing:.02em;color:#216e4d;}
   .inc-mobile-status {font:750 clamp(7px,1.95cqw,9px)/1.25 var(--font-mono);color:#647f6f;white-space:nowrap;}
-  .inc-mobile-ready {color:#178251;}
-  .inc-mobile-warmup {color:#a97b19;}
-  .inc-mobile-fault,.inc-mobile-offline {color:#bf5149;}
-  .inc-mobile-unknown {color:#8b7961;}
+  .inc-mobile-status.inc-mobile-ready {color:#178251;}
+  .inc-mobile-status.inc-mobile-warmup {color:#a97b19;}
+  .inc-mobile-status.inc-mobile-fault,.inc-mobile-status.inc-mobile-offline {color:#bf5149;}
+  .inc-mobile-status.inc-mobile-unknown {color:#8b7961;}
   .inc-mobile-emission-values {display:grid;grid-template-columns:minmax(0,.83fr) minmax(0,2fr);align-items:center;gap:clamp(5px,2cqw,9px);min-width:0;}
   .inc-mobile-three-gases {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(3px,1.2cqw,7px);min-width:0;}
   .inc-mobile-card small {display:block;font:650 clamp(8px,2.05cqw,10px)/1.25 var(--font-ui);color:#5c7b68;white-space:nowrap;}
