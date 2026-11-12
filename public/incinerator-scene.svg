@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="Ilustrasi lingkungan hijau dengan tungku insinerator dan cerobong">
+<defs>
+  <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#2ab4ef"/><stop offset=".56" stop-color="#a5eafc"/><stop offset="1" stop-color="#e7fefc"/></linearGradient>
+  <radialGradient id="sunGlow"><stop stop-color="#edffff" stop-opacity=".72"/><stop offset="1" stop-color="#edffff" stop-opacity="0"/></radialGradient>
+  <linearGradient id="hill" x2=".75" y2="1"><stop stop-color="#b9f153"/><stop offset="1" stop-color="#70c83e"/></linearGradient>
+  <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#bbf24e"/><stop offset=".65" stop-color="#8ddb29"/><stop offset="1" stop-color="#67ba20"/></linearGradient>
+  <linearGradient id="roof" x1=".1" y1="0" x2=".8" y2="1"><stop stop-color="#ffff70"/><stop offset=".35" stop-color="#ffe646"/><stop offset="1" stop-color="#ffb72c"/></linearGradient>
+  <linearGradient id="roofEdge" x2="0" y2="1"><stop stop-color="#ffe640"/><stop offset=".4" stop-color="#ff9b0d"/><stop offset="1" stop-color="#da5600"/></linearGradient>
+  <linearGradient id="stack" x1="0" x2="1"><stop stop-color="#747882"/><stop offset=".32" stop-color="#bec0c5"/><stop offset=".57" stop-color="#858892"/><stop offset="1" stop-color="#4d535f"/></linearGradient>
+  <linearGradient id="stackCap" x2="0" y2="1"><stop stop-color="#aaaeb8"/><stop offset=".5" stop-color="#555d6a"/><stop offset="1" stop-color="#282e3b"/></linearGradient>
+  <linearGradient id="walls" x1="0" x2="1"><stop stop-color="#579a59"/><stop offset=".38" stop-color="#a4d19b"/><stop offset=".77" stop-color="#7ab78a"/><stop offset="1" stop-color="#407755"/></linearGradient>
+  <linearGradient id="fireBg" x2="0" y2="1"><stop stop-color="#1e2920"/><stop offset=".55" stop-color="#4c331e"/><stop offset="1" stop-color="#86501a"/></linearGradient>
+  <linearGradient id="fire" x1=".3" y1="0" x2=".65" y2="1"><stop stop-color="#fff360"/><stop offset=".32" stop-color="#ffbb05"/><stop offset=".76" stop-color="#ff6e00"/><stop offset="1" stop-color="#ff4100"/></linearGradient>
+  <linearGradient id="base" x2="0" y2="1"><stop stop-color="#ffc599"/><stop offset=".25" stop-color="#fc8171"/><stop offset=".75" stop-color="#e85b5f"/><stop offset="1" stop-color="#a93652"/></linearGradient>
+  <radialGradient id="smoke"><stop stop-color="#ffffff"/><stop offset=".55" stop-color="#f9fbff"/><stop offset="1" stop-color="#c3d6ed"/></radialGradient>
+  <radialGradient id="bush"><stop stop-color="#b1f42b"/><stop offset=".6" stop-color="#65c617"/><stop offset="1" stop-color="#2e8c1b"/></radialGradient>
+  <radialGradient id="glow"><stop stop-color="#fff46f" stop-opacity=".65"/><stop offset="1" stop-color="#ff7000" stop-opacity="0"/></radialGradient>
+  <pattern id="mesh" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M0 0 18 18 36 0 M0 36 18 18 36 36" fill="none" stroke="#e7edef" stroke-width="3" opacity=".9"/></pattern>
+  <filter id="soft"><feGaussianBlur stdDeviation="14"/></filter>
+  <filter id="light"><feGaussianBlur stdDeviation="4"/></filter>
+  <filter id="drop" x="-25%" y="-30%" width="150%" height="175%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#294d35" flood-opacity=".25"/></filter>
+</defs>
+<!-- Sky, far clouds, hills -->
+<path fill="url(#sky)" d="M0 0h1920v1080H0z"/>
+<ellipse cx="1080" cy="265" rx="900" ry="430" fill="url(#sunGlow)"/>
+<g fill="url(#smoke)" opacity=".86"><ellipse cx="1120" cy="55" rx="100" ry="32"/><ellipse cx="1200" cy="48" rx="80" ry="27"/><ellipse cx="1088" cy="28" rx="53" ry="30"/><ellipse cx="1670" cy="500" rx="220" ry="115"/><ellipse cx="1840" cy="425" rx="170" ry="120"/></g>
+<path d="M0 465Q150 435 310 452T680 499Q965 505 1200 527T1920 560V780H0Z" fill="#7bc83f"/>
+<path d="M0 515Q300 428 580 485T1050 533Q1470 533 1920 502V825H0Z" fill="url(#hill)"/>
+<path d="M0 640Q400 525 720 588T1300 635Q1610 609 1920 571V840H0Z" fill="#a8eb3e"/>
+<!-- Fence, kept behind plant and machine -->
+<path fill="#f1f9ef" opacity=".42" d="M0 606h1920v310H0z"/>
+<path fill="url(#mesh)" d="M0 610h1920v305H0z"/>
+<g stroke="#97a5aa" stroke-width="10" fill="none"><path d="M0 610h1920M0 911h1920"/><path d="M0 614h1920M0 914h1920" stroke="#f7fcff" stroke-width="4" opacity=".75"/></g>
+<g fill="url(#stackCap)" stroke="#7c8a94" stroke-width="3"><rect x="1500" y="583" width="24" height="336" rx="13"/><rect x="1548" y="584" width="25" height="336" rx="13"/></g>
+<!-- Green grass and distant mounds -->
+<path d="M0 932Q310 888 665 938T1340 916Q1660 889 1920 946V1080H0Z" fill="url(#ground)"/>
+<path d="M0 1042Q360 991 702 1028T1370 1008Q1625 987 1920 1012V1080H0Z" fill="#79cd24" opacity=".58"/>
+<ellipse cx="995" cy="959" rx="410" ry="40" fill="#4b9315" opacity=".24" filter="url(#soft)"/>
+<!-- Fence bushes -->
+<g fill="url(#bush)" filter="url(#drop)">
+  <circle cx="273" cy="838" r="61"/><circle cx="345" cy="795" r="75"/><circle cx="441" cy="827" r="86"/><circle cx="509" cy="852" r="65"/>
+  <circle cx="1660" cy="845" r="76"/><circle cx="1733" cy="800" r="79"/><circle cx="1812" cy="854" r="74"/><circle cx="1880" cy="867" r="60"/>
+</g>
+<g fill="#ccf64c" opacity=".78"><ellipse cx="365" cy="755" rx="17" ry="10" transform="rotate(45 365 755)"/><ellipse cx="457" cy="843" rx="21" ry="11" transform="rotate(31 457 843)"/><ellipse cx="1718" cy="790" rx="18" ry="11" transform="rotate(35 1718 790)"/></g>
+<!-- Chimney body -->
+<g filter="url(#drop)">
+ <path d="M1054 363h277l44 541H1002z" fill="url(#stack)" stroke="#505661" stroke-width="6"/>
+ <path d="M1102 369h195l41 523h-115Z" fill="#d1d5d8" opacity=".12"/>
+ <rect x="1026" y="258" width="320" height="126" rx="16" fill="url(#stackCap)" stroke="#56606d" stroke-width="7"/>
+ <path d="M1047 274h278" stroke="#eff6f8" stroke-width="8" stroke-linecap="round" opacity=".5"/>
+</g>
+<!-- Smoke plumes high in sky -->
+<g fill="url(#smoke)" stroke="#f9faff" stroke-width="3" filter="url(#drop)">
+  <circle cx="1178" cy="256" r="70"/><circle cx="1152" cy="201" r="76"/><circle cx="1235" cy="178" r="65"/><circle cx="1221" cy="241" r="55"/>
+  <circle cx="976" cy="194" r="42"/><circle cx="911" cy="169" r="38"/><circle cx="812" cy="224" r="32"/>
+</g>
+<!-- Facility firebox -->
+<g filter="url(#drop)">
+ <rect x="665" y="496" width="492" height="403" rx="19" fill="url(#walls)" stroke="#427d59" stroke-width="8"/>
+ <path d="M690 523h431v360H690z" fill="#a9d4a2" opacity=".55"/>
+ <rect x="725" y="571" width="363" height="316" rx="30" fill="#2d4032" stroke="#89b77f" stroke-width="10"/>
+ <rect x="741" y="588" width="333" height="293" rx="25" fill="url(#fireBg)" stroke="#294634" stroke-width="5"/>
+ <ellipse cx="909" cy="843" rx="181" ry="88" fill="url(#glow)"/>
+ <path d="M761 835C737 778 788 733 802 677C823 713 802 752 845 770C823 690 856 629 932 597C909 668 987 666 974 729C1006 730 1020 703 1011 665C1090 742 1093 824 1021 856C950 892 812 900 761 835Z" fill="url(#fire)" stroke="#ff8d07" stroke-width="7"/>
+ <path d="M839 850C819 810 854 775 878 745C882 781 910 795 933 781C950 763 948 730 940 711C1005 774 1001 845 959 862C926 875 865 877 839 850Z" fill="#ffe92b"/>
+ <circle cx="912" cy="826" r="43" fill="#fffdd9"/><circle cx="912" cy="826" r="24" fill="#fff"/>
+ <path d="M636 490L881 366Q900 354 922 365L1150 492Z" fill="url(#roof)" stroke="#619c42" stroke-width="8"/>
+ <path d="M665 481L888 381 1114 481Z" fill="#fff980" opacity=".26"/>
+ <rect x="636" y="484" width="534" height="65" rx="18" fill="url(#roofEdge)" stroke="#c65b13" stroke-width="7"/>
+ <path d="M654 493h491" stroke="#ffef85" stroke-width="9" stroke-linecap="round" opacity=".8"/>
+ <rect x="620" y="898" width="769" height="68" rx="18" fill="url(#base)" stroke="#ba545b" stroke-width="7"/>
+ <path d="M637 911h731" stroke="#ffdcb3" stroke-width="8" opacity=".73" stroke-linecap="round"/>
+</g>
+<!-- Forward grass and small flowers -->
+<g fill="#5baa18"><path d="M1480 963q-10-36-30-46q12 27 10 43q18-43 39-49q-22 23-20 55z"/><path d="M352 982q-3-32-18-40q2 27 14 40q16-40 26-45q-12 23-14 45z"/></g>
+<g fill="#fff"><circle cx="397" cy="986" r="9"/><circle cx="416" cy="986" r="9"/><circle cx="407" cy="975" r="9"/><circle cx="407" cy="997" r="9"/><circle cx="1581" cy="1001" r="9"/><circle cx="1601" cy="1001" r="9"/><circle cx="1591" cy="990" r="9"/><circle cx="1591" cy="1011" r="9"/></g>
+<g fill="#ffde48"><circle cx="407" cy="986" r="6"/><circle cx="1591" cy="1001" r="6"/></g>
+</svg>

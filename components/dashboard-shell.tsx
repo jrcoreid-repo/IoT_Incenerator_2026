@@ -1,608 +1,724 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  Bell,
-  BrainCircuit,
-  Cloud,
-  Cpu,
-  Flame,
-  Gauge,
-  History,
-  Home,
-  LogOut,
-  MapPin,
-  Moon,
-  Settings,
-  ShieldCheck,
-  Sun,
-  Thermometer,
-  Wifi,
-  Wind
-} from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
-import { makeInitialData, nextTelemetry, Telemetry } from "@/lib/mock-data";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, RefreshCcw, Settings, ShieldCheck, Thermometer, Users, Wifi, Wind } from "lucide-react";
+import UserManagement from "@/components/user-management";
+import IncineratorVisual from "@/components/incinerator-visual";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
+import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
+import { explainReadings } from "@/lib/lot-insights";
 
-type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan";
-
-type Thresholds = {
-  activeTemp: number;
-  transitionTemp: number;
-  coWarning: number;
-  vocWarning: number;
-  riskWarning: number;
-};
-
+type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
 type ThresholdDraft = Record<keyof Thresholds, string>;
-
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
-  { id: "riwayat", label: "Riwayat & Grafik", icon: History },
-  { id: "ai", label: "Analisis AI", icon: BrainCircuit },
-  { id: "alarm", label: "Alarm & Kejadian", icon: Bell },
+  { id: "riwayat", label: "Riwayat", icon: History },
+  { id: "ai", label: "Analisis", icon: BrainCircuit },
+  { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
-  { id: "pengaturan", label: "Pengaturan", icon: Settings }
+  { id: "pengaturan", label: "Pengaturan", icon: Settings },
+  { id: "pengguna", label: "Manajemen Pengguna", icon: Users }
 ];
-
-const defaultThresholds: Thresholds = {
-  activeTemp: 180,
-  transitionTemp: 90,
-  coWarning: 50,
-  vocWarning: 75,
-  riskWarning: 50
+const thresholdKeys: (keyof Thresholds)[] = ["activeTemp", "transitionTemp", "coWarning", "vocWarning", "riskWarning"];
+const thresholdLabels: Record<keyof Thresholds, string> = {
+  activeTemp: "Batas suhu pembakaran aktif (°C)",
+  transitionTemp: "Batas suhu transisi (°C)",
+  coWarning: "Ambang internal CO (ppm)",
+  vocWarning: "Ambang internal VOC (ppm)",
+  riskWarning: "Ambang indeks risiko furan (0–100)"
 };
 
-function thresholdsToDraft(values: Thresholds): ThresholdDraft {
-  return {
-    activeTemp: String(values.activeTemp),
-    transitionTemp: String(values.transitionTemp),
-    coWarning: String(values.coWarning),
-    vocWarning: String(values.vocWarning),
-    riskWarning: String(values.riskWarning)
-  };
+// Explain internal rule codes in everyday Indonesian. Codes and threshold
+// calculations remain untouched for telemetry, testing and operator diagnostics.
+const ruleLabels: Record<string, string> = {
+  CONNECTION_REQUIRED: "Menunggu data dari alat",
+  TEMP_MISSING: "Suhu tungku belum terbaca",
+  FURNACE_ACTIVE: "Pembakaran berlangsung",
+  FURNACE_COOLING: "Tungku sedang mendingin",
+  FURNACE_HEATING: "Tungku sedang memanas",
+  FURNACE_IDLE: "Pembakaran belum berlangsung",
+  CO_HIGH: "Gas CO meningkat tajam",
+  CO_WARNING: "Kadar CO perlu diperhatikan",
+  CO_BELOW_INTERNAL_THRESHOLD: "CO dalam batas pemantauan",
+  CO_MISSING: "Kadar CO belum terbaca",
+  VOC_HIGH: "Gas VOC meningkat tajam",
+  VOC_WARNING: "Kadar VOC perlu diperhatikan",
+  VOC_BELOW_INTERNAL_THRESHOLD: "VOC dalam batas pemantauan",
+  VOC_MISSING: "Kadar VOC belum terbaca",
+  RAPID_COOLING: "Suhu turun cepat",
+  RAPID_HEATING: "Suhu naik cepat",
+  TEMP_STABLE_TREND: "Perubahan suhu stabil",
+  HUMIDITY_HIGH: "Udara terlalu lembap",
+  AMBIENT_HIGH: "Suhu sekitar terlalu tinggi",
+  STACK_TEMP_ANOMALY: "Suhu cerobong perlu diperiksa",
+  FURAN_T_LOW: "Suhu pembakaran masih rendah",
+  FURAN_T_TRANSITION: "Suhu pembakaran dalam peralihan",
+  FURAN_T_ACTIVE: "Suhu pembakaran aktif",
+  FURAN_CO_HIGH: "CO tinggi memengaruhi perkiraan risiko",
+  FURAN_CO_WARN: "CO meningkat memengaruhi perkiraan risiko",
+  FURAN_VOC_HIGH: "VOC tinggi memengaruhi perkiraan risiko",
+  FURAN_VOC_WARN: "VOC meningkat memengaruhi perkiraan risiko",
+  FURAN_TEMP_DROP: "Suhu turun memengaruhi perkiraan risiko",
+  FURAN_SMOKE_RISE: "Indikator asap memengaruhi perkiraan risiko",
+  FURAN_INDEX_WARNING: "Perkiraan risiko perlu diperiksa",
+  FURAN_UNAVAILABLE: "Perkiraan risiko belum tersedia",
+  FURAN_PROCESS_IDLE: "Pembakaran tidak aktif; indeks furan tidak dinilai",
+  FURAN_COOLING_UNEVALUATED: "Cerobong masih hangat; pantau pendinginan tanpa skor furan",
+  FURAN_IDLE_STACK_UNKNOWN: "Tungku belum aktif; suhu cerobong tidak tersedia",
+  NO_INTERNAL_ALERT: "Tidak ada peringatan terdeteksi"
+};
+function readableRule(rule: string) {
+  return ruleLabels[rule] ?? "Kondisi tambahan terdeteksi";
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
+function formatNumber(value: number | null | undefined, digits = 1) {
+  return value === null || value === undefined || !Number.isFinite(value) ? "—" :
+    value.toLocaleString("id-ID", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
-
-function calculateRisk(data: Telemetry, thresholds: Thresholds) {
-  const lowTempPenalty = data.furnace < thresholds.activeTemp
-    ? ((thresholds.activeTemp - data.furnace) / thresholds.activeTemp) * 38
-    : 0;
-  const coPenalty = (data.co / Math.max(thresholds.coWarning, 1)) * 22;
-  const vocPenalty = (data.voc / Math.max(thresholds.vocWarning, 1)) * 24;
-  const smokePenalty = Math.min(data.smoke / 0.08, 1) * 16;
-  return Math.round(clamp(lowTempPenalty + coPenalty + vocPenalty + smokePenalty, 4, 96));
+function formatClock(iso: string | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "medium" });
 }
-
-function combustionStatus(data: Telemetry, previous: Telemetry | undefined, thresholds: Thresholds) {
-  const delta = previous ? data.furnace - previous.furnace : 0;
-
-  if (data.furnace >= thresholds.activeTemp) return { text: "Pembakaran Aktif", tone: "good" };
-  if (data.furnace >= thresholds.transitionTemp && delta >= 0) return { text: "Pemanasan", tone: "warn" };
-  if (data.furnace >= thresholds.transitionTemp && delta < 0) return { text: "Pendinginan", tone: "warn" };
-  return { text: "Tidak Aktif", tone: "muted" };
-}
-
-function riskLabel(value: number) {
-  if (value <= 25) return "Rendah";
-  if (value <= 50) return "Sedang";
-  if (value <= 75) return "Tinggi";
-  return "Kritis";
-}
-
-function aiInsight(data: Telemetry, thresholds: Thresholds) {
-  if (data.furanRisk >= 75) {
-    return "Risiko pembentukan dioksin/furan diprediksi tinggi. Terlihat kombinasi kondisi pembakaran yang kurang stabil dengan kenaikan parameter gas. Periksa suplai udara, kestabilan temperatur, dan kondisi proses.";
-  }
-  if (data.furanRisk >= thresholds.riskWarning) {
-    return "Kondisi proses memerlukan perhatian. Suhu pembakaran dan tren CO/VOC menunjukkan pola yang dapat meningkatkan risiko pembentukan dioksin/furan. Pertahankan pembakaran stabil dan pantau perubahan parameter.";
-  }
-  if (data.furnace >= thresholds.activeTemp) {
-    return "Pembakaran terpantau aktif dan relatif stabil. CO dan VOC belum menunjukkan peningkatan signifikan. Berdasarkan parameter yang tersedia, risiko pembentukan dioksin/furan saat ini diprediksi rendah.";
-  }
-  return "Unit belum berada pada kondisi pembakaran aktif penuh. Sistem terus memantau kenaikan suhu tungku, gas hasil pembakaran, dan kestabilan proses sebelum memberikan evaluasi risiko yang lebih kuat.";
-}
-
-function MetricCard({
-  title,
-  value,
-  unit,
-  icon: Icon,
-  note,
-  tone = "green"
-}: {
-  title: string;
-  value: string;
-  unit?: string;
-  icon: typeof Thermometer;
-  note?: string;
-  tone?: "orange" | "amber" | "blue" | "cyan" | "red" | "purple" | "lime" | "green";
+const TELEMETRY_OFFLINE_AFTER_MS = 35_000; // Three missed reports at ESP32 10-second interval, with 5-second margin.
+type SensorTone = "furnace" | "stack" | "co" | "voc" | "ambient" | "humidity" | "h2" | "smoke";
+function MetricCard({ title, value, unit, icon: Icon, note, tone, offline = false }: {
+  title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone; offline?: boolean
 }) {
   return (
-    <article className={`metric-card tone-${tone}`}>
-      <div className="metric-card-head">
-        <div className="metric-icon"><Icon size={18} /></div>
-        <span className="metric-status-dot" />
-      </div>
+    <article className={"metric-card sensor-card sensor-tone-" + tone}>
+      <div className="metric-card-head"><div className="metric-icon"><Icon size={18} /></div></div>
       <div className="metric-body">
         <span className="metric-label">{title}</span>
-        <div className="metric-value">
-          {value}{unit && <small>{unit}</small>}
-        </div>
-        {note && <span className="metric-note">{note}</span>}
+        <div className="metric-value">{value}{unit && <small>{unit}</small>}</div>
+        <span className="metric-note">{offline ? (value === "—" ? "OFFLINE · Belum ada pembacaan" : "OFFLINE · Data terakhir, bukan live") : note ?? (value === "—" ? "Menunggu pembacaan sensor" : "Pembacaan sensor terakhir")}</span>
       </div>
-      <div className="metric-accent-line" />
     </article>
   );
 }
-
-function DevicePill({ name, detail }: { name: string; detail: string }) {
+function DevicePill({ name, status, active }: { name: string; status: string; active: boolean }) {
   return (
     <div className="device-pill">
-      <span className="status-dot" />
-      <div>
-        <strong>{name}</strong>
-        <small>{detail}</small>
-      </div>
+      <span className={active ? "status-dot" : "offline-dot"} />
+      <div><strong>{name}</strong><small>{status}</small></div>
+    </div>
+  );
+}
+type StatusTone = "safe" | "caution" | "danger" | "critical" | "muted";
+
+// Warna menunjukkan kondisi indikator internal, bukan hasil uji emisi lingkungan.
+function riskPresentation(index: number | null, fresh: boolean, paused = false): { label: string; tone: StatusTone } {
+  if (!fresh) return { label: "BELUM TERSEDIA", tone: "muted" };
+  if (paused) return { label: "TIDAK DINILAI", tone: "muted" };
+  if (index === null) return { label: "BELUM TERSEDIA", tone: "muted" };
+  if (index < 25) return { label: "NORMAL", tone: "safe" };
+  if (index < 50) return { label: "WASPADA", tone: "caution" };
+  if (index < 75) return { label: "BAHAYA", tone: "danger" };
+  return { label: "KRITIS", tone: "critical" };
+}
+
+function monitoringPresentation(severity: "normal" | "warning" | "critical" | "unknown"): { label: string; tone: StatusTone } {
+  if (severity === "normal") return { label: "NORMAL", tone: "safe" };
+  if (severity === "warning") return { label: "WASPADA", tone: "caution" };
+  if (severity === "critical") return { label: "BAHAYA", tone: "critical" };
+  return { label: "BELUM TERSEDIA", tone: "muted" };
+}
+
+function EventList({ events, live }: { events: RuleEvent[]; live: boolean }) {
+  if (!live) return <p className="no-data">Peringatan akan aktif setelah pembacaan terbaru tersedia.</p>;
+  if (events.length === 0) return <p className="no-data no-data-normal"><span className="status-label risk-safe">NORMAL</span> Tidak ada peringatan pada parameter yang terbaca. Pantau pembacaan secara berkala.</p>;
+  return (
+    <div className="event-list">
+      {events.map((event) => (
+        <div className="event-row" key={event.code}>
+          <span className={event.severity === "critical" ? "warning-dot" : "offline-dot"} />
+          <div><strong>{event.title}</strong><small>{event.detail}</small></div>
+          <span className={"event-level status-label risk-" + (event.severity === "critical" ? "critical" : "caution")}>{event.severity === "critical" ? "BAHAYA" : "WASPADA"}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-export default function DashboardShell({ mode = "client" }: { mode?: "client" | "admin" }) {
+export default function DashboardShell({ mode = "admin", username = "" }: { mode?: "admin" | "operator"; username?: string }) {
   const isAdmin = mode === "admin";
   const [tab, setTab] = useState<TabId>("beranda");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [history, setHistory] = useState<Telemetry[]>(() => makeInitialData());
-  const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
-  const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => thresholdsToDraft(defaultThresholds));
+  const [latest, setLatest] = useState<Telemetry | null>(null);
+  const [history, setHistory] = useState<Telemetry[]>([]);
+  const [storageReady, setStorageReady] = useState(true);
+  const [apiError, setApiError] = useState("");
+  // Nilai awal harus identik antara SSR dan render pertama di browser.
+  // Jam aktif diisi dari useEffect setelah hydration agar tidak berbeda pada HP.
+  const [now, setNow] = useState(0);
+  const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
+  const [thresholdDraft, setThresholdDraft] = useState<ThresholdDraft>(() => ({
+    activeTemp: String(DEFAULT_THRESHOLDS.activeTemp),
+    transitionTemp: String(DEFAULT_THRESHOLDS.transitionTemp),
+    coWarning: String(DEFAULT_THRESHOLDS.coWarning),
+    vocWarning: String(DEFAULT_THRESHOLDS.vocWarning),
+    riskWarning: String(DEFAULT_THRESHOLDS.riskWarning)
+  }));
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [thresholdDraftDirty, setThresholdDraftDirty] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  // Archival history is separate from the 120 live dashboard samples.
+  const [archiveMode, setArchiveMode] = useState<"rolling" | "dates">("rolling");
+  const [archiveDays, setArchiveDays] = useState(1);
+  const [archiveFromDate, setArchiveFromDate] = useState("");
+  const [archiveToDate, setArchiveToDate] = useState("");
+  const [archiveHistory, setArchiveHistory] = useState<Telemetry[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archiveBucketSeconds, setArchiveBucketSeconds] = useState(10);
+  const [archiveSampled, setArchiveSampled] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [archiveRefresh, setArchiveRefresh] = useState(0);
+
+  const archiveRange = useMemo(() => {
+    const params = new URLSearchParams();
+    if (archiveMode === "rolling") {
+      params.set("days", String(archiveDays));
+      return { query: params.toString(), error: "" };
+    }
+    if (!archiveFromDate || !archiveToDate) return { query: "", error: "Isi tanggal awal dan akhir." };
+    const from = new Date(archiveFromDate + "T00:00:00");
+    const until = new Date(archiveToDate + "T00:00:00");
+    until.setDate(until.getDate() + 1);
+    const toMs = until.getTime() - 1;
+    const span = toMs - from.getTime();
+    if (!Number.isFinite(span) || span < 0 || span > 7 * 86400000) {
+      return { query: "", error: "Rentang tanggal minimal 1 hari dan maksimal 7 hari." };
+    }
+    params.set("from", from.toISOString());
+    params.set("to", new Date(toMs).toISOString());
+    return { query: params.toString(), error: "" };
+  }, [archiveMode, archiveDays, archiveFromDate, archiveToDate]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("jr-theme") as "light" | "dark" | null;
-    const savedThresholds = localStorage.getItem("jr-thresholds");
-    if (savedTheme) setTheme(savedTheme);
-    if (savedThresholds) {
+    // Limits belong to the server, never to operator-controlled localStorage.
+    // Both roles read the same shared configuration, refreshed every 30 seconds.
+    let active = true;
+    async function refreshThresholds() {
       try {
-        const parsed = JSON.parse(savedThresholds) as Thresholds;
-        setThresholds(parsed);
-        setThresholdDraft(thresholdsToDraft(parsed));
-      } catch {}
+        const response = await fetch("/api/thresholds", { cache: "no-store", credentials: "same-origin" });
+        if (response.status === 401) { window.location.replace("/login"); return; }
+        const result = await response.json() as { thresholds?: Thresholds };
+        if (!response.ok || !result.thresholds) throw new Error("Pengaturan pusat belum dapat diakses.");
+        if (!active) return;
+        const values = result.thresholds;
+        setThresholds(values);
+        if (isAdmin && !thresholdDraftDirty) {
+          setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(values[key])])) as ThresholdDraft);
+        }
+      } catch {
+        if (active && isAdmin && tab === "pengaturan") setSettingsMessage("Belum dapat membaca pengaturan dari server.");
+      }
     }
+    void refreshThresholds();
+    const timer = window.setInterval(() => { void refreshThresholds(); }, 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isAdmin, tab, thresholdDraftDirty]);
+
+  useEffect(() => {
+    // Dashboard uses one light appearance. Clear legacy saved dark mode.
+    document.documentElement.classList.remove("dark");
+    localStorage.removeItem("adi-telemetry-theme-v2");
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("jr-theme", theme);
-  }, [theme]);
+    let active = true;
+    let working = false;
+    async function refresh() {
+      if (working) return;
+      working = true;
+      try {
+        const response = await fetch("/api/telemetry", { cache: "no-store", credentials: "same-origin" });
+        if (response.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
+        if (!response.ok) throw new Error("Server telemetry tidak tersedia.");
+        const data = await response.json() as TelemetryResponse;
+        if (!active) return;
+        setLatest(data.latest ?? null);
+        setHistory(Array.isArray(data.history) ? data.history : []);
+        setStorageReady(data.storageReady);
+        setApiError("");
+      } catch {
+        if (active) {
+          setApiError("Koneksi ke server telemetry terputus.");
+          // Keep the last successful reading visible, marked OFFLINE rather than live.
+        }
+      } finally {
+        working = false;
+        if (active) setNow(Date.now());
+      }
+    }
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setHistory((items) => {
-        const current = items[items.length - 1];
-        const preliminary = nextTelemetry(current, current.furanRisk);
-        const risk = calculateRisk(preliminary, thresholds);
-        const next = { ...preliminary, furanRisk: risk };
-        return [...items.slice(-47), next];
-      });
-    }, 3000);
-    return () => window.clearInterval(timer);
-  }, [thresholds]);
-
-  const current = history[history.length - 1];
-  const previous = history[history.length - 2];
-  const status = combustionStatus(current, previous, thresholds);
-  const insight = aiInsight(current, thresholds);
-
-  const alarms = useMemo(() => {
-    const rows = [
-      current.co > thresholds.coWarning && {
-        level: "Peringatan",
-        title: "CO melewati ambang",
-        detail: `${current.co.toFixed(1)} ppm · ambang ${thresholds.coWarning} ppm`
-      },
-      current.voc > thresholds.vocWarning && {
-        level: "Peringatan",
-        title: "VOC melewati ambang",
-        detail: `${current.voc.toFixed(1)} ppm · ambang ${thresholds.vocWarning} ppm`
-      },
-      current.furanRisk > thresholds.riskWarning && {
-        level: "Analisis",
-        title: "Risiko dioksin/furan meningkat",
-        detail: `Indeks saat ini ${current.furanRisk}/100`
+    if (tab !== "riwayat" || !archiveRange.query) return;
+    let active = true;
+    let working = false;
+    let timer: number | null = null;
+    let nextDelayMs = 10000;
+    const controller = new AbortController();
+    async function refreshArchive(showLoading = false) {
+      if (working) return;
+      working = true;
+      if (showLoading) setArchiveBusy(true);
+      try {
+        const response = await fetch("/api/history?" + archiveRange.query, {
+          credentials: "same-origin", cache: "no-store", signal: controller.signal
+        });
+        if (response.status === 401) { window.location.replace("/login"); return; }
+        const data = await response.json() as {
+          history?: Telemetry[]; total?: number; chartBucketSeconds?: number;
+          sampled?: boolean; error?: string
+        };
+        if (!response.ok) throw new Error(data.error ?? "Riwayat belum dapat dibaca.");
+        if (!active) return;
+        setArchiveHistory(Array.isArray(data.history) ? data.history : []);
+        setArchiveTotal(data.total ?? 0);
+        setArchiveBucketSeconds(data.chartBucketSeconds ?? 10);
+        setArchiveSampled(Boolean(data.sampled));
+        // Large archives are costly to re-read; auto-refresh less frequently.
+        nextDelayMs = (data.total ?? 0) > 300 ? 60000 : 10000;
+        setArchiveError("");
+      } catch (error) {
+        if (active && !controller.signal.aborted) {
+          setArchiveError(error instanceof Error ? error.message : "Gagal memuat riwayat.");
+          // Keep last known graph during a transient outage.
+        }
+      } finally {
+        working = false;
+        if (active && showLoading) setArchiveBusy(false);
+        // Schedule only after previous request completes. Avoid overlapping scans.
+        if (active && archiveMode === "rolling") {
+          timer = window.setTimeout(() => { void refreshArchive(); }, nextDelayMs);
+        }
       }
-    ].filter(Boolean) as { level: string; title: string; detail: string }[];
-
-    return rows.length ? rows : [{
-      level: "Normal",
-      title: "Tidak ada alarm aktif",
-      detail: "Seluruh parameter berada dalam ambang konfigurasi."
-    }];
-  }, [current, thresholds]);
-
-  function saveThresholds(next: Thresholds) {
-    setThresholds(next);
-    setThresholdDraft(thresholdsToDraft(next));
-    localStorage.setItem("jr-thresholds", JSON.stringify(next));
-  }
-
-  function updateThresholdDraft(key: keyof Thresholds, raw: string) {
-    setSettingsMessage("");
-
-    // Hanya izinkan angka positif dan desimal. Nilai kosong tetap diizinkan saat mengedit.
-    if (!/^\d*(\.\d*)?$/.test(raw)) return;
-
-    let value = raw;
-
-    // Hilangkan nol di depan: "0200" menjadi "200", tetapi "0.5" tetap valid.
-    if (/^0\d/.test(value)) {
-      value = value.replace(/^0+(?=\d)/, "");
     }
-
-    // Indeks risiko dibatasi 0–100.
-    if (key === "riskWarning" && value !== "" && Number(value) > 100) {
-      value = "100";
-    }
-
-    setThresholdDraft((current) => ({ ...current, [key]: value }));
-  }
-
-  function applyThresholdSettings() {
-    const entries = Object.entries(thresholdDraft) as [keyof Thresholds, string][];
-
-    if (entries.some(([, value]) => value.trim() === "")) {
-      setSettingsMessage("Semua nilai harus diisi sebelum diterapkan.");
-      return;
-    }
-
-    const next = {
-      activeTemp: Number(thresholdDraft.activeTemp),
-      transitionTemp: Number(thresholdDraft.transitionTemp),
-      coWarning: Number(thresholdDraft.coWarning),
-      vocWarning: Number(thresholdDraft.vocWarning),
-      riskWarning: Math.min(100, Number(thresholdDraft.riskWarning))
+    void refreshArchive(true);
+    return () => {
+      active = false;
+      controller.abort();
+      if (timer !== null) window.clearTimeout(timer);
     };
+  }, [tab, archiveRange.query, archiveRefresh, archiveMode]);
 
-    if (Object.values(next).some((value) => !Number.isFinite(value) || value < 0)) {
-      setSettingsMessage("Nilai harus berupa angka 0 atau lebih.");
-      return;
+  async function downloadArchiveCsv() {
+    if (!archiveRange.query) return;
+    setExportBusy(true);
+    setArchiveError("");
+    try {
+      const response = await fetch("/api/history/export?" + archiveRange.query, {
+        credentials: "same-origin", cache: "no-store"
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? "Gagal mengunduh CSV.");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const file = /filename="([a-zA-Z0-9_.-]+)"/.exec(disposition)?.[1] ?? "adi-telemetry.csv";
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = file;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      setArchiveError(error instanceof Error ? error.message : "Tidak dapat mengekspor riwayat.");
+    } finally { setExportBusy(false); }
+  }
+
+  useEffect(() => {
+    // Refresh halaman yang dipulihkan dari back/forward cache agar sesi dicek ulang.
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) window.location.reload();
     }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
-    saveThresholds(next);
-    setSettingsMessage("Pengaturan berhasil diterapkan.");
+  const ageMs = latest ? now - Date.parse(latest.receivedAt) : Infinity;
+  const fresh = !!latest && ageMs >= -5000 && ageMs <= TELEMETRY_OFFLINE_AFTER_MS && !apiError;
+  const offline = Boolean(apiError) || (!!latest && !fresh);
+  const previous = history.length >= 2 ? history[history.length - 2] : null;
+  const lot = useMemo(() => evaluateLoT(latest, previous, thresholds, fresh), [latest, previous, thresholds, fresh]);
+  const operatorReport = useMemo(() => explainReadings(latest, previous, lot, thresholds, fresh),
+    [latest, previous, lot, thresholds, fresh]);
+  const chartData = useMemo(() => history.slice(-120).map((item, index, items) => ({
+    ...item, waktu: new Date(item.receivedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+    furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
+  })), [history, thresholds]);
+  const showChart = history.length >= 2;
+  const archiveChartData = useMemo(() => archiveHistory.map((item, index, items) => ({
+    ...item,
+    waktu: new Date(item.receivedAt).toLocaleString("id-ID", {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+    }),
+    furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
+  })), [archiveHistory, thresholds]);
+  const showArchiveChart = archiveHistory.length >= 1;
+  const archiveSingleDot = archiveHistory.length === 1 ? { r: 5, strokeWidth: 2 } : false;
+  const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
+  const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
+  const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
+  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
+  // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
+  // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
+  const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
+  const isBurning = hasFurnaceReading && latest?.furnace !== null && latest?.furnace !== undefined && latest.furnace >= thresholds.activeTemp;
+  const burnTone = offline ? "offline" : !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
+  const burnLabel = offline ? "OFFLINE — DATA TIDAK TERBARU" : !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
+  const burnDescription = offline
+    ? apiError
+      ? "Koneksi ke server pemantauan terganggu. Nilai yang terlihat adalah data terakhir, bukan pembacaan langsung."
+      : `Tidak ada data baru dari alat selama lebih dari ${TELEMETRY_OFFLINE_AFTER_MS / 1000} detik. Angka yang tampil adalah data terakhir, bukan pembacaan langsung.`
+    : !hasFurnaceReading
+      ? "Pembacaan suhu tungku belum tersedia."
+      : isBurning
+        ? `Suhu tungku mencapai batas aktif ${thresholds.activeTemp}°C. Pantau indikator gas secara terpisah.`
+        : `Suhu tungku di bawah batas aktif ${thresholds.activeTemp}°C. Fase terdeteksi: ${lot.process.toLowerCase()}.`;
+  const furanPaused = lot.rules.some(rule => ["FURAN_PROCESS_IDLE", "FURAN_COOLING_UNEVALUATED", "FURAN_IDLE_STACK_UNKNOWN"].includes(rule));
+  const risk = offline ? { label: "OFFLINE", tone: "caution" as const } : riskPresentation(lot.furanIndex, fresh, furanPaused);
+  const monitoring = offline ? { label: "OFFLINE", tone: "caution" as const } : monitoringPresentation(lot.severity);
+  const visibleNavItems = isAdmin ? navItems : navItems.filter(item => item.id !== "pengaturan" && item.id !== "pengguna");
+
+  async function saveLimits(values: Thresholds) {
+    if (!isAdmin) return;
+    setSettingsMessage("Menyimpan pengaturan...");
+    try {
+      const response = await fetch("/api/thresholds", {
+        method: "PUT", cache: "no-store", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values)
+      });
+      if (response.status === 401) { window.location.replace("/login"); return; }
+      const result = await response.json() as { message?: string; thresholds?: Thresholds };
+      if (!response.ok || !result.thresholds) throw new Error(result.message ?? "Gagal menyimpan ambang.");
+      setThresholds(result.thresholds);
+      setThresholdDraft(Object.fromEntries(thresholdKeys.map(key => [key, String(result.thresholds![key])])) as ThresholdDraft);
+      setThresholdDraftDirty(false);
+      setSettingsMessage("Pengaturan berhasil disimpan di server untuk semua pengguna.");
+    } catch (error) {
+      setSettingsMessage(error instanceof Error ? error.message : "Server tidak dapat dihubungi.");
+    }
   }
-
-  function resetThresholdSettings() {
-    saveThresholds(defaultThresholds);
-    setSettingsMessage("Nilai awal berhasil dikembalikan.");
+  async function applyThresholdSettings() {
+    const values = Object.fromEntries(thresholdKeys.map(key => [key, Number(thresholdDraft[key])])) as Thresholds;
+    if (thresholdKeys.some(key => !thresholdDraft[key].trim() || !Number.isFinite(values[key]) || values[key] < 0)) {
+      setSettingsMessage("Isi seluruh ambang dengan angka yang valid."); return;
+    }
+    if (values.transitionTemp >= values.activeTemp || values.activeTemp <= 0 ||
+        values.coWarning <= 0 || values.vocWarning <= 0 || values.riskWarning > 100) {
+      setSettingsMessage("Pastikan suhu transisi lebih rendah dari suhu aktif, ambang gas positif, dan indeks maksimal 100."); return;
+    }
+    await saveLimits(values);
   }
-
+  async function resetThresholds() {
+    await saveLimits({ ...DEFAULT_THRESHOLDS });
+  }
   async function logout() {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/login";
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/logout", { method: "POST", cache: "no-store", credentials: "same-origin" });
+      if (!response.ok) throw new Error("Logout belum berhasil.");
+      window.location.replace("/login");
+    } catch {
+      setLogoutError("Gagal keluar. Periksa koneksi lalu coba lagi.");
+    }
   }
-
-  const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.id !== "pengaturan");
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell" + (offline ? " telemetry-offline" : "")}>
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-logo"><Flame size={22} /></div>
-          <div>
-            <strong>ADI Smart Incinerator</strong>
-            <span>Sistem Pemantauan Lingkungan</span>
-          </div>
+          <div className="brand-logo" aria-hidden="true"><img src="/adi-logo.png" width={120} height={76} alt="" /></div>
+          <div><strong>ADI Smart Incinerator</strong><span>PEMANTAUAN SUHU &amp; GAS</span></div>
         </div>
-
         <nav className="side-nav">
-          {visibleNavItems.map((item) => {
+          {visibleNavItems.map(item => {
             const Icon = item.icon;
-            return (
-              <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
-                <Icon size={18} />
-                {item.label}
-              </button>
-            );
+            return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={18} />{item.label}</button>;
           })}
         </nav>
-
         <div className="sidebar-footer">
-          <div className="mini-status"><span className="status-dot" /> {isAdmin ? "Mode Admin" : "Sistem terhubung"}</div>
-          {isAdmin && <button onClick={logout} className="logout-button"><LogOut size={17} /> Keluar</button>}
+          <div className="mini-status"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</div>
+          <div className="account-role-meta"><ShieldCheck size={15} /><span>{isAdmin ? "ADMIN" : "USER · OPERATOR"}<small>{username}</small></span></div>
+          <button className="logout-button" onClick={logout}><LogOut size={17} /> Keluar</button>
+          {logoutError && <p className="logout-error" role="alert">{logoutError}</p>}
         </div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
-          <div>
-            <h1>{visibleNavItems.find((item) => item.id === tab)?.label}</h1>
-          </div>
+          <div className="mobile-brand"><img src="/adi-logo.png" width={120} height={76} alt="" /><span>ADI Smart Incinerator</span></div>
+          <div className="topbar-heading"><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
           <div className="top-actions">
-            <span className={`mode-badge ${isAdmin ? "admin" : "client"}`}>{isAdmin ? <><ShieldCheck size={13} /> ADMIN</> : <><span className="status-dot" /> PEMANTAUAN</>}</span>
-            <span className="live-badge"><span className="pulse-dot" /> DATA LANGSUNG</span>
-            <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Ganti tema">
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+            <span className="account-role-chip" aria-label={"Hak akses: " + (isAdmin ? "Admin" : "Operator")}><ShieldCheck size={13}/>{isAdmin ? "ADMIN" : "USER / OPERATOR"}</span>
+            <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
+
           </div>
         </header>
 
         {tab === "beranda" && (
           <div className="page-grid">
             <section className="project-context">
-              <div className="project-context-main">
-                <div className="project-context-icon"><MapPin size={19} /></div>
-                <div>
-                  <span className="project-context-label">Lokasi pelaksanaan</span>
-                  <strong>Desa Caturharjo, Pandak, Bantul</strong>
-                </div>
-              </div>
-              <div className="project-context-funding">
-                <span>Didanai melalui</span>
-                <strong>Hibah Bestari Direktorat Hiliriset Kemendiktisaintek & Dana LPDP</strong>
+              <div className="project-context-main"><div className="project-context-icon"><MapPin size={19} /></div>
+                <div><span className="project-context-label">Lokasi instalasi</span><strong>Desa Caturharjo, Pandak, Bantul</strong></div>
               </div>
             </section>
-
-            <section className={`hero-status status-${status.tone}`}>
+            <section className={"hero-status burn-" + burnTone} aria-label="Status aktivitas pembakaran">
               <div className="hero-status-main">
                 <div className="hero-icon-wrap"><Flame size={26} /></div>
-                <div>
-                  <p className="section-kicker">Status pembakaran</p>
-                  <div className={`combustion-state ${status.tone}`}>{status.text}</div>
-                  <p className="muted">Status dihitung dari suhu tungku dan arah perubahan temperatur.</p>
+                <div><p className="section-kicker">Status proses pembakaran</p>
+                  <div className="combustion-state">{burnLabel}</div>
+                  <p className="muted">{burnDescription}</p>
+                  <span className="burn-legend">{offline ? "Kuning = koneksi/data terputus · Status pembakaran tidak dapat dipastikan" : "Merah = pembakaran berlangsung · Hijau = pembakaran belum aktif"}</span>
                 </div>
               </div>
               <div className="hero-side">
-                <div className="hero-mini">
-                  <span>Suhu tungku</span>
-                  <strong>{current.furnace.toFixed(1)}°C</strong>
-                </div>
-                <div className="hero-mini">
-                  <span>Risiko D/F</span>
-                  <strong>{current.furanRisk}/100</strong>
-                </div>
-                <div className="hero-time">
-                  <span>Data terakhir</span>
-                  <strong>{current.waktu}</strong>
-                </div>
+                <div className="hero-mini"><span>Suhu tungku</span><strong>{display("furnace")} °C</strong></div>
+                <div className="hero-mini"><span>Gas CO</span><strong>{display("co")} ppm</strong></div>
+                <div className="hero-time"><span>Data terakhir diterima</span><strong>{formatClock(latest?.receivedAt)}</strong></div>
               </div>
             </section>
-
-            <div className="section-title-row">
-              <div>
-                <p className="section-kicker">Parameter utama</p>
-                <h2>Kondisi proses & lingkungan</h2>
+            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} />
+            <section className="panel full-span lot-overview" aria-label="Penjelasan sederhana keadaan alat">
+              <div className="lot-overview-copy">
+                <p className="section-kicker">ARTI PEMBACAAN SEKARANG</p>
+                <h2>{operatorReport.headline}</h2>
+                <p>{operatorReport.subheading}</p>
               </div>
-              <span className="soft-badge">8 parameter aktif</span>
-            </div>
-            <section className="metric-grid">
-              <MetricCard title="Suhu Tungku" value={current.furnace.toFixed(1)} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="orange" />
-              <MetricCard title="Suhu Cerobong" value={current.stack.toFixed(1)} unit="°C" icon={Thermometer} note="Sensor suhu cerobong" tone="amber" />
-              <MetricCard title="Suhu Lingkungan" value={current.ambient.toFixed(1)} unit="°C" icon={Cloud} note={`Kelembapan ${current.humidity.toFixed(0)}%`} tone="blue" />
-              <MetricCard title="Kelembapan Udara" value={current.humidity.toFixed(1)} unit="%RH" icon={Wind} note="Kondisi udara sekitar" tone="cyan" />
-              <MetricCard title="CO · Karbon Monoksida" value={current.co.toFixed(1)} unit="ppm" icon={Gauge} note={current.co > thresholds.coWarning ? "Perlu perhatian" : "Kondisi normal"} tone="red" />
-              <MetricCard title="H₂ · Hidrogen" value={current.h2.toFixed(1)} unit="ppm" icon={Activity} note="Pembacaan sensor gas" tone="purple" />
-              <MetricCard title="VOC · Gas Organik" value={current.voc.toFixed(1)} unit="ppm" icon={BarChart3} note={current.voc > thresholds.vocWarning ? "Perlu perhatian" : "Kondisi stabil"} tone="lime" />
-              <MetricCard title="Indikator Asap" value={current.smoke.toFixed(3)} unit="dB/m" icon={Wind} note="Kondisi asap terpantau" tone="green" />
+              <button className="secondary-button lot-insight-action" type="button" onClick={() => setTab("ai")}>
+                Baca penjelasan lengkap
+              </button>
             </section>
-
-            <section className="panel chart-panel">
+            <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">PEMANTAUAN SENSOR</p><h2>Parameter utama</h2></div></div>
+            <section className="metric-grid inc-legacy-metrics" aria-label="Lima indikator utama">
+              <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
+              <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" offline={offline} />
+              <MetricCard title="Gas CO" value={display("co")} unit="ppm" icon={Gauge} note="Karbon monoksida" tone="co" offline={offline} />
+              <MetricCard title="Gas VOC" value={display("voc")} unit="ppm" icon={BarChart3} note="Senyawa organik volatil" tone="voc" offline={offline} />
+              <article className={"metric-card furan-card risk-border-" + risk.tone}>
+                <div className="metric-card-head"><div className="metric-icon"><Activity size={18} /></div><span className={"furan-level status-label risk-" + risk.tone}>{risk.label}</span></div>
+                <div className="metric-body"><span className="metric-label">Prediksi risiko furan</span>
+                  <div className="metric-value">{fresh ? formatNumber(lot.furanIndex, 0) : "—"}<small>/100</small></div>
+                  <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : furanPaused ? "Pembakaran tidak aktif; indeks furan tidak dinilai" : undefined}>
+                    <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
+                  </div>
+                  <div className="prediction-note"><strong>{offline || furanPaused ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : furanPaused ? "Tidak ada pembakaran aktif; bukan berarti emisi furan nol" : "Indikator proses dari suhu dan gas"}</span></div>
+                </div>
+              </article>
+            </section>
+            <section className="panel extra-metrics inc-legacy-extra" aria-labelledby="extra-metrics-title">
               <div className="panel-heading">
-                <div><p className="section-kicker">Tren proses</p><h2>Suhu pembakaran</h2></div>
-                <span className="chip">48 sampel terakhir</span>
+                <div><p className="section-kicker">Pemantauan lingkungan</p><h2 id="extra-metrics-title">Parameter lingkungan dan gas lainnya</h2></div>
               </div>
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={history}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="waktu" minTickGap={28} />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="furnace" name="Tungku" stroke="#f97316" strokeWidth={2.8} dot={false} />
-                    <Line type="monotone" dataKey="stack" name="Cerobong" stroke="#06b6d4" strokeOpacity={0.95} strokeWidth={2.2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <div className="metric-grid">
+                <MetricCard title="Suhu lingkungan" value={display("ambient")} unit="°C" icon={Cloud} tone="ambient" offline={offline} />
+                <MetricCard title="Kelembapan" value={display("humidity")} unit="%" icon={Wind} tone="humidity" offline={offline} />
+                <MetricCard title="Gas H₂" value={display("h2")} unit="ppm" icon={Activity} tone="h2" offline={offline} />
+                <MetricCard title="Indikator asap" value={display("smoke", 3)} unit="dB/m" icon={Wind} tone="smoke" offline={offline} />
               </div>
             </section>
-
-            <section className="panel ai-card colorful-panel">
-              <div className="panel-heading">
-                <div><p className="section-kicker">Perkiraan risiko</p><h2>Dioksin / Furan</h2></div>
-                <div className="panel-icon ai"><BrainCircuit size={20} /></div>
-              </div>
-              <div className="risk-row">
-                <div className={`risk-score risk-${riskLabel(current.furanRisk).toLowerCase()}`}>
-                  <strong>{current.furanRisk}</strong><span>/100</span>
-                </div>
-                <div>
-                  <span className="risk-label">{riskLabel(current.furanRisk)}</span>
-                  <p className="muted">Estimasi kondisi proses, bukan pengukuran laboratorium langsung.</p>
-                </div>
-              </div>
-              <div className="ai-insight">
-                <span><BrainCircuit size={16} /> Ringkasan kondisi · analisis otomatis</span>
-                <p>{insight}</p>
-              </div>
+            <section className="panel chart-panel full-span">
+              <div className="panel-heading"><div><p className="section-kicker">Grafik telemetry</p><h2>Tren suhu</h2></div><span className="chip">TEMPERATURE / °C</span></div>
+              {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={28} /><YAxis /><Tooltip />
+                  <Line type="monotone" dataKey="furnace" name="Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="stack" name="Cerobong" stroke="#c2dd94" strokeWidth={2.3} dot={false} isAnimationActive={false} />
+                </LineChart></ResponsiveContainer></div> : <p className="no-data">Grafik akan tersedia setelah beberapa pembacaan diterima.</p>}
             </section>
-
+            <section className="panel simple-alert-panel">
+              <div className="panel-heading"><div><p className="section-kicker">Pemantauan otomatis</p><h2>Perlu diperhatikan</h2></div><AlertTriangle size={20} /></div>
+              <EventList events={lot.events} live={fresh} />
+            </section>
             <section className="panel device-summary">
-              <div className="panel-heading"><div><p className="section-kicker">Kesehatan sistem</p><h2>Status perangkat</h2></div><div className="panel-icon device"><ShieldCheck size={19} /></div></div>
+              <div className="panel-heading"><div><p className="section-kicker">Konektivitas</p><h2>Status perangkat</h2></div><ShieldCheck size={19} /></div>
               <div className="device-grid">
-                <DevicePill name="JR-AIoT" detail="Gateway · online" />
-                <DevicePill name="ZEH100" detail="Gas sensor · online" />
-                <DevicePill name="ME31" detail="Thermocouple · online" />
-                <DevicePill name="Sensor Lingkungan" detail="Temp/RH · online" />
-                <DevicePill name="Server" detail="Cloud · online" />
+                <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : offline ? "OFFLINE" : "Menunggu koneksi"} />
+                <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
+                <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={sensorActive("co","voc","h2") ? "Pembacaan tersedia" : "Belum terbaca"} />
+                <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
+                <DevicePill name="Penyimpanan" active={storageReady} status={storageReady ? "Endpoint tersedia" : "Konfigurasi diperlukan"} />
               </div>
             </section>
           </div>
         )}
 
-        {tab === "riwayat" && (
-          <section className="page-grid">
-            <div className="panel full-span">
-              <div className="panel-heading">
-                <div><p className="section-kicker">Riwayat & grafik</p><h2>Historis parameter proses</h2></div>
-                <div className="range-tabs"><button className="active">1 Jam</button><button>6 Jam</button><button>24 Jam</button><button>7 Hari</button><button>30 Hari</button></div>
-              </div>
-              <div className="chart-large">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={history}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="waktu" minTickGap={24} />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#f97316" strokeWidth={2.8} dot={false} />
-                    <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#06b6d4" strokeOpacity={0.95} strokeWidth={2.2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+        {tab === "riwayat" && <section className="page-grid">
+          <div className="panel full-span archive-controls">
+            <div className="panel-heading">
+              <div><p className="section-kicker">Penyimpanan berkelanjutan</p><h2>Arsip Sensor · Retensi 7 Hari</h2></div>
+              <span className="chip">LOG / 10 DETIK</span>
             </div>
+            <p className="muted">Data lama otomatis dihapus setelah 7 hari. Pilih jumlah hari terakhir atau tanggal tertentu. Grafik menampilkan ringkasan agar tetap ringan; file CSV berisi rekaman aslinya.</p>
+            <div className="archive-toolbar">
+              <label className="archive-field">Pilih rentang
+                <select value={archiveMode} onChange={event => setArchiveMode(event.target.value as "rolling" | "dates")}>
+                  <option value="rolling">Hari terakhir</option>
+                  <option value="dates">Tanggal khusus</option>
+                </select>
+              </label>
+              {archiveMode === "rolling" ?
+                <label className="archive-field">Lama data
+                  <select value={archiveDays} onChange={event => setArchiveDays(Number(event.target.value))}>
+                    {[1,2,3,4,5,6,7].map(days => <option key={days} value={days}>{days} hari</option>)}
+                  </select>
+                </label> :
+                <>
+                  <label className="archive-field">Dari tanggal
+                    <input type="date" value={archiveFromDate} onChange={event => setArchiveFromDate(event.target.value)} />
+                  </label>
+                  <label className="archive-field">Sampai tanggal
+                    <input type="date" value={archiveToDate} min={archiveFromDate || undefined}
+                      onChange={event => setArchiveToDate(event.target.value)} />
+                  </label>
+                </>
+              }
+              <button className="secondary-button archive-action" type="button"
+                onClick={() => setArchiveRefresh(value => value + 1)} disabled={archiveBusy || !archiveRange.query}>
+                <RefreshCcw size={15}/> Muat ulang
+              </button>
+              <button className="primary-button archive-action" type="button"
+                onClick={() => void downloadArchiveCsv()} disabled={exportBusy || !archiveRange.query}>
+                <Download size={16}/> {exportBusy ? "Menyusun CSV..." : "Download CSV / Excel"}
+              </button>
+            </div>
+            <div className="archive-meta">
+              <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
+              <span>Grafik: {archiveSampled ? "data diringkas (perkiraan tiap " + archiveBucketSeconds + " detik)" : "semua rekaman asli tiap 10 detik"} · maksimal 300 titik</span>
+            </div>
+            {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
+          </div>
+          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">{archiveHistory.length} TITIK GRAFIK</span></div>
+            {showArchiveChart ? <div className="chart-large"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={24} /><YAxis /><Tooltip />
+              <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#c2dd94" strokeWidth={2.2} dot={archiveSingleDot} isAnimationActive={false} />
+            </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rangkaian data untuk ditampilkan.</p>}
+          </div>
+          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div></div>
+            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis /><Tooltip />
+              <Line type="monotone" dataKey="co" name="CO" stroke="#f4b16c" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="h2" name="H₂" stroke="#a4aee9" strokeWidth={2} dot={archiveSingleDot} isAnimationActive={false} />
+              <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
+            </LineChart></ResponsiveContainer></div> : <p className="no-data">Menunggu data sensor gas.</p>}
+          </div>
+          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div></div>
+            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
+              <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
+            </LineChart></ResponsiveContainer></div> : <p className="no-data">Indeks akan dihitung setelah suhu, CO, dan VOC tersedia.</p>}
+          </div>
+        </section>}
 
-            <div className="panel">
-              <div className="panel-heading"><div><p className="section-kicker">Gas</p><h2>CO, H₂ & VOC</h2></div></div>
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={history}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="waktu" minTickGap={30} />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="co" name="CO" stroke="#ef4444" strokeWidth={2.4} dot={false} />
-                    <Line type="monotone" dataKey="h2" name="H₂" stroke="#8b5cf6" strokeWidth={2.2} dot={false} />
-                    <Line type="monotone" dataKey="voc" name="VOC" stroke="#84cc16" strokeWidth={2.2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+        {tab === "ai" && <section className="page-grid">
+          <div className="panel full-span ai-analysis">
+            <div className="panel-heading"><div><p className="section-kicker">PERKIRAAN KONDISI</p><h2>Analisis pembakaran</h2></div><BrainCircuit size={24} /></div>
+            <div className="analysis-score-row">
+              <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
+              <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
+              <div><span>Indikator proses furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh && lot.furanIndex !== null ? formatNumber(lot.furanIndex,0) + " / 100" : "—"}</strong></div>
+              <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 PARAMETER</strong></div>
             </div>
+            <div className="lot-report">
+              <div className="lot-report-headline">
+                <p className="section-kicker">PENJELASAN LENGKAP • BAHASA SEHARI-HARI</p>
+                <h3>{operatorReport.headline}</h3>
+                <p>{operatorReport.subheading}</p>
+                <small>{operatorReport.time ? "Data terakhir diterima: " + formatClock(operatorReport.time) : "Belum ada data dari alat"}</small>
+              </div>
+              <div className="lot-insight-grid">
+                {operatorReport.insights.map(insight =>
+                  <article key={insight.id} className={"lot-insight lot-insight-" + insight.tone}>
+                    <div className="lot-insight-header"><h4>{insight.label}</h4><span>{insight.status}</span></div>
+                    <p className="lot-insight-meaning">{insight.meaning}</p>
+                    <p className="lot-insight-detail">{insight.explanation}</p>
+                    <div className="lot-insight-next"><strong>Yang bisa dicek</strong><p>{insight.action}</p></div>
+                  </article>
+                )}
+              </div>
+              <div className="lot-quick-actions">
+                <h3>Yang sebaiknya dilakukan berikutnya</h3>
+                <ol>{operatorReport.actions.map(action => <li key={action}>{action}</li>)}</ol>
+              </div>
+              <p className="lot-data-note">{operatorReport.note}</p>
+            </div>
+            <div className="analysis-copy">
+              <h3>Ringkasan kondisi</h3><p>{lot.summary}</p>
+              <h3>Tindakan yang disarankan</h3>
+              <div className="lot-recommendations">
+                {lot.recommendations.map((rec, index) => <p key={index}><span>{String(index+1).padStart(2,"0")}</span>{rec}</p>)}
+              </div>
+              <h3>Kondisi yang terdeteksi</h3>
+              <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{readableRule(rule)}</span>)}</div>
+            </div>
+            <div className="prototype-note">LoT adalah penjelasan berdasarkan aturan dan data sensor. Skor proses furan masih percobaan: bukan kadar furan, bukan persentase kemungkinan emisi, dan bukan keputusan aman atau berbahaya. Evaluasi emisi resmi memerlukan pengukuran sesuai metode laboratorium.</div>
+          </div>
+        </section>}
 
-            <div className="panel">
-              <div className="panel-heading"><div><p className="section-kicker">Prediksi</p><h2>Indeks risiko D/F</h2></div></div>
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={history}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="waktu" minTickGap={30} />
-                    <YAxis domain={[0, 100]} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="furanRisk" name="Risiko D/F" stroke="#14b8a6" strokeWidth={2.6} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </section>
-        )}
+        {tab === "alarm" && <section className="page-grid">
+          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Notifikasi proses</p><h2>Peringatan parameter</h2></div><Bell size={22} /></div>
+            <EventList events={lot.events} live={fresh} />
+            <p className="data-origin-note">Ambang bersifat pengaturan pemantauan internal; gunakan prosedur keselamatan dan pemeriksaan emisi yang berlaku untuk keputusan operasional.</p>
+          </div>
+        </section>}
 
-        {tab === "ai" && (
-          <section className="page-grid">
-            <div className="panel full-span ai-analysis">
-              <div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Ringkasan kondisi pembakaran</h2></div><BrainCircuit size={24} /></div>
-              <div className="analysis-score-row">
-                <div><span>Risiko Dioksin/Furan</span><strong>{current.furanRisk}/100 · {riskLabel(current.furanRisk)}</strong></div>
-                <div><span>Status Pembakaran</span><strong>{status.text}</strong></div>
-                <div><span>Kualitas Data</span><strong>Baik</strong></div>
-              </div>
-              <div className="analysis-copy">
-                <h3>Wawasan saat ini</h3>
-                <p>{insight}</p>
-                <h3>Rekomendasi sistem</h3>
-                <p>Pertahankan kestabilan suhu proses, pantau tren CO dan VOC, serta konfirmasi hasil prediksi dengan metode laboratorium bila diperlukan untuk evaluasi emisi formal.</p>
-              </div>
-              <div className="prototype-note">Mode prototipe: teks wawasan saat ini dihasilkan dari rule-based engine. Integrasi AI API akan ditambahkan pada tahap berikutnya.</div>
+        {tab === "perangkat" && <section className="page-grid">
+          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Perangkat & jaringan</p><h2>Koneksi perangkat</h2></div><Wifi size={22} /></div>
+            <div className="device-table">
+              <div className="device-table-row header"><span>Perangkat</span><span>Antarmuka</span><span>Status</span><span>Data terakhir</span></div>
+              <div className="device-table-row"><strong>{virtualSource ? "Pengirim virtual" : "Alat pengirim data"}</strong><span>Koneksi data internet</span><span>{fresh ? "Terhubung" : "Tidak terhubung"}</span><span>{formatClock(latest?.receivedAt)}</span></div>
+              <div className="device-table-row"><strong>Suhu tungku &amp; cerobong</strong><span>Kabel sensor</span><span>{sensorActive("furnace","stack") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Sensor gas</strong><span>Kabel sensor</span><span>{sensorActive("co","voc","h2") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Sensor lingkungan</strong><span>Kabel sensor</span><span>{sensorActive("ambient","humidity") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Penyimpanan data</strong><span>Server pemantauan</span><span>{storageReady ? "Siap" : "Belum dikonfigurasi"}</span><span>—</span></div>
             </div>
-          </section>
-        )}
+          </div>
+        </section>}
 
-        {tab === "alarm" && (
-          <section className="page-grid">
-            <div className="panel full-span">
-              <div className="panel-heading"><div><p className="section-kicker">Alarm & kejadian</p><h2>Kondisi yang perlu diperhatikan</h2></div><AlertTriangle size={22} /></div>
-              <div className="event-list">
-                {alarms.map((alarm, index) => (
-                  <div className="event-row" key={index}>
-                    <span className={alarm.level === "Normal" ? "status-dot" : "warning-dot"} />
-                    <div><strong>{alarm.title}</strong><small>{alarm.detail}</small></div>
-                    <span className="event-level">{alarm.level}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {isAdmin && tab === "pengguna" && <section className="page-grid"><UserManagement owner={username} /></section>}
 
-        {tab === "perangkat" && (
-          <section className="page-grid">
-            <div className="panel full-span">
-              <div className="panel-heading"><div><p className="section-kicker">Perangkat</p><h2>Topologi JR-AIoT</h2></div><Wifi size={22} /></div>
-              <div className="device-table">
-                <div className="device-table-row header"><span>Perangkat</span><span>Antarmuka</span><span>Status</span><span>Data terakhir</span></div>
-                <div className="device-table-row"><strong>JR-AIoT</strong><span>Ethernet / Wi-Fi / RS485</span><span className="online-text">Online</span><span>baru saja</span></div>
-                <div className="device-table-row"><strong>ZEH100</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
-                <div className="device-table-row"><strong>ME31</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
-                <div className="device-table-row"><strong>Sensor Lingkungan</strong><span>RS485 Modbus</span><span className="online-text">Online</span><span>3 dtk lalu</span></div>
-              </div>
+        {isAdmin && tab === "pengaturan" && <section className="page-grid">
+          <div className="panel full-span settings-panel"><div className="panel-heading"><div><p className="section-kicker">Khusus pengelola</p><h2>Ambang analisis proses</h2></div><Settings size={22} /></div>
+            <p className="muted">Perubahan ambang disimpan di server dan berlaku untuk semua Operator. Batas ini hanya digunakan untuk pemantauan, bukan standar emisi resmi atau pengendali mesin.</p>
+            <div className="settings-grid">{thresholdKeys.map(key => <label key={key}>{thresholdLabels[key]}
+              <input inputMode="decimal" value={thresholdDraft[key]} onChange={event => {
+                const raw = event.target.value;
+                if (!/^\d*(\.\d*)?$/.test(raw)) return;
+                setThresholdDraft(prev => ({ ...prev, [key]: raw }));
+                setThresholdDraftDirty(true);
+                setSettingsMessage("");
+              }} />
+            </label>)}</div>
+            <div className="settings-actions">
+              <button className="primary-button" onClick={applyThresholdSettings}>Simpan ambang</button>
+              <button className="secondary-button" onClick={resetThresholds}>Kembali ke nilai awal</button>
+              {settingsMessage && <span className="settings-message">{settingsMessage}</span>}
             </div>
-          </section>
-        )}
-
-        {isAdmin && tab === "pengaturan" && (
-          <section className="page-grid">
-            <div className="panel full-span settings-panel">
-              <div className="panel-heading"><div><p className="section-kicker">Khusus admin</p><h2>Pengaturan ambang sistem</h2></div><Settings size={22} /></div>
-              <p className="muted">Nilai di bawah tersimpan lokal untuk prototipe. Pada versi database, konfigurasi akan disimpan di server.</p>
-              <div className="settings-grid">
-                <label>
-                  Suhu pembakaran aktif (°C)
-                  <input inputMode="decimal" value={thresholdDraft.activeTemp} onChange={(e) => updateThresholdDraft("activeTemp", e.target.value)} placeholder="Contoh: 180" />
-                </label>
-                <label>
-                  Suhu transisi (°C)
-                  <input inputMode="decimal" value={thresholdDraft.transitionTemp} onChange={(e) => updateThresholdDraft("transitionTemp", e.target.value)} placeholder="Contoh: 90" />
-                </label>
-                <label>
-                  Ambang CO (ppm)
-                  <input inputMode="decimal" value={thresholdDraft.coWarning} onChange={(e) => updateThresholdDraft("coWarning", e.target.value)} placeholder="Contoh: 50" />
-                </label>
-                <label>
-                  Ambang VOC (ppm)
-                  <input inputMode="decimal" value={thresholdDraft.vocWarning} onChange={(e) => updateThresholdDraft("vocWarning", e.target.value)} placeholder="Contoh: 75" />
-                </label>
-                <label>
-                  Ambang risiko D/F (0–100)
-                  <input inputMode="decimal" value={thresholdDraft.riskWarning} onChange={(e) => updateThresholdDraft("riskWarning", e.target.value)} placeholder="Contoh: 50" />
-                </label>
-              </div>
-              <div className="settings-actions">
-                <button className="primary-button" onClick={applyThresholdSettings}>Terapkan & Simpan</button>
-                <button className="secondary-button" onClick={resetThresholdSettings}>Kembalikan nilai awal</button>
-                {settingsMessage && <span className={`settings-message ${settingsMessage.includes("berhasil") ? "success" : "error"}`}>{settingsMessage}</span>}
-              </div>
-            </div>
-          </section>
-        )}
+          </div>
+        </section>}
         <footer className="site-footer">
-          <span className="footer-dot" />
-          <span><strong>ADI Smart Incinerator</strong> · by Omah Inovasi Universitas Ahmad Dahlan</span>
+          <div className="footer-main"><span className="footer-dot" /><span>© {new Date().getFullYear()} <strong>ADI Smart Incinerator</strong> · Omah Inovasi Universitas Ahmad Dahlan</span></div>
+          <div className="footer-sub">Didukung melalui Program Hibah Bestari · LPDP</div>
         </footer>
       </main>
-
-      <nav className="mobile-nav">
-        {visibleNavItems.slice(0, 5).map((item) => {
+      <nav className="mobile-nav" aria-label="Menu dashboard">
+        {visibleNavItems.map(item => {
           const Icon = item.icon;
-          return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "riwayat" ? "Riwayat" : item.id === "perangkat" ? "Device" : item.label.replace("Analisis ", "")}</span></button>;
+          return <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}><Icon size={19} /><span>{item.id === "ai" ? "Analisis" : item.label}</span></button>;
         })}
+        <button type="button" onClick={logout} aria-label="Keluar dari dashboard"><LogOut size={19} /><span>Keluar</span></button>
       </nav>
     </div>
   );

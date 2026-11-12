@@ -1,0 +1,12 @@
+# Prevent accidental upload of local credentials and offline telemetry
+# when deploying from a developer laptop via Vercel CLI.
+# Git deployments additionally follow .gitignore.
+.env
+.env.*
+.local-data/
+firmware/**/config.h
+.vercel/
+.git/
+.next/
+node_modules/
+*.log
