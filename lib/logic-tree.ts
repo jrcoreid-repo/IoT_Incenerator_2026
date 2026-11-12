@@ -42,7 +42,7 @@ export function evaluateLoT(
     return {
       process: current ? "DATA TIDAK TERBARU" : "MENUNGGU SENSOR",
       severity: "unknown", furanIndex: null, furanLevel: "—",
-      summary: current ? "Data terakhir sudah melewati batas kesegaran. Pemeriksaan otomatis dihentikan sampai pembacaan baru diterima." : "Belum ada data dari perangkat. Sambungkan ESP/gateway ke API telemetry untuk mulai pemantauan.",
+      summary: current ? "Data terakhir sudah melewati batas kesegaran. Pemeriksaan otomatis dihentikan sampai pembacaan baru diterima." : "Belum ada data dari alat. Periksa apakah perangkat sudah terhubung dan mengirim pembacaan.",
       recommendations: ["Periksa daya perangkat, koneksi jaringan, dan pengiriman data."],
       rules: ["CONNECTION_REQUIRED"], events: [], validSensorCount: 0
     };
@@ -68,7 +68,7 @@ export function evaluateLoT(
   const tempDelta = numberAvailable(furnace) && numberAvailable(previousFurnace) ? furnace - previousFurnace : null;
   if (!numberAvailable(furnace)) {
     process = "SUHU TIDAK TERBACA";
-    warn("TEMP_MISSING", "Sensor suhu tungku belum terbaca", "Status proses tidak dapat dipastikan.", false, "Periksa sensor suhu dan koneksi RS485.");
+    warn("TEMP_MISSING", "Sensor suhu tungku belum terbaca", "Status proses tidak dapat dipastikan.", false, "Periksa sensor suhu tungku dan sambungan kabelnya.");
   } else if (furnace >= thresholds.activeTemp) {
     process = "PEMBAKARAN AKTIF"; rules.push("FURNACE_ACTIVE");
   } else if (furnace >= thresholds.transitionTemp && numberAvailable(tempDelta) && tempDelta < -2) {
@@ -116,7 +116,7 @@ export function evaluateLoT(
     warn("AMBIENT_HIGH", "Suhu lingkungan tinggi", "Suhu lingkungan sekitar melebihi 50°C.", false, "Periksa pendinginan dan ventilasi panel.");
   }
   if (numberAvailable(current.stack) && numberAvailable(furnace) && current.stack > furnace + 60) {
-    warn("STACK_TEMP_ANOMALY", "Perbandingan suhu tidak biasa", "Suhu cerobong melebihi suhu tungku secara signifikan.", false, "Periksa posisi sensor dan pembacaan termokopel.");
+    warn("STACK_TEMP_ANOMALY", "Perbandingan suhu tidak biasa", "Suhu cerobong melebihi suhu tungku secara signifikan.", false, "Periksa posisi sensor suhu dan sambungan kabelnya.");
   }
 
   // LoT: indikator proses, bukan konsentrasi dioksin/furan dan belum tervalidasi ilmiah.
