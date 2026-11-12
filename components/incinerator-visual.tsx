@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, CloudSun, Flame, Gauge, RadioTower, ShieldAlert, ShieldCheck, Thermometer, Wind } from "lucide-react";
 import type { Telemetry } from "@/lib/telemetry";
 
@@ -76,6 +77,18 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
   const measured = (key: ValueKey) => fresh && (key !== "co" && key !== "h2" && key !== "voc" || gasValid)
     ? latest?.[key] : null;
   const diagnostics = latest?.sensors;
+  // Default to an existing asset so an absent PNG cannot leave a broken-image icon.
+  // Switch to the original, lossless PNG only after the browser confirms it loads.
+  const [artworkSrc, setArtworkSrc] = useState("/incinerator-lineart-v3.svg");
+  useEffect(() => {
+    let active = true;
+    const candidate = new Image();
+    candidate.onload = () => {
+      if (active) setArtworkSrc("/incinerator-v4.png");
+    };
+    candidate.src = "/incinerator-v4.png";
+    return () => { active = false; candidate.onload = null; };
+  }, []);
   return <section className="inc-visual panel full-span" aria-label="Visualisasi incinerator dan pembacaan sensor">
     <div className="inc-visual-heading">
       <div><p className="section-kicker">LIVE MONITORING / ADI INCINERATOR</p><h2>Visualisasi Proses Pembakaran</h2><p className="muted">Nilai sensor mengikuti posisi fisik pada ilustrasi. CH4 cerobong · CH5 tungku.</p></div>
@@ -84,16 +97,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex }: {
     <div className="inc-stage inc-stage-v4">
       {/* Artwork and overlays share the same 1920×1080 coordinate system. */}
       <picture className="inc-machine-picture">
-        <img src="/incinerator-v4.png" alt="Gambar teknis incinerator resolusi asli dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art"
-          onError={event => {
-            // The exact-resolution PNG is preferred; until it is committed, render the
-            // valid line-art SVG instead of the over-compressed / possibly broken AVIF.
-            const image = event.currentTarget;
-            if (!image.src.endsWith("/incinerator-lineart-v3.svg")) {
-              image.src = "/incinerator-lineart-v3.svg";
-            }
-          }}
-        />
+        <img src={artworkSrc} alt="Gambar teknis incinerator dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art" />
       </picture>
       <svg className="inc-v4-leaders" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 780 281 L 676 281 L 584 315" />
