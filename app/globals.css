@@ -1256,12 +1256,12 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-mobile-status.inc-mobile-warmup {color:#a97b19;}
   .inc-mobile-status.inc-mobile-fault,.inc-mobile-status.inc-mobile-offline {color:#bf5149;}
   .inc-mobile-status.inc-mobile-unknown {color:#8b7961;}
-  .inc-mobile-emission-values {display:grid;grid-template-columns:minmax(0,.83fr) minmax(0,2fr);align-items:center;gap:clamp(5px,2cqw,9px);min-width:0;}
+  .inc-mobile-emission-values {display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,2fr);align-items:start;gap:clamp(5px,1.7cqw,9px);min-width:0;}
   .inc-mobile-three-gases {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(3px,1.2cqw,7px);min-width:0;}
   .inc-mobile-card small {display:block;font:650 clamp(10px,2.65cqw,12px)/1.2 var(--font-ui);color:#5c7b68;white-space:nowrap;}
   .inc-mobile-card strong {display:block;font:800 clamp(21px,6.5cqw,29px)/1.05 var(--font-mono);letter-spacing:-.05em;font-variant-numeric:tabular-nums;white-space:nowrap;color:#153e2d;}
   .inc-mobile-card strong i {font:700 clamp(10px,2.7cqw,12px)/1.1 var(--font-mono);font-style:normal;letter-spacing:0;margin-left:2px;color:#66836e;}
-  .inc-mobile-three-gases strong {font-size:clamp(23px,7.15cqw,31px);letter-spacing:-.065em;}
+  .inc-mobile-three-gases strong {font-size:clamp(22px,6.8cqw,30px);letter-spacing:-.06em;}
   .inc-mobile-three-gases strong i {display:block;margin:0;font-size:clamp(9px,2.5cqw,11px);}
   .inc-mobile-meta {display:flex;justify-content:space-between;align-items:center;gap:4px;font:650 clamp(8px,2.15cqw,10px)/1.1 var(--font-mono);color:#6c8275;}
   .inc-mobile-furan {margin-top:auto;padding:clamp(5px,1.35cqw,7px) clamp(7px,1.7cqw,9px);border-radius:8px;border:1px solid rgba(48,127,81,.16);background:rgba(220,246,231,.75);}
@@ -1276,9 +1276,23 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-mobile-furnace-value strong {font-size:clamp(26px,8cqw,36px);}
   /* Prioritize the most important telemetry digits; the emission card shares
      the portrait artboard with furan so spacing remains intentionally compact. */
-  .inc-mobile-emission .inc-mobile-stack strong {font-size:clamp(23px,6.6cqw,30px);}
+  .inc-mobile-emission .inc-mobile-stack strong {display:flex;align-items:flex-start;gap:2px;font-size:clamp(22px,6.2cqw,29px);line-height:1;}
   .inc-mobile-three-gases {gap:clamp(3px,1cqw,6px);}
   .inc-mobile-emission .inc-mobile-header {margin-bottom:0;}
+  /* Keep cerobong temperature and CO/H2/VOC on the same typographic baseline.
+     These overrides apply to the portrait card only, not the desktop layout. */
+  .inc-mobile-emission .inc-mobile-stack,
+  .inc-mobile-emission .inc-mobile-three-gases>div {
+    display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;min-width:0;
+  }
+  .inc-mobile-emission .inc-mobile-stack>small,
+  .inc-mobile-emission .inc-mobile-three-gases>div>small {
+    min-height:2.1em;margin:0 0 clamp(2px,.8cqw,5px);line-height:1.15;
+  }
+  .inc-mobile-emission .inc-mobile-stack strong i {margin-top:.2em;flex:none;}
+  .inc-mobile-emission .inc-mobile-three-gases strong {line-height:1;}
+  .inc-mobile-emission .inc-mobile-three-gases strong i {line-height:1.1;}
+
   .inc-mobile-ambient .inc-mobile-header,.inc-mobile-furnace .inc-mobile-header {font-size:clamp(10px,3.1cqw,14px);}
   .inc-visual.inc-mobile-ready .inc-visual-note {margin:9px 7px 0;font-size:10px;line-height:1.5;}
   /* Avoid duplicated legacy metrics once the portrait art actually exists. */
