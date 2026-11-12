@@ -278,3 +278,7 @@ Hanya untuk **desktop >850px**; tampilan mobile memakai kartu sensor yang sudah 
 
 **Uji lokal dulu**: `git pull --ff-only origin design/minimal-operator-2026` kemudian `npm run dev -- -H 0.0.0.0`; buka `http://localhost:3000/admin` setelah login. Perubahan ini belum otomatis dideploy ke VPS.
 
+### Penyempurnaan layout overlay (12 Nov 2026)
+
+Posisi **titik sensor** (`POINTS`) tidak berubah. Yang disesuaikan hanya CSS `.inc-overlay-* .inc-overlay-card` agar panel lingkungan bergerak ke kiri-atas, panel gas ke kanan-atas, cerobong ke kanan, dan tungku ke kiri-bawah; panel tidak lagi menempel pada titik sensor. Kartu diperlebar, angka suhu utama hingga sekitar 45 px, nilai gas hingga sekitar 29 px, serta jarak antar-elemen dan status sensor diperlonggar. Layout khusus viewport 851–1100 px memakai ukuran panel lebih kompak, sementara tampilan mobile <=850 px tetap menggunakan kartu sensor lama. Cek tata letak pada layar laptop setelah pull; tidak ada perubahan pembacaan telemetry atau firmware dalam commit styling ini.
+
