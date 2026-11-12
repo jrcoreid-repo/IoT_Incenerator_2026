@@ -13,7 +13,7 @@ type ThresholdDraft = Record<keyof Thresholds, string>;
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
   { id: "riwayat", label: "Riwayat", icon: History },
-  { id: "ai", label: "Analisis AI", icon: BrainCircuit },
+  { id: "ai", label: "Analisis", icon: BrainCircuit },
   { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
   { id: "pengaturan", label: "Pengaturan", icon: Settings },
@@ -27,6 +27,46 @@ const thresholdLabels: Record<keyof Thresholds, string> = {
   vocWarning: "Ambang internal VOC (ppm)",
   riskWarning: "Ambang indeks risiko furan (0–100)"
 };
+
+// Explain internal rule codes in everyday Indonesian. Codes and threshold
+// calculations remain untouched for telemetry, testing and operator diagnostics.
+const ruleLabels: Record<string, string> = {
+  CONNECTION_REQUIRED: "Menunggu data dari alat",
+  TEMP_MISSING: "Suhu tungku belum terbaca",
+  FURNACE_ACTIVE: "Pembakaran berlangsung",
+  FURNACE_COOLING: "Tungku sedang mendingin",
+  FURNACE_HEATING: "Tungku sedang memanas",
+  FURNACE_IDLE: "Pembakaran belum berlangsung",
+  CO_HIGH: "Gas CO meningkat tajam",
+  CO_WARNING: "Kadar CO perlu diperhatikan",
+  CO_BELOW_INTERNAL_THRESHOLD: "CO dalam batas pemantauan",
+  CO_MISSING: "Kadar CO belum terbaca",
+  VOC_HIGH: "Gas VOC meningkat tajam",
+  VOC_WARNING: "Kadar VOC perlu diperhatikan",
+  VOC_BELOW_INTERNAL_THRESHOLD: "VOC dalam batas pemantauan",
+  VOC_MISSING: "Kadar VOC belum terbaca",
+  RAPID_COOLING: "Suhu turun cepat",
+  RAPID_HEATING: "Suhu naik cepat",
+  TEMP_STABLE_TREND: "Perubahan suhu stabil",
+  HUMIDITY_HIGH: "Udara terlalu lembap",
+  AMBIENT_HIGH: "Suhu sekitar terlalu tinggi",
+  STACK_TEMP_ANOMALY: "Suhu cerobong perlu diperiksa",
+  FURAN_T_LOW: "Suhu pembakaran masih rendah",
+  FURAN_T_TRANSITION: "Suhu pembakaran dalam peralihan",
+  FURAN_T_ACTIVE: "Suhu pembakaran aktif",
+  FURAN_CO_HIGH: "CO tinggi memengaruhi perkiraan risiko",
+  FURAN_CO_WARN: "CO meningkat memengaruhi perkiraan risiko",
+  FURAN_VOC_HIGH: "VOC tinggi memengaruhi perkiraan risiko",
+  FURAN_VOC_WARN: "VOC meningkat memengaruhi perkiraan risiko",
+  FURAN_TEMP_DROP: "Suhu turun memengaruhi perkiraan risiko",
+  FURAN_SMOKE_RISE: "Indikator asap memengaruhi perkiraan risiko",
+  FURAN_INDEX_WARNING: "Perkiraan risiko perlu diperiksa",
+  FURAN_UNAVAILABLE: "Perkiraan risiko belum tersedia",
+  NO_INTERNAL_ALERT: "Tidak ada peringatan terdeteksi"
+};
+function readableRule(rule: string) {
+  return ruleLabels[rule] ?? "Kondisi tambahan terdeteksi";
+}
 
 function formatNumber(value: number | null | undefined, digits = 1) {
   return value === null || value === undefined || !Number.isFinite(value) ? "—" :
@@ -325,7 +365,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
-  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TIDAK TERBARU" : fresh ? (virtualSource ? "PENGIRIM VIRTUAL TERHUBUNG" : "TELEMETRY ONLINE") : "MENUNGGU DATA SENSOR";
+  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
   // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
   const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
@@ -334,8 +374,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const burnLabel = offline ? "OFFLINE — DATA TIDAK TERBARU" : !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
   const burnDescription = offline
     ? apiError
-      ? "Koneksi ke server telemetry terganggu. Nilai yang terlihat adalah data terakhir, bukan pembacaan langsung."
-      : `Tidak ada kiriman telemetry baru selama lebih dari ${TELEMETRY_OFFLINE_AFTER_MS / 1000} detik. Angka yang tampil adalah data terakhir, bukan pembacaan langsung.`
+      ? "Koneksi ke server pemantauan terganggu. Nilai yang terlihat adalah data terakhir, bukan pembacaan langsung."
+      : `Tidak ada data baru dari alat selama lebih dari ${TELEMETRY_OFFLINE_AFTER_MS / 1000} detik. Angka yang tampil adalah data terakhir, bukan pembacaan langsung.`
     : !hasFurnaceReading
       ? "Pembacaan suhu tungku belum tersedia."
       : isBurning
@@ -445,7 +485,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               </div>
             </section>
             <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} />
-            <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">Telemetry / Sensor</p><h2>Parameter utama</h2></div><span className="soft-badge">05 / PARAMETER</span></div>
+            <div className="section-title-row inc-legacy-metric-title"><div><p className="section-kicker">PEMANTAUAN SENSOR</p><h2>Parameter utama</h2></div></div>
             <section className="metric-grid inc-legacy-metrics" aria-label="Lima indikator utama">
               <MetricCard title="Suhu pembakaran" value={display("furnace")} unit="°C" icon={Flame} note="Sensor suhu tungku" tone="furnace" offline={offline} />
               <MetricCard title="Suhu cerobong" value={display("stack")} unit="°C" icon={Thermometer} note="Sensor suhu keluaran" tone="stack" offline={offline} />
@@ -458,7 +498,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                   <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>{offline ? "ANALISIS DIJEDA" : "HASIL ANALISIS AI"}</strong><span>{offline ? "Menunggu data sensor terbaru" : "Berdasarkan suhu dan gas"}</span></div>
+                  <div className="prediction-note"><strong>{offline ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : "Berdasarkan suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
@@ -565,7 +605,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
 
         {tab === "ai" && <section className="page-grid">
           <div className="panel full-span ai-analysis">
-            <div className="panel-heading"><div><p className="section-kicker">Logic of Tree / Rule-Based</p><h2>Analisis AI otomatis</h2></div><BrainCircuit size={24} /></div>
+            <div className="panel-heading"><div><p className="section-kicker">PERKIRAAN KONDISI</p><h2>Analisis pembakaran</h2></div><BrainCircuit size={24} /></div>
             <div className="analysis-score-row">
               <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
               <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
@@ -573,15 +613,15 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 SENSOR</strong></div>
             </div>
             <div className="analysis-copy">
-              <h3>Hasil analisis AI</h3><p>{lot.summary}</p>
+              <h3>Ringkasan kondisi</h3><p>{lot.summary}</p>
               <h3>Tindakan yang disarankan</h3>
               <div className="lot-recommendations">
                 {lot.recommendations.map((rec, index) => <p key={index}><span>{String(index+1).padStart(2,"0")}</span>{rec}</p>)}
               </div>
-              <h3>Aturan yang terpicu</h3>
-              <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{rule.replaceAll("_"," ")}</span>)}</div>
+              <h3>Kondisi yang terdeteksi</h3>
+              <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{readableRule(rule)}</span>)}</div>
             </div>
-            <div className="prototype-note">Prediksi risiko furan dihitung melalui analisis berbasis aturan (LoT) dengan mempertimbangkan suhu pembakaran, CO, VOC, dan asap. Gunakan hasil pengukuran lapangan serta uji laboratorium untuk evaluasi emisi resmi.</div>
+            <div className="prototype-note">Perkiraan risiko furan dihitung dari suhu pembakaran, CO, VOC, dan indikator asap. Ini bukan hasil pengukuran langsung. Gunakan hasil pengukuran lapangan serta uji laboratorium untuk evaluasi emisi resmi.</div>
           </div>
         </section>}
 
@@ -609,7 +649,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
 
         {isAdmin && tab === "pengaturan" && <section className="page-grid">
           <div className="panel full-span settings-panel"><div className="panel-heading"><div><p className="section-kicker">Khusus pengelola</p><h2>Ambang analisis proses</h2></div><Settings size={22} /></div>
-            <p className="muted">Perubahan ambang disimpan di server dan berlaku untuk semua Operator. Ini hanya aturan analisis LoT, bukan batas regulasi atau perintah kendali perangkat.</p>
+            <p className="muted">Perubahan ambang disimpan di server dan berlaku untuk semua Operator. Batas ini hanya digunakan untuk pemantauan, bukan standar emisi resmi atau pengendali mesin.</p>
             <div className="settings-grid">{thresholdKeys.map(key => <label key={key}>{thresholdLabels[key]}
               <input inputMode="decimal" value={thresholdDraft[key]} onChange={event => {
                 const raw = event.target.value;
