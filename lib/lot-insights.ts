@@ -51,10 +51,10 @@ export function explainReadings(
       note: "Tanpa kiriman terbaru, semua analisis ditunda. Grafik lama bukan kondisi langsung.",
       time: current?.receivedAt ?? null,
       insights: [make("connection", "Sambungan alat", "BELUM ADA DATA TERBARU", "unknown",
-        "Server belum menerima data terbaru dari gateway.",
+        "Server belum menerima data terbaru dari perangkat JRAIoT.",
         "Perangkat mungkin mati atau koneksi Wi-Fi/internet sedang terputus. Periksa langsung di lapangan.",
-        "Cek listrik EG118, jaringan Wi-Fi, dan apakah HTTP POST berhasil dengan kode 201.")],
-      actions: ["Cek daya dan jaringan EG118.", "Buka /status pada AP diagnostik untuk melihat kegagalan Wi-Fi/HTTPS."]
+        "Cek daya JRAIoT, jaringan Wi-Fi, dan apakah pengiriman data berhasil dengan kode HTTP 201.")],
+      actions: ["Cek daya dan jaringan JRAIoT.", "Buka /status pada AP diagnostik JRAIoT untuk melihat kegagalan Wi-Fi/HTTPS."]
     };
   }
 
@@ -202,10 +202,10 @@ export function explainReadings(
         ", ZEH100 " + diag.zeh100.errors + ". Angka error tidak selalu berarti sensor sedang rusak.",
       missing.length ? "Periksa bagian yang disebut dan lihat apakah error terus bertambah." :
         "Lanjutkan pemantauan. Status online sendiri belum membuktikan kalibrasi akurat."));
-    if (missing.length) add("Cek status sensor melalui /status pada EG118.");
+    if (missing.length) add("Cek status sensor melalui /status pada JRAIoT.");
   } else {
     items.push(make("sensors", "Kondisi sensor", "DETAIL BELUM TERSEDIA", "unknown",
-      "Ada angka masuk, tetapi gateway belum menyertakan status masing-masing sensor.",
+      "Ada angka masuk, tetapi perangkat JRAIoT belum menyertakan status masing-masing sensor.",
       "Tanpa diagnostik, kita tidak dapat memastikan koneksi setiap sensor hanya dari adanya sebuah angka.",
       "Gunakan firmware yang menyertakan status cwt, ebyte dan zeh100."));
   }
@@ -227,7 +227,7 @@ export function explainReadings(
   items.push(make("quality", "Asal dan kelengkapan data",
     virtual ? "DATA SIMULASI" : count < 7 ? "BELUM LENGKAP" : "KIRIMAN DITERIMA",
     virtual ? "attention" : count < 7 ? "unknown" : "info",
-    count + " dari 8 parameter numerik tersedia. ID pengirim " + current.deviceId + ".",
+    count + " dari 8 parameter numerik tersedia. " + (virtual ? "Sumber: perangkat simulasi." : "Sumber: perangkat JRAIoT."),
     virtual ? "Identitas ini menunjukkan data simulasi, bukan hasil penelitian lapangan." :
       "Waktu diambil saat server menerima data. Sensor asap numerik belum tersedia; nilai kosong tidak berarti tidak ada asap.",
     virtual ? "Hentikan sender virtual sebelum pencatatan lapangan." :
