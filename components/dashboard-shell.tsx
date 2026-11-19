@@ -633,7 +633,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             </div>
             <div className="lot-report">
               <div className="lot-report-headline">
-                <p className="section-kicker">PENJELASAN LENGKAP • BAHASA SEHARI-HARI</p>
+                <p className="section-kicker">RINGKASAN KONDISI ALAT</p>
                 <h3>{operatorReport.headline}</h3>
                 <p>{operatorReport.subheading}</p>
                 <small>{operatorReport.time ? "Data terakhir diterima: " + formatClock(operatorReport.time) : "Belum ada data dari alat"}</small>
