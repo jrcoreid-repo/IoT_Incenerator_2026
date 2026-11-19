@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, RefreshCcw, Settings, ShieldCheck, Thermometer, Users, Wifi, Wind } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Camera, Cloud, Cpu, Download, Flame, Gauge, History, Home, LogOut, MapPin, RefreshCcw, Settings, ShieldCheck, Thermometer, Users, Wifi, Wind } from "lucide-react";
 import UserManagement from "@/components/user-management";
 import IncineratorVisual from "@/components/incinerator-visual";
+import VisionMonitor from "@/components/vision-monitor";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 import { explainReadings } from "@/lib/lot-insights";
 
-type TabId = "beranda" | "riwayat" | "ai" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
+type TabId = "beranda" | "riwayat" | "ai" | "vision" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
 type ThresholdDraft = Record<keyof Thresholds, string>;
 const navItems: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "beranda", label: "Beranda", icon: Home },
   { id: "riwayat", label: "Riwayat", icon: History },
   { id: "ai", label: "Analisis", icon: BrainCircuit },
+  { id: "vision", label: "Pantauan Asap", icon: Camera },
   { id: "alarm", label: "Peringatan", icon: Bell },
   { id: "perangkat", label: "Perangkat", icon: Cpu },
   { id: "pengaturan", label: "Pengaturan", icon: Settings },
@@ -556,6 +558,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             </section>
           </div>
         )}
+
+        {tab === "vision" && <VisionMonitor />}
 
         {tab === "riwayat" && <section className="page-grid">
           <div className="panel full-span archive-controls">
