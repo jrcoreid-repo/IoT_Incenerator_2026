@@ -45,10 +45,10 @@ test("offline or missing packet stops all sensor conclusions", () => {
   const old=report(sample({furnace:900,co:300}),null,false).info;
   assert.equal(old.insights.length,1);
   assert.equal(old.insights[0].id,"connection");
-  assert.match(old.headline,/belum masuk/i);
+  assert.match(old.headline,/belum ada data terbaru/i);
   const missing=report(null).info;
   assert.equal(missing.insights.length,1);
-  assert.match(missing.subheading,/Tidak ada suhu/i);
+  assert.match(missing.subheading,/Nilai suhu dan gas belum tersedia/i);
   assert.match(old.insights[0].meaning,/JRAIoT/i);
   assert.match(old.insights[0].action,/JRAIoT/i);
   assert.ok(old.actions.some(action => /JRAIoT/.test(action)));
