@@ -111,7 +111,7 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
   return <div className="inc-mobile-stage" aria-label="Skema incinerator mobile 1080 kali 1920">
     <img className="inc-mobile-artwork" src="/incinerator-mobile.png" alt="Gambar incinerator portrait dengan posisi sensor cerobong dan tungku" width={1080} height={1920}/>
     <svg className="inc-mobile-leaders" viewBox="0 0 1080 1920" preserveAspectRatio="none" aria-hidden="true">
-      <path d={"M " + MOBILE_DOTS.emission.x + " " + MOBILE_DOTS.emission.y + " L 550.36 515 L 544 469.85"}/>
+      <path d={"M " + MOBILE_DOTS.emission.x + " " + MOBILE_DOTS.emission.y + " L 550.36 532 L 544 509.81"}/>
       <path d={"M " + MOBILE_DOTS.furnace.x + " " + MOBILE_DOTS.furnace.y + " L 568 1340 L 568 1615 L 590 1615"}/>
       <circle cx={MOBILE_DOTS.emission.x} cy={MOBILE_DOTS.emission.y} r="10"/>
       <circle cx={MOBILE_DOTS.furnace.x} cy={MOBILE_DOTS.furnace.y} r="10"/>
@@ -196,9 +196,9 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
         <img src={artworkSrc} alt="Gambar teknis incinerator dengan tungku terbuka dan cerobong logam" width="1920" height="1080" className="inc-machine-art" />
       </picture>
       <svg className="inc-v4-leaders" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M 780 281 L 676 281 L 584 315" />
-        <path d="M 1000 767 L 730 767 L 584 826" />
-        <path d="M 989 73 L 1220 73 L 1365 242" />
+        <path d="M 780 281 L 700 281 L 620 315" />
+        <path d="M 1000 767 L 760 767 L 620 826" />
+        <path d="M 989 73 L 1170 73 L 1310 242" />
         <circle cx={TARGETS.ambient.x} cy={TARGETS.ambient.y} r="11"/>
         <circle cx={TARGETS.furnace.x} cy={TARGETS.furnace.y} r="11"/>
         <circle cx={TARGETS.emission.x} cy={TARGETS.emission.y} r="11"/>
