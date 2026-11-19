@@ -1181,20 +1181,20 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   background:linear-gradient(130deg,rgba(225,247,233,.82),rgba(240,252,246,.62));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.77),0 4px 15px rgba(29,83,51,.05);
 }
-.inc-fixed-card .inc-overlay-heading {margin-bottom:13px;font-size:12px;white-space:nowrap;}
-.inc-fixed-card .inc-reading-label {font-size:11px;}
-.inc-fixed-card .inc-reading-value {font-size:clamp(31px,2.85vw,44px);margin-top:7px;}
+.inc-fixed-card .inc-overlay-heading {margin-bottom:13px;font-size:14px;white-space:nowrap;}
+.inc-fixed-card .inc-reading-label {font-size:12px;}
+.inc-fixed-card .inc-reading-value {font-size:clamp(39px,3.3vw,54px);margin-top:7px;}
 .inc-fixed-card .inc-health {margin-top:auto;padding-top:10px;font-size:9px;min-height:19px;}
 .inc-fixed-card .inc-health small {font-size:8px;}
 .inc-fixed-ambient .inc-pair {gap:13px;}
-.inc-fixed-ambient .inc-pair .inc-reading-value {font-size:clamp(24px,2.3vw,34px);}
+.inc-fixed-ambient .inc-pair .inc-reading-value {font-size:clamp(31px,2.8vw,43px);}
 .inc-fixed-emission .inc-fixed-card {padding:14px 17px 12px;gap:0;}
 .inc-combined-section {min-width:0;border-bottom:1px solid rgba(72,128,99,.19);padding:0 0 9px;margin:0 0 9px;}
 .inc-combined-section .inc-health {margin-top:8px;padding-top:7px;}
-.inc-combined-stack .inc-reading-value {font-size:clamp(31px,2.65vw,40px);}
+.inc-combined-stack .inc-reading-value {font-size:clamp(38px,3vw,49px);}
 .inc-combined-label {display:flex;align-items:center;gap:6px;margin-bottom:9px;color:#267c55;font:800 10px/1.3 var(--font-mono);letter-spacing:.04em;}
 .inc-fixed-emission .inc-gas-readings {gap:9px;}
-.inc-fixed-emission .inc-gas-readings .inc-reading-value {font-size:clamp(20px,1.8vw,27px);white-space:nowrap;}
+.inc-fixed-emission .inc-gas-readings .inc-reading-value {font-size:clamp(26px,2.15vw,34px);white-space:nowrap;}
 .inc-fixed-emission .inc-gas-module {margin-top:6px;}
 .inc-fixed-emission .inc-furan-prediction {margin-top:6px;padding:10px 11px 9px;background:rgba(221,247,231,.79);}
 .inc-fixed-emission .inc-furan-score {font-size:clamp(25px,2.35vw,36px);}
@@ -1228,9 +1228,9 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-stage-v4 {width:1330px;max-width:none;}
   .inc-stage-v4 .inc-fixed-card {padding:15px 17px 13px;border-radius:17px;}
   .inc-stage-v4 .inc-fixed-card .inc-overlay-heading {font-size:12px;margin-bottom:13px;}
-  .inc-stage-v4 .inc-fixed-card .inc-reading-value {font-size:40px;margin-top:7px;}
-  .inc-stage-v4 .inc-fixed-ambient .inc-reading-value {font-size:31px;}
-  .inc-stage-v4 .inc-fixed-emission .inc-gas-readings .inc-reading-value {font-size:26px;}
+  .inc-stage-v4 .inc-fixed-card .inc-reading-value {font-size:47px;margin-top:7px;}
+  .inc-stage-v4 .inc-fixed-ambient .inc-reading-value {font-size:38px;}
+  .inc-stage-v4 .inc-fixed-emission .inc-gas-readings .inc-reading-value {font-size:30px;}
   .inc-stage-v4 .inc-fixed-emission .inc-furan-score {font-size:35px;}
 }
 
@@ -1294,11 +1294,11 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-mobile-furan-track>span {display:block;height:100%;background:linear-gradient(90deg,#6acb8e,#d1a05f,#de6c62);transition:width .3s ease;}
   .inc-mobile-ambient .inc-mobile-card,.inc-mobile-furnace .inc-mobile-card {justify-content:space-between;}
   .inc-mobile-double-values {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;}
-  .inc-mobile-double-values strong {font-size:clamp(17px,4.7cqw,22px);}
-  .inc-mobile-furnace-value strong {font-size:clamp(26px,8cqw,36px);}
+  .inc-mobile-double-values strong {font-size:clamp(21px,5.5cqw,27px);}
+  .inc-mobile-furnace-value strong {font-size:clamp(31px,9.2cqw,43px);}
   /* Prioritize the most important telemetry digits; the emission card shares
      the portrait artboard with furan so spacing remains intentionally compact. */
-  .inc-mobile-emission .inc-mobile-stack strong {display:flex;align-items:flex-start;gap:2px;font-size:clamp(22px,6.2cqw,29px);line-height:1;}
+  .inc-mobile-emission .inc-mobile-stack strong {display:flex;align-items:flex-start;gap:2px;font-size:clamp(25px,7.1cqw,34px);line-height:1;}
   .inc-mobile-three-gases {gap:clamp(3px,1cqw,6px);}
   .inc-mobile-emission .inc-mobile-header {margin-bottom:0;}
   /* Keep cerobong temperature and CO/H2/VOC on the same typographic baseline.
