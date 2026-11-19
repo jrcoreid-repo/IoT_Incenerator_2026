@@ -44,11 +44,11 @@ export function explainReadings(
 ): OperatorReport {
   if (!current || !fresh) {
     return {
-      headline: current ? "Kabar terbaru dari alat belum masuk." : "Belum ada kiriman dari alat.",
+      headline: current ? "Belum ada data terbaru dari alat." : "Menunggu data dari alat.",
       subheading: current
-        ? "Angka yang pernah tampil adalah data lama. Kami tidak menyimpulkan kondisi sekarang dari data yang sudah lewat."
-        : "Dashboard menunggu data sensor. Tidak ada suhu atau angka gas yang akan ditebak.",
-      note: "Tanpa kiriman terbaru, semua analisis ditunda. Grafik lama bukan kondisi langsung.",
+        ? "Data terakhir yang tampil sudah lama. Kondisi alat saat ini belum bisa dipastikan."
+        : "Dashboard masih menunggu pembacaan sensor. Nilai suhu dan gas belum tersedia.",
+      note: "Analisis dilanjutkan setelah data baru diterima. Grafik sebelumnya adalah riwayat, bukan kondisi saat ini.",
       time: current?.receivedAt ?? null,
       insights: [make("connection", "Sambungan alat", "BELUM ADA DATA TERBARU", "unknown",
         "Server belum menerima data terbaru dari perangkat JRAIoT.",
