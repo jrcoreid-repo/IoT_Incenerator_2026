@@ -49,6 +49,16 @@ test("offline or missing packet stops all sensor conclusions", () => {
   const missing=report(null).info;
   assert.equal(missing.insights.length,1);
   assert.match(missing.subheading,/Tidak ada suhu/i);
+  assert.match(old.insights[0].meaning,/JRAIoT/i);
+  assert.match(old.insights[0].action,/JRAIoT/i);
+  assert.ok(old.actions.some(action => /JRAIoT/.test(action)));
+});
+
+test("operator-facing device identity uses JRAIoT without leaking hardware model", () => {
+  const {info}=report(sample());
+  const operatorText=JSON.stringify(info);
+  assert.match(byId(info,"quality").meaning,/JRAIoT/);
+  assert.doesNotMatch(operatorText,/EG118|ADI-EG118-01|gateway/i);
 });
 
 test("ZEH warmup makes gas unavailable even if previous numeric values are present", () => {
