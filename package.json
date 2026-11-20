@@ -6,14 +6,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sender:virtual": "node scripts/virtual-esp32.mjs",
+    "test:sender": "node --test scripts/virtual-esp32.test.mjs",
+    "test:auth": "node --test scripts/auth-smoke.test.mjs",
+    "deploy:check": "node scripts/deploy-preflight.mjs",
+    "test:deploy": "node --test scripts/deploy-preflight.test.mjs",
+    "test:history": "node --test scripts/archive-sampler.test.mjs",
+    "test:furan": "node --test scripts/furan-process.test.mjs",
+    "test:insights": "node --test scripts/lot-insights.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
-    "next": "15.5.27",
+    "next": "15.5.29",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "redis": "5.12.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -23,5 +32,10 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.32"
+    }
   }
 }

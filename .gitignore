@@ -1,7 +1,13 @@
 .next/
 node_modules/
-.env
-.env.local
+/.env*
+!/.env.example
 .vercel/
 *.log
 .DS_Store
+
+# Local ESP32 secrets, never commit
+firmware/**/config.h
+
+# Local-only development account database and shared operator thresholds
+.local-data/

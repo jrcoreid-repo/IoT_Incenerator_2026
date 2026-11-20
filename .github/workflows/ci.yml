@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [dashboard-v1]
+    branches: [dashboard-v1, design/minimal-operator-2026]
   pull_request:
-    branches: [main]
+    branches: [main, dashboard-v1]
 
 jobs:
   build:
@@ -18,5 +18,19 @@ jobs:
           node-version: 22
       - name: Install
         run: npm install
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Validate virtual sender
+        run: npm run test:sender
+      - name: Validate deploy configuration checker
+        run: npm run test:deploy
+      - name: Verify adaptive archive chart sampling
+        run: npm run test:history
+      - name: Test furan process idle gating
+        run: npm run test:furan
+      - name: Validate operator explanations
+        run: npm run test:insights
       - name: Build
         run: npm run build
+      - name: Verify protected routes and login
+        run: npm run test:auth
