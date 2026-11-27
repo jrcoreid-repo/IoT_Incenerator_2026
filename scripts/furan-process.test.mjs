@@ -69,13 +69,13 @@ test("209 ppm reaches published module alarm; nonzero flag is not proof of fault
   assert.equal(moduleExports.gasHealth(packet,true),"alarm");
   assert.equal(moduleExports.gasReading(packet,"co"),209);
   assert.equal(evaluateLoT(packet,null).furanIndex,80);
-  assert.ok(evaluateLoT(packet,null).rules.includes("FURAN_INPUT_FLAG_UNVERIFIED"));
+  assert.ok(!evaluateLoT(packet,null).rules.includes("FURAN_INPUT_FLAG_UNVERIFIED"));
   assert.equal(evaluateLoT({...packet,co:186,voc:72},null).furanIndex,57);
-  assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="GAS_FLAG_UNVERIFIED"));
+  assert.ok(!evaluateLoT(packet,null).events.some(x=>x.code==="GAS_FLAG_UNVERIFIED"));
   assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="CO_HIGH"));
   sensors.zeh100.flags=32;
   packet.co=10; packet.voc=20;
-  assert.equal(moduleExports.gasHealth(packet,true),"flag");
+  assert.equal(moduleExports.gasHealth(packet,true),"ready");
   assert.equal(moduleExports.gasReading(packet,"co"),10);
   sensors.zeh100.online=false;
   assert.equal(moduleExports.gasHealth(packet,true),"offline");
@@ -85,4 +85,16 @@ test("209 ppm reaches published module alarm; nonzero flag is not proof of fault
   assert.equal(moduleExports.gasHealth(packet,true),"warmup");
   assert.equal(moduleExports.gasReading(packet,"co"),null);
   assert.equal(evaluateLoT(packet,null).furanIndex,null);
+});
+
+test("all flag byte values leave raw data, alarm thresholds and LoT score unchanged", () => {
+  const sensors = {cwt:{online:true,errors:0},ebyte:{online:true,ch4Connected:true,ch5Connected:true,errors:0},zeh100:{online:true,dataValid:true,warmupLike:false,flags:0,errors:0}};
+  const packet = sample({furnace:95.4,stack:76,co:186,h2:40,voc:72,sensors});
+  const baseline = JSON.stringify(evaluateLoT(packet,null));
+  for (const flags of [null,...Array.from({length:256},(_,n)=>n)]) {
+    sensors.zeh100.flags=flags;
+    assert.equal(moduleExports.gasReading(packet,"co"),186);
+    assert.equal(moduleExports.gasHealth(packet,true),"ready");
+    assert.equal(JSON.stringify(evaluateLoT(packet,null)),baseline);
+  }
 });

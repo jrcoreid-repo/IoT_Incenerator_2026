@@ -1,5 +1,5 @@
 import type { Telemetry } from "./telemetry";
-import { gasReading, gasFlagUnverified, gasHealth, type LotResult, type Thresholds } from "./logic-tree";
+import { gasReading, type LotResult, type Thresholds } from "./logic-tree";
 
 // Informasi operator berbasis aturan, BUKAN sensor furan, prediksi laboratorium,
 // penilaian kesehatan paparan, atau sistem keselamatan pembakaran.
@@ -152,13 +152,6 @@ export function explainReadings(
       "Nilai yang kosong atau nol ketika modul belum siap tidak boleh dianggap gas benar-benar nol.",
       "Tunggu pembacaan ZEH100 valid dan periksa kabel RS485."));
     add("Pastikan ZEH100 selesai warm-up dan status dataValid sudah benar.");
-  } else if (gasFlagUnverified(current)) {
-    const alarm = gasHealth(current, true) === "alarm";
-    items.push(make("gas", "Gas CO dan VOC", alarm ? "ALARM / CEK FLAG" : "CEK FLAG", alarm ? "alert" : "attention",
-      "CO " + (num(co) ? fmt(co, " ppm") : "—") + "; VOC " + (num(voc) ? fmt(voc, " ppm") : "—") + ". Pembacaan mentah.",
-      "Flag modul belum dapat dibedakan sebagai alarm atau fault tanpa protokol vendor. Indeks proses tetap dihitung jika input tersedia, tetapi kualitas data perlu diverifikasi.",
-      "Ikuti SOP dan verifikasi LED serta flag pada /status. Jangan reset saat ada alarm."));
-    add("Verifikasi flag gas dan kondisi fisik Winsen.");
   } else if (!num(co) || !num(voc)) {
     items.push(make("gas", "Gas CO dan VOC", "DATA BELUM LENGKAP", "unknown",
       "CO atau VOC belum tersedia.",
@@ -200,8 +193,7 @@ export function explainReadings(
       !diag.ebyte.ch4Connected ? "probe CH4" : null,
       !diag.ebyte.ch5Connected ? "probe CH5" : null,
       !diag.zeh100.online ? "ZEH100" : null,
-      diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null,
-      gasFlagUnverified(current) ? "flag gas belum terverifikasi" : null
+      diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null
     ].filter((v): v is string => v !== null);
     items.push(make("sensors", "Kondisi sensor", missing.length ? "PERLU DICEK" : "SEMUA STATUS TERBACA",
       missing.length ? "attention" : "info",
@@ -209,7 +201,7 @@ export function explainReadings(
       "Error komunikasi sejak boot (kumulatif): CWT " + diag.cwt.errors + ", Ebyte " + diag.ebyte.errors +
         ", ZEH100 " + diag.zeh100.errors + ". Angka error tidak selalu berarti sensor sedang rusak.",
       missing.length ? "Periksa bagian yang disebut dan lihat apakah error terus bertambah." :
-        "Lanjutkan pemantauan. Status online sendiri belum membuktikan kalibrasi akurat."));
+        "Lanjutkan pemantauan. Status online hanya berarti komunikasi/data tersedia, bukan verifikasi kalibrasi atau kondisi internal modul gas."));
     if (missing.length) add("Cek status sensor melalui /status pada JRAIoT.");
   } else {
     items.push(make("sensors", "Kondisi sensor", "DETAIL BELUM TERSEDIA", "unknown",
@@ -220,8 +212,8 @@ export function explainReadings(
 
   // 7. Furan score is an experimental process index, never a measurement.
   items.push(make("furan", "Indikator proses furan",
-    lot.furanIndex === null ? "TIDAK DINILAI" : gasFlagUnverified(current) ? "INDEKS SEMENTARA" : "INDEKS EKSPERIMEN",
-    lot.furanIndex === null ? "unknown" : gasFlagUnverified(current) || lot.furanIndex >= thresholds.riskWarning ? "attention" : "info",
+    lot.furanIndex === null ? "TIDAK DINILAI" : "INDEKS EKSPERIMEN",
+    lot.furanIndex === null ? "unknown" : lot.furanIndex >= thresholds.riskWarning ? "attention" : "info",
     lot.furanIndex === null
       ? idle ? "Tungku belum menunjukkan suhu pembakaran, jadi sistem sengaja tidak memberi skor furan."
         : "Parameter belum mencukupi untuk menghitung indikator proses."

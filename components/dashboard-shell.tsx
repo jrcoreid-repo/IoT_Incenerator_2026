@@ -7,7 +7,7 @@ import IncineratorVisual from "@/components/incinerator-visual";
 import VisionMonitor from "@/components/vision-monitor";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
-import { DEFAULT_THRESHOLDS, evaluateLoT, gasReading, gasHealth, gasFlagUnverified, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
+import { DEFAULT_THRESHOLDS, evaluateLoT, gasReading, gasHealth, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 import { explainReadings } from "@/lib/lot-insights";
 
 type TabId = "beranda" | "riwayat" | "ai" | "vision" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
@@ -376,7 +376,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const display = (key: SensorKey, digits = 1) => formatNumber(key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) : latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) !== null : latest?.[key] != null);
   const gasState = gasHealth(latest, fresh);
-  const gasStateLabel = gasState === "alarm" ? "ALARM" : gasState === "flag" ? "CEK FLAG" : gasState === "offline" ? "OFFLINE" : gasState === "warmup" ? "WARMING UP" : gasState === "waiting" ? "BELUM SIAP" : gasState === "unknown" ? "BELUM TERKONFIRMASI" : "READY";
+  const gasStateLabel = gasState === "alarm" ? "ALARM" : gasState === "offline" ? "OFFLINE" : gasState === "warmup" ? "WARMING UP" : gasState === "waiting" ? "BELUM SIAP" : gasState === "unknown" ? "BELUM TERKONFIRMASI" : "DATA READY";
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
   const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : webIssue ? "GANGGUAN WEB · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
@@ -494,7 +494,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               </div>
               <div className="hero-side">
                 <div className="hero-mini"><span>Suhu tungku</span><strong>{display("furnace")} °C</strong></div>
-                <div className="hero-mini"><span>Gas CO{fresh && gasFlagUnverified(latest) ? " · DATA MENTAH" : ""}</span><strong>{display("co")} ppm</strong><small>{gasStateLabel}</small></div>
+                <div className="hero-mini"><span>Gas CO</span><strong>{display("co")} ppm</strong><small>{gasStateLabel}</small></div>
                 <div className="hero-time"><span>Data terakhir diterima</span><strong>{formatClock(latest?.receivedAt)}</strong></div>
               </div>
             </section>
@@ -522,7 +522,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                   <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : furanPaused ? "Pembakaran tidak aktif; indeks furan tidak dinilai" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>{offline || furanPaused ? "ANALISIS DIJEDA" : fresh && lot.furanIndex !== null && gasFlagUnverified(latest) ? "INDEKS SEMENTARA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : furanPaused ? "Tidak ada pembakaran aktif; bukan berarti emisi furan nol" : fresh && lot.furanIndex !== null && gasFlagUnverified(latest) ? "Flag gas belum terverifikasi; bukan pengukuran furan" : "Indikator proses dari suhu dan gas"}</span></div>
+                  <div className="prediction-note"><strong>{offline || furanPaused ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : furanPaused ? "Tidak ada pembakaran aktif; bukan berarti emisi furan nol" : "Indikator proses dari suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
@@ -635,7 +635,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             <div className="analysis-score-row">
               <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
               <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
-              <div><span>Indikator proses furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh && lot.furanIndex !== null ? formatNumber(lot.furanIndex,0) + " / 100" + (gasFlagUnverified(latest) ? " · SEMENTARA" : "") : "—"}</strong></div>
+              <div><span>Indikator proses furan</span><strong><span className={"status-label risk-" + risk.tone}>{risk.label}</span> {fresh && lot.furanIndex !== null ? formatNumber(lot.furanIndex,0) + " / 100" : "—"}</strong></div>
               <div><span>Parameter tersedia</span><strong>{lot.validSensorCount} / 8 PARAMETER</strong></div>
             </div>
             <div className="lot-report">

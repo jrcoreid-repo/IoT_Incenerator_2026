@@ -29,14 +29,10 @@ export type LotResult = {
 };
 
 export type GasKey = "co" | "h2" | "voc";
-export type GasHealth = "ready" | "warmup" | "waiting" | "alarm" | "flag" | "offline" | "unknown";
+export type GasHealth = "ready" | "warmup" | "waiting" | "alarm" | "offline" | "unknown";
 
-// Manufacturer publishes alarm thresholds, but the flag-byte protocol is not verified.
-// Never infer an internal failure from a nonzero byte or call these readings calibrated.
-export function gasFlagUnverified(data: Telemetry | null): boolean {
-  const z = data?.sensors?.zeh100;
-  return !!z && z.online && z.dataValid && (z.flags === null || z.flags !== 0);
-}
+// Use the received numeric gas readings for research monitoring. The undocumented
+// flag byte is retained in telemetry for diagnostics only, not interpreted here.
 export function gasReading(data: Telemetry | null, key: GasKey): number | null {
   const z = data?.sensors?.zeh100;
   if (!data || (z && (!z.online || !z.dataValid || z.warmupLike))) return null;
@@ -54,7 +50,6 @@ export function gasHealth(data: Telemetry | null, fresh: boolean): GasHealth {
     typeof value === "number" && Number.isFinite(value) && value >= limit;
   if (at(gasReading(data, "co"), 190) || at(gasReading(data, "h2"), 200) ||
       at(gasReading(data, "voc"), 200) || at(data?.gasModuleC, 65)) return "alarm";
-  if (gasFlagUnverified(data)) return "flag";
   return "ready";
 }
 
@@ -104,7 +99,6 @@ export function evaluateLoT(
   const stack = validProbe("ch4Connected") ? current.stack : null;
   const gasCo = gasReading(current, "co");
   const gasVoc = gasReading(current, "voc");
-  const gasFlagged = gasFlagUnverified(current);
   const previousProbeOk = !previous?.sensors ||
     (previous.sensors.ebyte.online && previous.sensors.ebyte.ch5Connected);
   const previousFurnace = previousProbeOk ? previous?.furnace ?? null : null;
@@ -126,11 +120,6 @@ export function evaluateLoT(
     process = "TIDAK AKTIF"; rules.push("FURNACE_IDLE");
   }
 
-  if (gasFlagged) {
-    warn("GAS_FLAG_UNVERIFIED", "Status gas perlu diverifikasi",
-      "Flag ZEH100 " + (diag?.zeh100.flags ?? "belum tersedia") + ": angka yang tampil adalah pembacaan mentah, bukan konfirmasi sensor sehat.", false,
-      "Periksa LED fisik dan flag di /status; jangan reset sensor saat ada alarm.");
-  }
   if (gasHealth(current, true) === "alarm") {
     warn("GAS_MODULE_ALARM_THRESHOLD", "Pembacaan mencapai ambang alarm modul",
       "CO, H₂, VOC atau suhu modul mencapai ambang alarm yang dipublikasikan Winsen; bukan batas aman paparan.", true,
@@ -193,9 +182,7 @@ export function evaluateLoT(
       rules.push("FURAN_PROCESS_IDLE");
     }
   } else if (numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
-    // Raw ZEH100 flags do not gate this experimental process score; readiness and
-    // numeric availability still do. Preserve the independent diagnostic warning.
-    if (gasFlagged) rules.push("FURAN_INPUT_FLAG_UNVERIFIED");
+    // The raw flag byte has no effect on the experimental index.
     let points = 8;
     if (furnace < thresholds.transitionTemp) { points += 26; rules.push("FURAN_T_LOW"); }
     else if (furnace < thresholds.activeTemp) { points += 18; rules.push("FURAN_T_TRANSITION"); }
