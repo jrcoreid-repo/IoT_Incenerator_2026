@@ -235,7 +235,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
       if (working) return;
       working = true;
       try {
-        const response = await fetch("/api/telemetry", { cache: "no-store", credentials: "same-origin" });
+        const response = await fetch("/api/telemetry", { cache: "no-store", credentials: "same-origin", signal: AbortSignal.timeout(12000) });
         if (response.status === 401) {
           window.location.replace("/login");
           return;
@@ -258,7 +258,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
       }
     }
     void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 5000);
+    const timer = window.setInterval(() => { if (active) setNow(Date.now()); void refresh(); }, 5000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
 
