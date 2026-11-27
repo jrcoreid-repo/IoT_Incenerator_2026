@@ -1661,3 +1661,14 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .vision-analysis-panel {padding:16px;}.vision-metric {min-height:122px;padding:13px 11px;}
   .vision-info-row {grid-template-columns:1fr;gap:12px;}.vision-info-card {padding:16px;}
 }
+
+.history-plot {min-width:0;}
+.history-chart {height:clamp(270px,31vw,390px);min-width:0;}
+.history-gas-controls {display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;}
+.history-plot-switch {display:inline-flex;border:1px solid var(--grid);border-radius:12px;padding:3px;gap:3px;}
+.history-plot-switch button {font:inherit;font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:9px;padding:7px 12px;cursor:pointer;}
+.history-plot-switch button[aria-pressed="true"] {background:#216b4a;color:#fff;}
+.history-plot-switch button:focus-visible {outline:2px solid currentColor;outline-offset:2px;}
+.history-gas-controls p,.history-plot-note {font-size:12px;color:var(--muted);line-height:1.5;margin:0;}
+.history-plot-note {margin-bottom:10px;}
+@media(max-width:600px){.history-chart{height:280px;}.history-gas-controls{gap:8px;}.history-chart .recharts-cartesian-axis-tick-value{font-size:9px;}}

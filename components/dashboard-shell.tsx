@@ -5,7 +5,8 @@ import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, Camera, Cloud, 
 import UserManagement from "@/components/user-management";
 import IncineratorVisual from "@/components/incinerator-visual";
 import VisionMonitor from "@/components/vision-monitor";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { gasTrends, plotBreak, plotGapLimit } from "@/lib/history-plot";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, gasReading, gasHealth, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 import { explainReadings } from "@/lib/lot-insights";
@@ -77,6 +78,13 @@ function readableRule(rule: string) {
 function formatNumber(value: number | null | undefined, digits = 1) {
   return value === null || value === undefined || !Number.isFinite(value) ? "—" :
     value.toLocaleString("id-ID", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function historyTick(value: number) {
+  const date=new Date(value);
+  return date.toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit"})+" "+date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false});
+}
+function historyTooltipTime(value: unknown) {
+  return new Date(Number(value)).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"medium"});
 }
 function formatClock(iso: string | undefined) {
   if (!iso) return "—";
@@ -364,13 +372,16 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
   })), [history, thresholds]);
   const showChart = history.length >= 2;
-  const archiveChartData = useMemo(() => archiveHistory.map((item, index, items) => ({
-    ...item,
-    waktu: new Date(item.receivedAt).toLocaleString("id-ID", {
-      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
-    }),
-    furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
-  })), [archiveHistory, thresholds]);
+  const [smoothGas,setSmoothGas]=useState(true);
+  const archiveChartData = useMemo(() => {
+    const limit=plotGapLimit(archiveHistory), trends=gasTrends(archiveHistory,limit);
+    const points=archiveHistory.map((item,index,items)=>({...item,...trends[index],furanIndex:evaluateLoT(item,index?items[index-1]:null,thresholds).furanIndex}));
+    return points.flatMap((point,i)=>{
+      const prev=points[i-1];
+      if(!prev || !plotBreak(prev,point,limit) || point.timeMs<=prev.timeMs) return [point];
+      return [{...point,timeMs:prev.timeMs+(point.timeMs-prev.timeMs)/2,furnace:null,stack:null,ambient:null,humidity:null,gasModuleC:null,co:null,h2:null,voc:null,coTrend:null,h2Trend:null,vocTrend:null,smoke:null,furanIndex:null},point];
+    });
+  },[archiveHistory,thresholds]);
   const showArchiveChart = archiveHistory.length >= 1;
   const archiveSingleDot = archiveHistory.length === 1 ? { r: 5, strokeWidth: 2 } : false;
   const display = (key: SensorKey, digits = 1) => formatNumber(key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) : latest?.[key], digits);
@@ -605,29 +616,48 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             </div>
             <div className="archive-meta">
               <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
-              <span>Grafik: {archiveSampled ? "data diringkas (perkiraan tiap " + archiveBucketSeconds + " detik)" : "semua rekaman asli tiap 10 detik"} · maksimal 300 titik</span>
+              <span>Grafik: {archiveSampled ? "sampel rekaman asli (stride perkiraan " + archiveBucketSeconds + " detik)" : "semua rekaman asli"} · maksimal 300 sampel · CSV tetap lengkap</span>
             </div>
             {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
           </div>
-          <div className="panel full-span"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">{archiveHistory.length} TITIK GRAFIK</span></div>
-            {showArchiveChart ? <div className="chart-large"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={24} /><YAxis /><Tooltip />
-              <Line type="monotone" dataKey="furnace" name="Suhu Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
-              <Line type="monotone" dataKey="stack" name="Suhu Cerobong" stroke="#c2dd94" strokeWidth={2.2} dot={archiveSingleDot} isAnimationActive={false} />
-            </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rangkaian data untuk ditampilkan.</p>}
-          </div>
-          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div></div>
-            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis /><Tooltip />
-              <Line type="monotone" dataKey="co" name="CO" stroke="#f4b16c" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
-              <Line type="monotone" dataKey="h2" name="H₂" stroke="#a4aee9" strokeWidth={2} dot={archiveSingleDot} isAnimationActive={false} />
-              <Line type="monotone" dataKey="voc" name="VOC" stroke="#65cbb4" strokeWidth={2.3} dot={archiveSingleDot} isAnimationActive={false} />
-            </LineChart></ResponsiveContainer></div> : <p className="no-data">Menunggu data sensor gas.</p>}
-          </div>
-          <div className="panel"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div></div>
-            {showArchiveChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={25} /><YAxis domain={[0,100]} /><Tooltip />
-              <Line type="monotone" dataKey="furanIndex" name="Skor prediksi (0–100)" stroke="#a1df8e" strokeWidth={2.7} dot={archiveSingleDot} isAnimationActive={false} />
-            </LineChart></ResponsiveContainer></div> : <p className="no-data">Indeks akan dihitung setelah suhu, CO, dan VOC tersedia.</p>}
-          </div>
-        </section>}
+          <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">°C</span></div>
+             
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+               <Line type="linear" dataKey="furnace" name="Tungku" stroke="#279b72" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey="stack" name="Cerobong" stroke="#a4a945" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
+           </div>
+           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div><span className="chip">ppm</span></div>
+             <div className="history-gas-controls"><div className="history-plot-switch" role="group" aria-label="Mode grafik gas">
+               <button type="button" aria-pressed={smoothGas} onClick={() => setSmoothGas(true)}>Tren halus</button>
+               <button type="button" aria-pressed={!smoothGas} onClick={() => setSmoothGas(false)}>Raw</button>
+             </div><p>{smoothGas ? "Rata-rata berbobot 5 titik grafik (1:2:3:2:1). Puncak dapat teredam; hanya visualisasi." : "Nilai sampel asli tanpa filter; CSV memuat seluruh rekaman."}</p></div>
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,"auto"]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+               <Line type="linear" dataKey={smoothGas ? "coTrend" : "co"} name="CO" stroke="#d98235" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey={smoothGas ? "h2Trend" : "h2"} name="H₂" stroke="#777acb" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey={smoothGas ? "vocTrend" : "voc"} name="VOC" stroke="#169f91" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
+           </div>
+           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Suhu lingkungan dan modul Winsen</h2></div><span className="chip">°C</span></div>
+             <p className="history-plot-note">Data asli tanpa filter. Suhu modul hanya tampil pada rekaman yang menyediakannya.</p>
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+               <Line type="linear" dataKey="ambient" name="Lingkungan" stroke="#258f74" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey="gasModuleC" name="Modul Winsen" stroke="#d98235" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
+           </div>
+           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Kelembapan lingkungan</h2></div><span className="chip">% RH</span></div>
+             
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+               <Line type="linear" dataKey="humidity" name="Kelembapan" stroke="#448bb8" unit=" %" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
+           </div>
+           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div><span className="chip">0–100</span></div>
+             <p className="history-plot-note">Indikator eksperimental dari data asli; bukan pengukuran furan.</p>
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+               <Line type="linear" dataKey="furanIndex" name="Indeks proses" stroke="#7d9d49" unit="" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+             </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
+           </div>
+           </section>}
 
         {tab === "ai" && <section className="page-grid">
           <div className="panel full-span ai-analysis">
