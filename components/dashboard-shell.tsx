@@ -372,7 +372,6 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
     furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
   })), [history, thresholds]);
   const showChart = history.length >= 2;
-  const [smoothGas,setSmoothGas]=useState(true);
   const archiveChartData = useMemo(() => {
     const limit=plotGapLimit(archiveHistory), trends=gasTrends(archiveHistory,limit);
     const points=archiveHistory.map((item,index,items)=>({...item,...trends[index],furanIndex:evaluateLoT(item,index?items[index-1]:null,thresholds).furanIndex}));
@@ -512,7 +511,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} connectionIssue={webIssue} />
             <section className="panel full-span lot-overview" aria-label="Penjelasan sederhana keadaan alat">
               <div className="lot-overview-copy">
-                <p className="section-kicker">ARTI PEMBACAAN SEKARANG</p>
+                <p className="section-kicker">JrAI Model · ARTI PEMBACAAN SEKARANG</p>
                 <h2>{operatorReport.headline}</h2>
                 <p>{operatorReport.subheading}</p>
               </div>
@@ -628,14 +627,11 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div><span className="chip">ppm</span></div>
-             <div className="history-gas-controls"><div className="history-plot-switch" role="group" aria-label="Mode grafik gas">
-               <button type="button" aria-pressed={smoothGas} onClick={() => setSmoothGas(true)}>Tren halus</button>
-               <button type="button" aria-pressed={!smoothGas} onClick={() => setSmoothGas(false)}>Raw</button>
-             </div><p>{smoothGas ? "Rata-rata berbobot 5 titik grafik (1:2:3:2:1). Puncak dapat teredam; hanya visualisasi." : "Nilai sampel asli tanpa filter; CSV memuat seluruh rekaman."}</p></div>
+             <p className="history-plot-note">Tren gas diperhalus untuk visualisasi; puncak sesaat dapat teredam. Data asli tersedia di CSV.</p>
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,"auto"]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
-               <Line type="linear" dataKey={smoothGas ? "coTrend" : "co"} name="CO" stroke="#d98235" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
-<Line type="linear" dataKey={smoothGas ? "h2Trend" : "h2"} name="H₂" stroke="#777acb" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
-<Line type="linear" dataKey={smoothGas ? "vocTrend" : "voc"} name="VOC" stroke="#169f91" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+               <Line type="linear" dataKey="coTrend" name="CO" stroke="#d98235" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey="h2Trend" name="H₂" stroke="#777acb" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="linear" dataKey="vocTrend" name="VOC" stroke="#169f91" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Suhu lingkungan dan modul Winsen</h2></div><span className="chip">°C</span></div>
@@ -651,7 +647,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                <Line type="linear" dataKey="humidity" name="Kelembapan" stroke="#448bb8" unit=" %" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
-           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Analisis AI</p><h2>Prediksi risiko furan</h2></div><span className="chip">0–100</span></div>
+           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">JrAI Model</p><h2>Prediksi risiko furan</h2></div><span className="chip">0–100</span></div>
              <p className="history-plot-note">Indikator eksperimental dari data asli; bukan pengukuran furan.</p>
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="furanIndex" name="Indeks proses" stroke="#7d9d49" unit="" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
@@ -661,7 +657,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
 
         {tab === "ai" && <section className="page-grid">
           <div className="panel full-span ai-analysis">
-            <div className="panel-heading"><div><p className="section-kicker">PERKIRAAN KONDISI</p><h2>Analisis pembakaran</h2></div><BrainCircuit size={24} /></div>
+            <div className="panel-heading"><div><p className="section-kicker">JrAI Model</p><h2>Analisis pembakaran</h2></div><BrainCircuit size={24} /></div>
             <div className="analysis-score-row">
               <div><span>Status pembakaran</span><strong className={"process-text process-" + burnTone}>{burnLabel}</strong></div>
               <div><span>Status pemantauan</span><strong className={"status-label risk-" + monitoring.tone}>{monitoring.label}</strong></div>
@@ -700,7 +696,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <h3>Kondisi yang terdeteksi</h3>
               <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{readableRule(rule)}</span>)}</div>
             </div>
-            <div className="prototype-note">LoT adalah penjelasan berdasarkan aturan dan data sensor. Skor proses furan masih percobaan: bukan kadar furan, bukan persentase kemungkinan emisi, dan bukan keputusan aman atau berbahaya. Evaluasi emisi resmi memerlukan pengukuran sesuai metode laboratorium.</div>
+            <div className="prototype-note">JrAI Model adalah model analisis berbasis aturan dan data sensor. Skor proses furan masih percobaan: bukan kadar furan, bukan persentase kemungkinan emisi, dan bukan keputusan aman atau berbahaya. Evaluasi emisi resmi memerlukan pengukuran sesuai metode laboratorium.</div>
           </div>
         </section>}
 

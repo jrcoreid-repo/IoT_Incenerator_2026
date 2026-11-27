@@ -165,7 +165,7 @@ export function evaluateLoT(
     warn("STACK_TEMP_ANOMALY", "Perbandingan suhu tidak biasa", "Suhu cerobong melebihi suhu tungku secara signifikan.", false, "Periksa posisi sensor suhu dan sambungan kabelnya.");
   }
 
-  // LoT is an experimental combustion-process indicator, NOT a furan
+  // JrAI Model is an experimental rule-based combustion-process indicator, NOT a furan
   // concentration estimate or an emission-safety assessment.
   // Do not assign penalty points to ambient-temperature idle equipment:
   // no active combustion means no meaningful in-process furan score.
