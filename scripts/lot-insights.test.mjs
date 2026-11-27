@@ -113,10 +113,11 @@ test("idle hot chimney is not classified as safe furan emission", () => {
   assert.match(byId(info,"furan").explanation,/bukan kadar furan/i);
 });
 
-test("unverified gas flags cannot be presented as healthy or produce a furan score", () => {
+test("unverified gas flags preserve the provisional furan score and diagnostic warning", () => {
   const sensors=readySensors(); sensors.zeh100.flags=1;
   const {lot,info}=report(sample({furnace:95.4,co:209,voc:200,sensors}));
-  assert.equal(lot.furanIndex,null);
+  assert.equal(lot.furanIndex,80);
+  assert.equal(byId(info,"furan").status,"INDEKS SEMENTARA");
   assert.equal(byId(info,"gas").status,"ALARM / CEK FLAG");
   assert.equal(byId(info,"sensors").status,"PERLU DICEK");
 });

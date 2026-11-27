@@ -156,7 +156,7 @@ export function explainReadings(
     const alarm = gasHealth(current, true) === "alarm";
     items.push(make("gas", "Gas CO dan VOC", alarm ? "ALARM / CEK FLAG" : "CEK FLAG", alarm ? "alert" : "attention",
       "CO " + (num(co) ? fmt(co, " ppm") : "—") + "; VOC " + (num(voc) ? fmt(voc, " ppm") : "—") + ". Pembacaan mentah.",
-      "Flag modul belum dapat dibedakan sebagai alarm atau fault tanpa protokol vendor. Indeks furan tidak dihitung.",
+      "Flag modul belum dapat dibedakan sebagai alarm atau fault tanpa protokol vendor. Indeks proses tetap dihitung jika input tersedia, tetapi kualitas data perlu diverifikasi.",
       "Ikuti SOP dan verifikasi LED serta flag pada /status. Jangan reset saat ada alarm."));
     add("Verifikasi flag gas dan kondisi fisik Winsen.");
   } else if (!num(co) || !num(voc)) {
@@ -220,8 +220,8 @@ export function explainReadings(
 
   // 7. Furan score is an experimental process index, never a measurement.
   items.push(make("furan", "Indikator proses furan",
-    lot.furanIndex === null ? "TIDAK DINILAI" : "INDEKS EKSPERIMEN",
-    lot.furanIndex === null ? "unknown" : lot.furanIndex >= thresholds.riskWarning ? "attention" : "info",
+    lot.furanIndex === null ? "TIDAK DINILAI" : gasFlagUnverified(current) ? "INDEKS SEMENTARA" : "INDEKS EKSPERIMEN",
+    lot.furanIndex === null ? "unknown" : gasFlagUnverified(current) || lot.furanIndex >= thresholds.riskWarning ? "attention" : "info",
     lot.furanIndex === null
       ? idle ? "Tungku belum menunjukkan suhu pembakaran, jadi sistem sengaja tidak memberi skor furan."
         : "Parameter belum mencukupi untuk menghitung indikator proses."

@@ -192,7 +192,10 @@ export function evaluateLoT(
     } else {
       rules.push("FURAN_PROCESS_IDLE");
     }
-  } else if (!gasFlagged && numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
+  } else if (numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
+    // Raw ZEH100 flags do not gate this experimental process score; readiness and
+    // numeric availability still do. Preserve the independent diagnostic warning.
+    if (gasFlagged) rules.push("FURAN_INPUT_FLAG_UNVERIFIED");
     let points = 8;
     if (furnace < thresholds.transitionTemp) { points += 26; rules.push("FURAN_T_LOW"); }
     else if (furnace < thresholds.activeTemp) { points += 18; rules.push("FURAN_T_TRANSITION"); }

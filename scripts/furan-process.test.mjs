@@ -68,7 +68,9 @@ test("209 ppm reaches published module alarm; nonzero flag is not proof of fault
   const packet = sample({furnace:95.4,stack:75.2,co:209,h2:10,voc:200,sensors});
   assert.equal(moduleExports.gasHealth(packet,true),"alarm");
   assert.equal(moduleExports.gasReading(packet,"co"),209);
-  assert.equal(evaluateLoT(packet,null).furanIndex,null);
+  assert.equal(evaluateLoT(packet,null).furanIndex,80);
+  assert.ok(evaluateLoT(packet,null).rules.includes("FURAN_INPUT_FLAG_UNVERIFIED"));
+  assert.equal(evaluateLoT({...packet,co:186,voc:72},null).furanIndex,57);
   assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="GAS_FLAG_UNVERIFIED"));
   assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="CO_HIGH"));
   sensors.zeh100.flags=32;
@@ -78,7 +80,9 @@ test("209 ppm reaches published module alarm; nonzero flag is not proof of fault
   sensors.zeh100.online=false;
   assert.equal(moduleExports.gasHealth(packet,true),"offline");
   assert.equal(moduleExports.gasReading(packet,"co"),null);
+  assert.equal(evaluateLoT(packet,null).furanIndex,null);
   sensors.zeh100.online=true; sensors.zeh100.dataValid=false; sensors.zeh100.warmupLike=true;
   assert.equal(moduleExports.gasHealth(packet,true),"warmup");
   assert.equal(moduleExports.gasReading(packet,"co"),null);
+  assert.equal(evaluateLoT(packet,null).furanIndex,null);
 });

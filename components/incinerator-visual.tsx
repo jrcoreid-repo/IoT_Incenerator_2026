@@ -131,7 +131,7 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
           <MobileStatus health={ch4} name="SUHU"/>
         </div>
         <div className="inc-mobile-furan">
-          <div className="inc-mobile-furan-row"><span>{riskPaused && fresh ? "FURAN · ANALISIS DIJEDA" : "PREDIKSI RISIKO FURAN"}</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>{riskPaused && fresh ? "" : "/100"}</i></strong></div>
+          <div className="inc-mobile-furan-row"><span>{riskPaused && fresh ? "FURAN · ANALISIS DIJEDA" : fresh && riskIndex !== null && gasFlagUnverified(latest) ? "INDEKS FURAN · SEMENTARA" : "PREDIKSI RISIKO FURAN"}</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>{riskPaused && fresh ? "" : "/100"}</i></strong></div>
           <div className="inc-mobile-furan-track"><span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/></div>
         </div>
       </div>
@@ -236,7 +236,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
           <div className="inc-furan-bar" role="meter" aria-label="Indeks risiko furan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) : undefined}>
             <span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/>
           </div>
-          <div className="inc-furan-subtitle">{!fresh ? "Menunggu data sensor terbaru" : riskPaused ? "Pembakaran tidak aktif · analisis tidak dinilai" : riskIndex === null ? "Belum tersedia · parameter belum lengkap" : "Indikator proses, bukan pengukuran furan langsung"}</div>
+          <div className="inc-furan-subtitle">{!fresh ? "Menunggu data sensor terbaru" : riskPaused ? "Pembakaran tidak aktif · analisis tidak dinilai" : riskIndex === null ? "Belum tersedia · parameter belum lengkap" : gasFlagUnverified(latest) ? "Indeks sementara · flag gas belum terverifikasi" : "Indikator proses, bukan pengukuran furan langsung"}</div>
         </div>
         <div className="inc-gas-device-temperature" aria-label="Suhu pada sensor gas">
           <div className="inc-gas-device-temperature-label"><Thermometer size={15} aria-hidden="true"/><span>SUHU SENSOR GAS</span></div>
@@ -245,7 +245,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
       </Panel>
     </div>
     {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex} riskPaused={riskPaused}/>}
-    {fresh && gasFlagUnverified(latest) && <p className="inc-visual-note inc-gas-flag-note" role="alert">* Flag ZEH100: {latest?.sensors?.zeh100.flags ?? "belum tersedia"}. Angka gas adalah data mentah; status alarm/fault internal belum terverifikasi. Indeks furan dijeda; cek LED dan /status.</p>}
+    {fresh && gasFlagUnverified(latest) && <p className="inc-visual-note inc-gas-flag-note" role="alert">* Flag ZEH100: {latest?.sensors?.zeh100.flags ?? "belum tersedia"}. Angka gas adalah data mentah; status alarm/fault internal belum terverifikasi. Indeks proses tetap dihitung bila input tersedia, tetapi bersifat sementara; cek LED dan /status.</p>}
     <p className="inc-visual-note">Status menunjukkan kondisi sensor dari perangkat. Prediksi risiko furan adalah perkiraan dari suhu dan gas, bukan hasil pengukuran langsung.</p>
   </section>;
 }
