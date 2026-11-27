@@ -131,7 +131,7 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
           <MobileStatus health={ch4} name="SUHU"/>
         </div>
         <div className="inc-mobile-furan">
-          <div className="inc-mobile-furan-row"><span>{riskPaused && fresh ? "FURAN · ANALISIS DIJEDA" : "PREDIKSI RISIKO FURAN"}</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>{riskPaused && fresh ? "" : "/100"}</i></strong></div>
+          <div className="inc-mobile-furan-row"><span>{riskPaused && fresh ? "TIDAK MEMBAKAR · ANALISIS DIJEDA" : "PREDIKSI RISIKO FURAN"}</span><strong>{fresh ? readable(riskIndex, 0) : "—"}<i>{riskIndex === null || !fresh ? "" : "/100"}</i></strong></div>
           <div className="inc-mobile-furan-track"><span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/></div>
         </div>
       </div>
@@ -231,12 +231,12 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
           <Status health={gasHealth} gas/>
         </div>
         <div className="inc-furan-prediction" aria-label="Prediksi risiko furan dari analisis suhu dan gas">
-          <div className="inc-furan-topline"><span>PREDIKSI RISIKO FURAN</span></div>
-          <div className="inc-furan-score">{fresh ? readable(riskIndex, 0) : "—"}<small>/100</small></div>
+          <div className="inc-furan-topline"><span>{fresh && riskPaused ? "TIDAK MEMBAKAR · ANALISIS DIJEDA" : "PREDIKSI RISIKO FURAN"}</span></div>
+          <div className="inc-furan-score">{fresh ? readable(riskIndex, 0) : "—"}<small>{fresh && riskIndex !== null ? "/100" : ""}</small></div>
           <div className="inc-furan-bar" role="meter" aria-label="Indeks risiko furan" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) : undefined}>
             <span style={{width: fresh && riskIndex !== null ? Math.max(0, Math.min(100, riskIndex)) + "%" : "0%"}}/>
           </div>
-          <div className="inc-furan-subtitle">{!fresh ? "Menunggu data sensor terbaru" : riskPaused ? "Pembakaran tidak aktif · analisis tidak dinilai" : riskIndex === null ? "Belum tersedia · parameter belum lengkap" : "Indikator proses, bukan pengukuran furan langsung"}</div>
+          <div className="inc-furan-subtitle">{!fresh ? "Menunggu data sensor terbaru" : riskPaused ? "Suhu di bawah ambang transisi · bukan berarti emisi furan nol" : riskIndex === null ? "Belum tersedia · parameter belum lengkap" : "Indikator proses, bukan pengukuran furan langsung"}</div>
         </div>
         <div className="inc-gas-device-temperature" aria-label="Suhu pada sensor gas">
           <div className="inc-gas-device-temperature-label"><Thermometer size={15} aria-hidden="true"/><span>SUHU SENSOR GAS</span></div>

@@ -111,7 +111,7 @@ type StatusTone = "safe" | "caution" | "danger" | "critical" | "muted";
 // Warna menunjukkan kondisi indikator internal, bukan hasil uji emisi lingkungan.
 function riskPresentation(index: number | null, fresh: boolean, paused = false): { label: string; tone: StatusTone } {
   if (!fresh) return { label: "BELUM TERSEDIA", tone: "muted" };
-  if (paused) return { label: "TIDAK DINILAI", tone: "muted" };
+  if (paused) return { label: "TIDAK MEMBAKAR", tone: "muted" };
   if (index === null) return { label: "BELUM TERSEDIA", tone: "muted" };
   if (index < 25) return { label: "NORMAL", tone: "safe" };
   if (index < 50) return { label: "WASPADA", tone: "caution" };
@@ -522,7 +522,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                   <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : furanPaused ? "Pembakaran tidak aktif; indeks furan tidak dinilai" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>{offline || furanPaused ? "ANALISIS DIJEDA" : "HASIL PEMANTAUAN"}</strong><span>{offline ? "Menunggu data sensor terbaru" : furanPaused ? "Tidak ada pembakaran aktif; bukan berarti emisi furan nol" : "Indikator proses dari suhu dan gas"}</span></div>
+                  <div className="prediction-note"><strong>{!fresh ? "ANALISIS DIJEDA" : furanPaused ? "TIDAK MEMBAKAR · ANALISIS DIJEDA" : lot.furanIndex === null ? "DATA BELUM LENGKAP" : "HASIL PEMANTAUAN"}</strong><span>{!fresh ? "Menunggu data sensor terbaru" : furanPaused ? "Suhu tungku di bawah ambang transisi; bukan berarti emisi furan nol" : lot.furanIndex === null ? "Menunggu suhu tungku, CO, dan VOC" : "Indikator proses dari suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
