@@ -51,7 +51,7 @@ test("long sessions stay within 300 chart points and include newest record", () 
 
 const plotSource = readFileSync(new URL("../lib/history-plot.ts",import.meta.url),"utf8");
 const plotJs = ts.transpileModule(plotSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
-const {gasTrends,plotBreak,plotGapLimit} = await import("data:text/javascript;base64,"+Buffer.from(plotJs).toString("base64"));
+const {gasTrends,seriesTrends,buildTrendPlot,plotBreak,plotGapLimit} = await import("data:text/javascript;base64,"+Buffer.from(plotJs).toString("base64"));
 const gasPoint = (i,co,deviceId="A") => ({receivedAt:new Date(1794232800000+i*10000).toISOString(),deviceId,co,h2:co,voc:co});
 test("gas chart filter is weighted, bounded, and does not modify raw readings",()=>{
   const data=[0,10,30,10,0].map((v,i)=>gasPoint(i,v));
@@ -68,4 +68,29 @@ test("gas chart filter does not cross missing values, time gaps, or device chang
   assert.ok(plotBreak(data[2],data[3],60000));
   assert.deepEqual(gasTrends(data,60000).map(p=>p.coTrend),[10,null,90,0,100]);
   assert.equal(gasTrends([gasPoint(0,42)])[0].coTrend,42);
+});
+
+test("all plotted channels use the same weighted filter without changing raw inputs",()=>{
+  const raw=[0,10,30,10,0].map((v,i)=>({...gasPoint(i,v),furnace:100+v,stack:50+v,ambient:20+v,humidity:60+v,furanIndex:v}));
+  const before=JSON.stringify(raw), p=seriesTrends(raw)[2];
+  for(const [key,base] of Object.entries({coTrend:0,h2Trend:0,vocTrend:0,furnaceTrend:100,stackTrend:50,ambientTrend:20,humidityTrend:60,furanTrend:0})){
+    assert.ok(Math.abs(p[key]-(base+130/9))<1e-10);
+  }
+  assert.equal(JSON.stringify(raw),before);
+});
+test("furan pause and individual missing sensor values stay null; time gaps break all plotted lines",()=>{
+  const data=[
+    {...gasPoint(0,1),furnace:100,ambient:30,humidity:70,furanIndex:80},
+    {...gasPoint(1,2),furnace:110,ambient:null,humidity:71,furanIndex:null},
+    {...gasPoint(2,3),furnace:120,ambient:35,humidity:72,furanIndex:20},
+    {...gasPoint(100,4),furnace:200,ambient:40,humidity:80,furanIndex:90}
+  ];
+  const trends=seriesTrends(data,60000);
+  assert.deepEqual(trends.map(p=>p.furanTrend),[80,null,20,90]);
+  assert.deepEqual(trends.map(p=>p.ambientTrend),[30,null,35,40]);
+  const plotted=buildTrendPlot(data);
+  assert.equal(plotted.length,5);
+  for(const key of Object.keys(plotted[3]).filter(k=>k.endsWith("Trend")))assert.equal(plotted[3][key],null);
+  assert.equal(plotted[4].furnaceTrend,200);
+  assert.deepEqual(buildTrendPlot([]),[]);
 });

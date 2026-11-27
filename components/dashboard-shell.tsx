@@ -6,7 +6,7 @@ import UserManagement from "@/components/user-management";
 import IncineratorVisual from "@/components/incinerator-visual";
 import VisionMonitor from "@/components/vision-monitor";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { gasTrends, plotBreak, plotGapLimit } from "@/lib/history-plot";
+import { buildTrendPlot } from "@/lib/history-plot";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
 import { DEFAULT_THRESHOLDS, evaluateLoT, gasReading, gasHealth, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 import { explainReadings } from "@/lib/lot-insights";
@@ -370,20 +370,12 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const lot = useMemo(() => evaluateLoT(latest, previous, thresholds, fresh), [latest, previous, thresholds, fresh]);
   const operatorReport = useMemo(() => explainReadings(latest, previous, lot, thresholds, fresh),
     [latest, previous, lot, thresholds, fresh]);
-  const chartData = useMemo(() => history.slice(-120).map((item, index, items) => ({
-    ...item, waktu: new Date(item.receivedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-    furanIndex: evaluateLoT(item, index ? items[index - 1] : null, thresholds).furanIndex
-  })), [history, thresholds]);
+  const chartData = useMemo(() => buildTrendPlot(history.slice(-120)), [history]);
   const showChart = history.length >= 2;
-  const archiveChartData = useMemo(() => {
-    const limit=plotGapLimit(archiveHistory), trends=gasTrends(archiveHistory,limit);
-    const points=archiveHistory.map((item,index,items)=>({...item,...trends[index],furanIndex:evaluateLoT(item,index?items[index-1]:null,thresholds).furanIndex}));
-    return points.flatMap((point,i)=>{
-      const prev=points[i-1];
-      if(!prev || !plotBreak(prev,point,limit) || point.timeMs<=prev.timeMs) return [point];
-      return [{...point,timeMs:prev.timeMs+(point.timeMs-prev.timeMs)/2,furnace:null,stack:null,ambient:null,humidity:null,gasModuleC:null,co:null,h2:null,voc:null,coTrend:null,h2Trend:null,vocTrend:null,smoke:null,furanIndex:null},point];
-    });
-  },[archiveHistory,thresholds]);
+  const archiveChartData = useMemo(() => buildTrendPlot(archiveHistory.map((item,index,items)=>({
+    ...item,
+    furanIndex:evaluateLoT(item,index?items[index-1]:null,thresholds).furanIndex
+  }))),[archiveHistory,thresholds]);
   const showArchiveChart = archiveHistory.length >= 1;
   const archiveSingleDot = archiveHistory.length === 1 ? { r: 5, strokeWidth: 2 } : false;
   const display = (key: SensorKey, digits = 1) => formatNumber(key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) : latest?.[key], digits);
@@ -553,9 +545,9 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             <section className="panel chart-panel full-span">
               <div className="panel-heading"><div><p className="section-kicker">Grafik telemetry</p><h2>Tren suhu</h2></div><span className="chip">TEMPERATURE / °C</span></div>
               {showChart ? <div className="chart-wrap"><ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="waktu" minTickGap={28} /><YAxis /><Tooltip />
-                  <Line type="monotone" dataKey="furnace" name="Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={false} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="stack" name="Cerobong" stroke="#c2dd94" strokeWidth={2.3} dot={false} isAnimationActive={false} />
+                <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} /><YAxis /><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} />
+                  <Line type="monotone" dataKey="furnaceTrend" name="Tungku" stroke="#4ed7a2" strokeWidth={2.7} dot={false} connectNulls={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="stackTrend" name="Cerobong" stroke="#c2dd94" strokeWidth={2.3} dot={false} connectNulls={false} isAnimationActive={false} />
                 </LineChart></ResponsiveContainer></div> : <p className="no-data">Grafik akan tersedia setelah beberapa pembacaan diterima.</p>}
             </section>
             <section className="panel simple-alert-panel">
@@ -625,8 +617,8 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">°C</span></div>
              
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
-               <Line type="monotone" dataKey="furnace" name="Tungku" stroke="#279b72" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
-<Line type="monotone" dataKey="stack" name="Cerobong" stroke="#a4a945" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+               <Line type="monotone" dataKey="furnaceTrend" name="Tungku" stroke="#279b72" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+<Line type="monotone" dataKey="stackTrend" name="Cerobong" stroke="#a4a945" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>Tren CO, H₂, VOC</h2></div><span className="chip">ppm</span></div>
@@ -638,18 +630,18 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Suhu udara</h2></div><span className="chip">°C</span></div>
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
-               <Line type="monotone" dataKey="ambient" name="Suhu udara" stroke="#258f74" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+               <Line type="monotone" dataKey="ambientTrend" name="Suhu udara" stroke="#258f74" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Kelembapan lingkungan</h2></div><span className="chip">% RH</span></div>
              
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
-               <Line type="monotone" dataKey="humidity" name="Kelembapan" stroke="#448bb8" unit=" %" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+               <Line type="monotone" dataKey="humidityTrend" name="Kelembapan" stroke="#448bb8" unit=" %" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">JrAI Model</p><h2>Perkiraan risiko furan</h2></div><span className="chip">0–100</span></div>
              {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} formatter={historyGasValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
-               <Line type="monotone" dataKey="furanIndex" name="Indeks proses" stroke="#7d9d49" unit="" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
+               <Line type="monotone" dataKey="furanTrend" name="Indeks proses" stroke="#7d9d49" unit="" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            </section>}
