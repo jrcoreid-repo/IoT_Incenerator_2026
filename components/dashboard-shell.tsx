@@ -83,6 +83,13 @@ function historyTick(value: number) {
   const date=new Date(value);
   return date.toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit"})+" "+date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false});
 }
+// Round only presentation, never the samples or the analysis inputs.
+function historyGasValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 0) : "—";
+}
+function historyEnvironmentValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 1) : "—";
+}
 function historyTooltipTime(value: unknown) {
   return new Date(Number(value)).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"medium"});
 }
@@ -615,41 +622,41 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
             </div>
             <div className="archive-meta">
               <strong>{archiveBusy ? "Memuat..." : archiveTotal.toLocaleString("id-ID") + " REKAMAN"}</strong>
-              <span>Grafik: {archiveSampled ? "sampel rekaman asli (stride perkiraan " + archiveBucketSeconds + " detik)" : "semua rekaman asli"} · maksimal 300 sampel · CSV tetap lengkap</span>
+              <span>Grafik: {archiveSampled ? "sampel rekaman asli (stride perkiraan " + archiveBucketSeconds + " detik)" : "semua rekaman asli"} · maksimal 300 sampel · CSV tetap lengkap. Celah grafik menunjukkan data kosong atau jeda pengiriman yang terdeteksi.</span>
             </div>
             {(archiveError || archiveRange.error) && <p role="alert" className="user-feedback user-feedback-error">{archiveError || archiveRange.error}</p>}
           </div>
           <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Riwayat sensor</p><h2>Suhu pembakaran dan cerobong</h2></div><span className="chip">°C</span></div>
              
-             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="furnace" name="Tungku" stroke="#279b72" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
 <Line type="linear" dataKey="stack" name="Cerobong" stroke="#a4a945" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Parameter gas</p><h2>CO, H₂, VOC</h2></div><span className="chip">ppm</span></div>
              <p className="history-plot-note">Tren gas diperhalus untuk visualisasi; puncak sesaat dapat teredam. Data asli tersedia di CSV.</p>
-             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,"auto"]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,"auto"]}/><Tooltip labelFormatter={historyTooltipTime} formatter={historyGasValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="coTrend" name="CO" stroke="#d98235" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
 <Line type="linear" dataKey="h2Trend" name="H₂" stroke="#777acb" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
 <Line type="linear" dataKey="vocTrend" name="VOC" stroke="#169f91" unit=" ppm" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Suhu lingkungan dan modul Winsen</h2></div><span className="chip">°C</span></div>
-             <p className="history-plot-note">Data asli tanpa filter. Suhu modul hanya tampil pada rekaman yang menyediakannya.</p>
-             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+             <p className="history-plot-note">Data asli tanpa filter. Garis terputus saat data tidak tersedia atau terdeteksi jeda pengiriman.</p>
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} /><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="ambient" name="Lingkungan" stroke="#258f74" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
 <Line type="linear" dataKey="gasModuleC" name="Modul Winsen" stroke="#d98235" unit=" °C" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">Kondisi lingkungan</p><h2>Kelembapan lingkungan</h2></div><span className="chip">% RH</span></div>
              
-             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} formatter={historyEnvironmentValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="humidity" name="Kelembapan" stroke="#448bb8" unit=" %" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
            <div className="panel full-span history-plot"><div className="panel-heading"><div><p className="section-kicker">JrAI Model</p><h2>Prediksi risiko furan</h2></div><span className="chip">0–100</span></div>
              <p className="history-plot-note">Indikator eksperimental dari data asli; bukan pengukuran furan.</p>
-             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
+             {showArchiveChart ? <div className="chart-wrap history-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={archiveChartData} margin={{top:8,right:10,left:0,bottom:8}}><CartesianGrid strokeDasharray="3 5" vertical={false} /><XAxis type="number" dataKey="timeMs" domain={["dataMin","dataMax"]} tickCount={4} minTickGap={32} tickFormatter={historyTick} tickMargin={10} /><YAxis width={44} domain={[0,100]}/><Tooltip labelFormatter={historyTooltipTime} formatter={historyGasValue} /><Legend iconType="plainline" wrapperStyle={{fontSize:12,paddingTop:10}} />
                <Line type="linear" dataKey="furanIndex" name="Indeks proses" stroke="#7d9d49" unit="" strokeWidth={2.3} dot={archiveSingleDot} connectNulls={false} isAnimationActive={false} />
              </LineChart></ResponsiveContainer></div> : <p className="no-data">Belum ada rekaman untuk ditampilkan.</p>}
            </div>
