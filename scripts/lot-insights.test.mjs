@@ -5,17 +5,18 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
 // Run the actual TypeScript rule modules; their imports are type-only.
-const load = (path) => {
+const load = (path, deps = {}) => {
   const src = readFileSync(new URL(path, import.meta.url), "utf8");
   const js = ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText;
   const exports = {};
-  runInNewContext(js, { exports });
+  runInNewContext(js, { exports, require: name => { if (!(name in deps)) throw new Error(name); return deps[name]; } });
   return exports;
 };
-const { evaluateLoT, DEFAULT_THRESHOLDS } = load("../lib/logic-tree.ts");
-const { explainReadings } = load("../lib/lot-insights.ts");
+const logic = load("../lib/logic-tree.ts");
+const { evaluateLoT, DEFAULT_THRESHOLDS } = logic;
+const { explainReadings } = load("../lib/lot-insights.ts", { "./logic-tree": logic });
 const sample = (values = {}) => ({
   deviceId:"ADI-EG118-01", receivedAt: new Date().toISOString(),
   furnace:31.4, stack:30.7, ambient:29.6, humidity:69.4, co:0, h2:0, voc:0, smoke:null,
@@ -110,4 +111,12 @@ test("idle hot chimney is not classified as safe furan emission", () => {
   assert.equal(lot.furanIndex,null);
   assert.equal(byId(info,"stack").tone,"attention");
   assert.match(byId(info,"furan").explanation,/bukan kadar furan/i);
+});
+
+test("unverified gas flags cannot be presented as healthy or produce a furan score", () => {
+  const sensors=readySensors(); sensors.zeh100.flags=1;
+  const {lot,info}=report(sample({furnace:95.4,co:209,voc:200,sensors}));
+  assert.equal(lot.furanIndex,null);
+  assert.equal(byId(info,"gas").status,"ALARM / CEK FLAG");
+  assert.equal(byId(info,"sensors").status,"PERLU DICEK");
 });

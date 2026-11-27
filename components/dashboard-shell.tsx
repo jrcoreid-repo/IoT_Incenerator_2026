@@ -7,7 +7,7 @@ import IncineratorVisual from "@/components/incinerator-visual";
 import VisionMonitor from "@/components/vision-monitor";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Telemetry, TelemetryResponse, SensorKey } from "@/lib/telemetry";
-import { DEFAULT_THRESHOLDS, evaluateLoT, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
+import { DEFAULT_THRESHOLDS, evaluateLoT, gasReading, gasHealth, gasFlagUnverified, type Thresholds, type RuleEvent } from "@/lib/logic-tree";
 import { explainReadings } from "@/lib/lot-insights";
 
 type TabId = "beranda" | "riwayat" | "ai" | "vision" | "alarm" | "perangkat" | "pengaturan" | "pengguna";
@@ -82,7 +82,7 @@ function formatClock(iso: string | undefined) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "medium" });
 }
-const TELEMETRY_OFFLINE_AFTER_MS = 35_000; // Three missed reports at ESP32 10-second interval, with 5-second margin.
+const TELEMETRY_OFFLINE_AFTER_MS = 60_000; // Six nominal 10-second reporting intervals.
 type SensorTone = "furnace" | "stack" | "co" | "voc" | "ambient" | "humidity" | "h2" | "smoke";
 function MetricCard({ title, value, unit, icon: Icon, note, tone, offline = false }: {
   title: string; value: string; unit?: string; icon: typeof Home; note?: string; tone: SensorTone; offline?: boolean
@@ -352,8 +352,9 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   }, []);
 
   const ageMs = latest ? now - Date.parse(latest.receivedAt) : Infinity;
-  const fresh = !!latest && ageMs >= -5000 && ageMs <= TELEMETRY_OFFLINE_AFTER_MS && !apiError;
-  const offline = Boolean(apiError) || (!!latest && !fresh);
+  const fresh = !!latest && ageMs >= -5000 && ageMs <= TELEMETRY_OFFLINE_AFTER_MS;
+  const offline = !!latest && !fresh;
+  const webIssue = Boolean(apiError);
   const previous = history.length >= 2 ? history[history.length - 2] : null;
   const lot = useMemo(() => evaluateLoT(latest, previous, thresholds, fresh), [latest, previous, thresholds, fresh]);
   const operatorReport = useMemo(() => explainReadings(latest, previous, lot, thresholds, fresh),
@@ -372,17 +373,19 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   })), [archiveHistory, thresholds]);
   const showArchiveChart = archiveHistory.length >= 1;
   const archiveSingleDot = archiveHistory.length === 1 ? { r: 5, strokeWidth: 2 } : false;
-  const display = (key: SensorKey, digits = 1) => formatNumber(latest?.[key], digits);
-  const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => latest?.[key] !== null && latest?.[key] !== undefined);
+  const display = (key: SensorKey, digits = 1) => formatNumber(key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) : latest?.[key], digits);
+  const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) !== null : latest?.[key] != null);
+  const gasState = gasHealth(latest, fresh);
+  const gasStateLabel = gasState === "alarm" ? "ALARM" : gasState === "flag" ? "CEK FLAG" : gasState === "offline" ? "OFFLINE" : gasState === "warmup" ? "WARMING UP" : gasState === "waiting" ? "BELUM SIAP" : gasState === "unknown" ? "BELUM TERKONFIRMASI" : "READY";
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
-  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
+  const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : webIssue ? "GANGGUAN WEB · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
   // Status ini berbeda dari bahaya emisi yang dihitung terpisah.
   const hasFurnaceReading = fresh && latest?.furnace !== null && latest?.furnace !== undefined;
   const isBurning = hasFurnaceReading && latest?.furnace !== null && latest?.furnace !== undefined && latest.furnace >= thresholds.activeTemp;
-  const burnTone = offline ? "offline" : !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
-  const burnLabel = offline ? "OFFLINE — DATA TIDAK TERBARU" : !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
-  const burnDescription = offline
+  const burnTone = offline || webIssue ? "offline" : !hasFurnaceReading ? "unknown" : isBurning ? "burning" : "idle";
+  const burnLabel = offline ? "OFFLINE — DATA TIDAK TERBARU" : webIssue ? "GANGGUAN KONEKSI WEB" : !hasFurnaceReading ? "MENUNGGU DATA SUHU" : isBurning ? "SEDANG MEMBAKAR" : "TIDAK MEMBAKAR";
+  const burnDescription = offline || webIssue
     ? apiError
       ? "Koneksi ke server pemantauan terganggu. Nilai yang terlihat adalah data terakhir, bukan pembacaan langsung."
       : `Tidak ada data baru dari alat selama lebih dari ${TELEMETRY_OFFLINE_AFTER_MS / 1000} detik. Angka yang tampil adalah data terakhir, bukan pembacaan langsung.`
@@ -455,7 +458,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
           })}
         </nav>
         <div className="sidebar-footer">
-          <div className="mini-status"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</div>
+          <div className="mini-status"><span className={fresh && !webIssue ? "status-dot" : "offline-dot"} /> {connectionLabel}</div>
           <div className="account-role-meta"><ShieldCheck size={15} /><span>{isAdmin ? "ADMIN" : "USER · OPERATOR"}<small>{username}</small></span></div>
           <button className="logout-button" onClick={logout}><LogOut size={17} /> Keluar</button>
           {logoutError && <p className="logout-error" role="alert">{logoutError}</p>}
@@ -468,7 +471,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
           <div className="topbar-heading"><p className="topbar-overline">ADI SMART INCINERATOR <span>/</span> PEMANTAUAN LINGKUNGAN</p><h1>{visibleNavItems.find(item => item.id === tab)?.label}</h1></div>
           <div className="top-actions">
             <span className="account-role-chip" aria-label={"Hak akses: " + (isAdmin ? "Admin" : "Operator")}><ShieldCheck size={13}/>{isAdmin ? "ADMIN" : "USER / OPERATOR"}</span>
-            <span className="live-badge"><span className={fresh ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
+            <span className="live-badge"><span className={fresh && !webIssue ? "status-dot" : "offline-dot"} /> {connectionLabel}</span>
 
           </div>
         </header>
@@ -491,11 +494,11 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               </div>
               <div className="hero-side">
                 <div className="hero-mini"><span>Suhu tungku</span><strong>{display("furnace")} °C</strong></div>
-                <div className="hero-mini"><span>Gas CO</span><strong>{display("co")} ppm</strong></div>
+                <div className="hero-mini"><span>Gas CO{fresh && gasFlagUnverified(latest) ? " · DATA MENTAH" : ""}</span><strong>{display("co")} ppm</strong><small>{gasStateLabel}</small></div>
                 <div className="hero-time"><span>Data terakhir diterima</span><strong>{formatClock(latest?.receivedAt)}</strong></div>
               </div>
             </section>
-            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} />
+            <IncineratorVisual latest={latest} fresh={fresh} riskIndex={lot.furanIndex} riskPaused={furanPaused} connectionIssue={webIssue} />
             <section className="panel full-span lot-overview" aria-label="Penjelasan sederhana keadaan alat">
               <div className="lot-overview-copy">
                 <p className="section-kicker">ARTI PEMBACAAN SEKARANG</p>
@@ -551,7 +554,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <div className="device-grid">
                 <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : offline ? "OFFLINE" : "Menunggu koneksi"} />
                 <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
-                <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={sensorActive("co","voc","h2") ? "Pembacaan tersedia" : "Belum terbaca"} />
+                <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={gasStateLabel} />
                 <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Penyimpanan" active={storageReady} status={storageReady ? "Endpoint tersedia" : "Konfigurasi diperlukan"} />
               </div>
@@ -684,7 +687,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <div className="device-table-row header"><span>Perangkat</span><span>Antarmuka</span><span>Status</span><span>Data terakhir</span></div>
               <div className="device-table-row"><strong>{virtualSource ? "Pengirim virtual" : "Alat pengirim data"}</strong><span>Koneksi data internet</span><span>{fresh ? "Terhubung" : "Tidak terhubung"}</span><span>{formatClock(latest?.receivedAt)}</span></div>
               <div className="device-table-row"><strong>Suhu tungku &amp; cerobong</strong><span>Kabel sensor</span><span>{sensorActive("furnace","stack") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
-              <div className="device-table-row"><strong>Sensor gas</strong><span>Kabel sensor</span><span>{sensorActive("co","voc","h2") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
+              <div className="device-table-row"><strong>Sensor gas</strong><span>Kabel sensor</span><span>{gasStateLabel}</span><span>—</span></div>
               <div className="device-table-row"><strong>Sensor lingkungan</strong><span>Kabel sensor</span><span>{sensorActive("ambient","humidity") ? "Data tersedia" : "Belum terbaca"}</span><span>—</span></div>
               <div className="device-table-row"><strong>Penyimpanan data</strong><span>Server pemantauan</span><span>{storageReady ? "Siap" : "Belum dikonfigurasi"}</span><span>—</span></div>
             </div>

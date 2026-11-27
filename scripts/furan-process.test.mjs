@@ -62,3 +62,23 @@ test("stale data are never evaluated", () => {
   const res = evaluateLoT(sample({ furnace: 220, stack: 180 }), null, undefined, false);
   assert.equal(res.furanIndex, null);
 });
+
+test("209 ppm reaches published module alarm; nonzero flag is not proof of fault", () => {
+  const sensors = {cwt:{online:true,errors:0},ebyte:{online:true,ch4Connected:true,ch5Connected:true,errors:0},zeh100:{online:true,dataValid:true,warmupLike:false,flags:1,errors:0}};
+  const packet = sample({furnace:95.4,stack:75.2,co:209,h2:10,voc:200,sensors});
+  assert.equal(moduleExports.gasHealth(packet,true),"alarm");
+  assert.equal(moduleExports.gasReading(packet,"co"),209);
+  assert.equal(evaluateLoT(packet,null).furanIndex,null);
+  assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="GAS_FLAG_UNVERIFIED"));
+  assert.ok(evaluateLoT(packet,null).events.some(x=>x.code==="CO_HIGH"));
+  sensors.zeh100.flags=32;
+  packet.co=10; packet.voc=20;
+  assert.equal(moduleExports.gasHealth(packet,true),"flag");
+  assert.equal(moduleExports.gasReading(packet,"co"),10);
+  sensors.zeh100.online=false;
+  assert.equal(moduleExports.gasHealth(packet,true),"offline");
+  assert.equal(moduleExports.gasReading(packet,"co"),null);
+  sensors.zeh100.online=true; sensors.zeh100.dataValid=false; sensors.zeh100.warmupLike=true;
+  assert.equal(moduleExports.gasHealth(packet,true),"warmup");
+  assert.equal(moduleExports.gasReading(packet,"co"),null);
+});

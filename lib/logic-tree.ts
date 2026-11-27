@@ -28,6 +28,36 @@ export type LotResult = {
   validSensorCount: number;
 };
 
+export type GasKey = "co" | "h2" | "voc";
+export type GasHealth = "ready" | "warmup" | "waiting" | "alarm" | "flag" | "offline" | "unknown";
+
+// Manufacturer publishes alarm thresholds, but the flag-byte protocol is not verified.
+// Never infer an internal failure from a nonzero byte or call these readings calibrated.
+export function gasFlagUnverified(data: Telemetry | null): boolean {
+  const z = data?.sensors?.zeh100;
+  return !!z && z.online && z.dataValid && (z.flags === null || z.flags !== 0);
+}
+export function gasReading(data: Telemetry | null, key: GasKey): number | null {
+  const z = data?.sensors?.zeh100;
+  if (!data || (z && (!z.online || !z.dataValid || z.warmupLike))) return null;
+  return data[key] ?? null;
+}
+export function gasHealth(data: Telemetry | null, fresh: boolean): GasHealth {
+  if (!fresh) return "offline";
+  const z = data?.sensors?.zeh100;
+  if (z && !z.online) return "offline";
+  if (z?.warmupLike) return "warmup";
+  if (z && !z.dataValid) return "waiting";
+  if (!z) return "unknown";
+  // ZEH100 published alarm points, not occupational exposure or emission limits.
+  const at = (value: number | null | undefined, limit: number) =>
+    typeof value === "number" && Number.isFinite(value) && value >= limit;
+  if (at(gasReading(data, "co"), 190) || at(gasReading(data, "h2"), 200) ||
+      at(gasReading(data, "voc"), 200) || at(data?.gasModuleC, 65)) return "alarm";
+  if (gasFlagUnverified(data)) return "flag";
+  return "ready";
+}
+
 const numberAvailable = (value: number | null): value is number => value !== null && Number.isFinite(value);
 const clamp = (number: number) => Math.min(100, Math.max(0, Math.round(number)));
 const level = (value: number) => value >= 75 ? "KRITIS" : value >= 50 ? "TINGGI" : value >= 25 ? "WASPADA" : "RENDAH";
@@ -54,7 +84,7 @@ export function evaluateLoT(
   const diag = current.sensors;
   const validProbe = (key: "ch4Connected" | "ch5Connected") =>
     !diag || (diag.ebyte.online && diag.ebyte[key]);
-  const validGas = !diag || (diag.zeh100.online && diag.zeh100.dataValid);
+  const validGas = !diag || (diag.zeh100.online && diag.zeh100.dataValid && !diag.zeh100.warmupLike);
   const validCwt = !diag || diag.cwt.online;
   const count = (["furnace", "stack", "ambient", "humidity", "co", "h2", "voc", "smoke"] as SensorKey[])
     .filter(key => numberAvailable(current[key]) &&
@@ -72,8 +102,9 @@ export function evaluateLoT(
 
   const furnace = validProbe("ch5Connected") ? current.furnace : null;
   const stack = validProbe("ch4Connected") ? current.stack : null;
-  const gasCo = validGas ? current.co : null;
-  const gasVoc = validGas ? current.voc : null;
+  const gasCo = gasReading(current, "co");
+  const gasVoc = gasReading(current, "voc");
+  const gasFlagged = gasFlagUnverified(current);
   const previousProbeOk = !previous?.sensors ||
     (previous.sensors.ebyte.online && previous.sensors.ebyte.ch5Connected);
   const previousFurnace = previousProbeOk ? previous?.furnace ?? null : null;
@@ -95,6 +126,16 @@ export function evaluateLoT(
     process = "TIDAK AKTIF"; rules.push("FURNACE_IDLE");
   }
 
+  if (gasFlagged) {
+    warn("GAS_FLAG_UNVERIFIED", "Status gas perlu diverifikasi",
+      "Flag ZEH100 " + (diag?.zeh100.flags ?? "belum tersedia") + ": angka yang tampil adalah pembacaan mentah, bukan konfirmasi sensor sehat.", false,
+      "Periksa LED fisik dan flag di /status; jangan reset sensor saat ada alarm.");
+  }
+  if (gasHealth(current, true) === "alarm") {
+    warn("GAS_MODULE_ALARM_THRESHOLD", "Pembacaan mencapai ambang alarm modul",
+      "CO, H₂, VOC atau suhu modul mencapai ambang alarm yang dipublikasikan Winsen; bukan batas aman paparan.", true,
+      "Ikuti SOP keselamatan dan verifikasi dengan alat referensi.");
+  }
   if (numberAvailable(gasCo)) {
     if (gasCo >= thresholds.coWarning * 2) {
       warn("CO_HIGH", "CO meningkat tajam", `CO ${gasCo.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa kondisi pembakaran dan jalur keluaran gas dengan prosedur keselamatan yang berlaku.");
@@ -151,7 +192,7 @@ export function evaluateLoT(
     } else {
       rules.push("FURAN_PROCESS_IDLE");
     }
-  } else if (numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
+  } else if (!gasFlagged && numberAvailable(furnace) && numberAvailable(gasCo) && numberAvailable(gasVoc)) {
     let points = 8;
     if (furnace < thresholds.transitionTemp) { points += 26; rules.push("FURAN_T_LOW"); }
     else if (furnace < thresholds.activeTemp) { points += 18; rules.push("FURAN_T_TRANSITION"); }

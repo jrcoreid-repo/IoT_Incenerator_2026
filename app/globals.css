@@ -1083,7 +1083,8 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
 .inc-health small {margin-left:auto;font:500 9px/1.2 var(--font-mono);color:#8aa194;}
 .inc-health-ready {color:#167a4c;}
 .inc-health-warmup {color:#bc842b;}
-.inc-health-fault,.inc-health-offline {color:#c64e42;}
+.inc-health-fault,.inc-health-offline,.inc-health-alarm {color:#c64e42;}
+.inc-health-flag,.inc-health-waiting,.inc-gas-flag-note {color:#9b6817;}
 .inc-health-unknown {color:#8b7961;}
 .inc-overlay-ambient .inc-overlay-card {right:var(--inc-card-gap);bottom:26px;width:clamp(240px,19vw,280px);}
 .inc-overlay-gas .inc-overlay-card {left:var(--inc-card-gap);top:-38px;width:clamp(280px,23vw,324px);}
@@ -1276,7 +1277,8 @@ button:focus-visible,a:focus-visible,summary:focus-visible {outline:2px solid va
   .inc-mobile-status {font:750 clamp(8px,2.2cqw,10px)/1.2 var(--font-mono);color:#647f6f;white-space:nowrap;}
   .inc-mobile-status.inc-mobile-ready {color:#178251;}
   .inc-mobile-status.inc-mobile-warmup {color:#a97b19;}
-  .inc-mobile-status.inc-mobile-fault,.inc-mobile-status.inc-mobile-offline {color:#bf5149;}
+  .inc-mobile-status.inc-mobile-fault,.inc-mobile-status.inc-mobile-offline,.inc-mobile-status.inc-mobile-alarm {color:#bf5149;}
+  .inc-mobile-status.inc-mobile-flag,.inc-mobile-status.inc-mobile-waiting {color:#a97b19;}
   .inc-mobile-status.inc-mobile-unknown {color:#8b7961;}
   .inc-mobile-emission-values {display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,2fr);align-items:start;gap:clamp(5px,1.7cqw,9px);min-width:0;}
   .inc-mobile-three-gases {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(3px,1.2cqw,7px);min-width:0;}

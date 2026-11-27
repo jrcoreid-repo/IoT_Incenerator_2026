@@ -1,5 +1,5 @@
 import type { Telemetry } from "./telemetry";
-import type { LotResult, Thresholds } from "./logic-tree";
+import { gasReading, gasFlagUnverified, gasHealth, type LotResult, type Thresholds } from "./logic-tree";
 
 // Informasi operator berbasis aturan, BUKAN sensor furan, prediksi laboratorium,
 // penilaian kesehatan paparan, atau sistem keselamatan pembakaran.
@@ -62,14 +62,14 @@ export function explainReadings(
   const cwtOK = !diag || diag.cwt.online;
   const stackOK = !diag || (diag.ebyte.online && diag.ebyte.ch4Connected);
   const furnaceOK = !diag || (diag.ebyte.online && diag.ebyte.ch5Connected);
-  const gasOK = !diag || (diag.zeh100.online && diag.zeh100.dataValid);
+  const gasOK = !diag || (diag.zeh100.online && diag.zeh100.dataValid && !diag.zeh100.warmupLike);
   const furnace = furnaceOK ? current.furnace : null;
   const stack = stackOK ? current.stack : null;
   const ambient = cwtOK ? current.ambient : null;
   const humidity = cwtOK ? current.humidity : null;
-  const co = gasOK ? current.co : null;
-  const voc = gasOK ? current.voc : null;
-  const h2 = gasOK ? current.h2 : null;
+  const co = gasReading(current, "co");
+  const voc = gasReading(current, "voc");
+  const h2 = gasReading(current, "h2");
   const delta = comparableDelta(current, previous);
   const idle = num(furnace) && furnace < thresholds.transitionTemp;
   const warmup = diag?.zeh100.online && diag.zeh100.warmupLike === true;
@@ -152,6 +152,13 @@ export function explainReadings(
       "Nilai yang kosong atau nol ketika modul belum siap tidak boleh dianggap gas benar-benar nol.",
       "Tunggu pembacaan ZEH100 valid dan periksa kabel RS485."));
     add("Pastikan ZEH100 selesai warm-up dan status dataValid sudah benar.");
+  } else if (gasFlagUnverified(current)) {
+    const alarm = gasHealth(current, true) === "alarm";
+    items.push(make("gas", "Gas CO dan VOC", alarm ? "ALARM / CEK FLAG" : "CEK FLAG", alarm ? "alert" : "attention",
+      "CO " + (num(co) ? fmt(co, " ppm") : "—") + "; VOC " + (num(voc) ? fmt(voc, " ppm") : "—") + ". Pembacaan mentah.",
+      "Flag modul belum dapat dibedakan sebagai alarm atau fault tanpa protokol vendor. Indeks furan tidak dihitung.",
+      "Ikuti SOP dan verifikasi LED serta flag pada /status. Jangan reset saat ada alarm."));
+    add("Verifikasi flag gas dan kondisi fisik Winsen.");
   } else if (!num(co) || !num(voc)) {
     items.push(make("gas", "Gas CO dan VOC", "DATA BELUM LENGKAP", "unknown",
       "CO atau VOC belum tersedia.",
@@ -193,7 +200,8 @@ export function explainReadings(
       !diag.ebyte.ch4Connected ? "probe CH4" : null,
       !diag.ebyte.ch5Connected ? "probe CH5" : null,
       !diag.zeh100.online ? "ZEH100" : null,
-      diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null
+      diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null,
+      gasFlagUnverified(current) ? "flag gas belum terverifikasi" : null
     ].filter((v): v is string => v !== null);
     items.push(make("sensors", "Kondisi sensor", missing.length ? "PERLU DICEK" : "SEMUA STATUS TERBACA",
       missing.length ? "attention" : "info",

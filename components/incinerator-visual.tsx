@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, CloudSun, Flame, Gauge, RadioTower, ShieldAlert, ShieldCheck, Thermometer, Wind } from "lucide-react";
 import type { Telemetry } from "@/lib/telemetry";
+import { gasHealth as getGasHealth, gasReading, gasFlagUnverified, type GasHealth } from "@/lib/logic-tree";
 
-type Health = "ready" | "warmup" | "fault" | "offline" | "unknown";
+type Health = GasHealth | "fault";
 type ValueKey = "furnace" | "stack" | "ambient" | "humidity" | "co" | "h2" | "voc";
 type IconType = typeof Flame;
 // Coordinates are fixed on the 1920×1080 artwork and scale together with the picture.
@@ -53,7 +54,7 @@ function panelStyle(kind: PanelName) {
   };
 }
 const STATUS: Record<Health, string> = {
-  ready: "READY", warmup: "WARMING UP", fault: "FAULT", offline: "OFFLINE", unknown: "BELUM TERKONFIRMASI"
+  ready: "READY", warmup: "WARMING UP", waiting: "BELUM SIAP", alarm: "ALARM", flag: "CEK FLAG", fault: "FAULT", offline: "OFFLINE", unknown: "BELUM TERKONFIRMASI"
 };
 
 function readable(value: number | null | undefined, digits = 1) {
@@ -62,20 +63,18 @@ function readable(value: number | null | undefined, digits = 1) {
     : "—";
 }
 function sensorHealth(kind: "cwt" | "ch4" | "ch5" | "zeh", data: Telemetry | null, fresh: boolean): Health {
+  if (kind === "zeh") return getGasHealth(data, fresh);
   if (!fresh) return "offline";
   const s = data?.sensors;
   if (!s) return "unknown"; // Legacy/dummy sender does not report sensor diagnostics.
   if (kind === "cwt") return !s.cwt.online ? "fault" : data?.ambient == null ? "fault" : "ready";
   if (kind === "ch4") return !s.ebyte.online || !s.ebyte.ch4Connected ? "fault" : "ready";
   if (kind === "ch5") return !s.ebyte.online || !s.ebyte.ch5Connected ? "fault" : "ready";
-  if (!s.zeh100.online) return "fault";
-  if (s.zeh100.warmupLike || !s.zeh100.dataValid) return "warmup";
-  if (s.zeh100.flags !== null && s.zeh100.flags !== 0) return "fault";
-  return "ready";
+  return "unknown";
 }
 
 function Status({ health }: { health: Health }) {
-  const Icon = health === "ready" ? ShieldCheck : health === "fault" ? ShieldAlert : health === "warmup" ? Activity : AlertTriangle;
+  const Icon = health === "ready" ? ShieldCheck : (health === "fault" || health === "alarm" || health === "flag") ? ShieldAlert : health === "warmup" ? Activity : AlertTriangle;
   return <div className={"inc-health inc-health-" + health}><Icon size={12} aria-hidden="true" /><span>{STATUS[health]}</span></div>;
 }
 function Reading({ label, value, unit, icon: Icon, digits = 1 }: {
@@ -105,7 +104,8 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
     const invalid = ((key === "ambient" || key === "humidity") && cwt === "fault")
       || (key === "stack" && ch4 === "fault")
       || (key === "furnace" && ch5 === "fault")
-      || ((key === "co" || key === "h2" || key === "voc") && (zeh === "fault" || zeh === "warmup"));
+      ;
+    if (key === "co" || key === "h2" || key === "voc") return readable(fresh ? gasReading(latest, key) : null, digits);
     return readable(fresh && !invalid ? latest?.[key] : null, digits);
   };
   return <div className="inc-mobile-stage" aria-label="Skema incinerator mobile 1080 kali 1920">
@@ -118,7 +118,7 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
     </svg>
     <div className="inc-mobile-panel inc-mobile-emission" style={mobilePanelStyle("emission")}>
       <div className="inc-mobile-card">
-        <div className="inc-mobile-header"><span>CEROBONG &amp; GAS</span><MobileStatus health={zeh} name="GAS"/></div>
+        <div className="inc-mobile-header"><span>CEROBONG &amp; GAS</span><MobileStatus health={zeh} name={fresh && gasFlagUnverified(latest) ? "GAS*" : "GAS"}/></div>
         <div className="inc-mobile-emission-values">
           <div className="inc-mobile-stack"><small>SUHU CEROBONG</small><strong>{read("stack", 1)}<i>°C</i></strong></div>
           <div className="inc-mobile-three-gases">
@@ -156,13 +156,12 @@ function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
   </div>;
 }
 
-export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused = false }: {
-  latest: Telemetry | null; fresh: boolean; riskIndex: number | null; riskPaused?: boolean;
+export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused = false, connectionIssue = false }: {
+  latest: Telemetry | null; fresh: boolean; riskIndex: number | null; riskPaused?: boolean; connectionIssue?: boolean;
 }) {
   const gasHealth = sensorHealth("zeh", latest, fresh);
-  const gasValid = fresh && (!latest?.sensors || latest.sensors.zeh100.dataValid);
-  const measured = (key: ValueKey) => fresh && (key !== "co" && key !== "h2" && key !== "voc" || gasValid)
-    ? latest?.[key] : null;
+  const measured = (key: ValueKey) => !fresh ? null : key === "co" || key === "h2" || key === "voc"
+    ? gasReading(latest, key) : latest?.[key];
   // Default to an existing asset so an absent PNG cannot leave a broken-image icon.
   // Switch to the original, lossless PNG only after the browser confirms it loads.
   const [artworkSrc, setArtworkSrc] = useState("/incinerator-lineart-v3.svg");
@@ -188,7 +187,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
   return <section className={"inc-visual panel full-span" + (mobileArtworkReady ? " inc-mobile-ready" : "")} aria-label="Visualisasi incinerator dan pembacaan sensor">
     <div className="inc-visual-heading">
       <div><p className="section-kicker">PEMANTAUAN LANGSUNG</p><h2>Visualisasi Proses Pembakaran</h2><p className="muted">Pantau suhu, kondisi udara, dan gas pembakaran.</p></div>
-      <div className={"inc-live-pill " + (fresh ? "inc-live-on" : "inc-live-off")}><span className={fresh ? "status-dot" : "offline-dot"}/>{fresh ? "DATA TERBARU" : "OFFLINE / MENUNGGU"}</div>
+      <div className={"inc-live-pill " + (fresh && !connectionIssue ? "inc-live-on" : "inc-live-off")}><span className={fresh && !connectionIssue ? "status-dot" : "offline-dot"}/>{fresh ? connectionIssue ? "DATA TERAKHIR · GANGGUAN WEB" : "DATA TERBARU" : "OFFLINE / MENUNGGU"}</div>
     </div>
     <div className="inc-stage inc-stage-v4">
       {/* Artwork and overlays share the same 1920×1080 coordinate system. */}
@@ -229,7 +228,7 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
             <Reading label="H₂" value={measured("h2")} unit="ppm" icon={Activity} digits={0}/>
             <Reading label="VOC" value={measured("voc")} unit="ppm" icon={Wind} digits={0}/>
           </div>
-          <Status health={gasHealth}/>
+          <Status health={gasHealth}/>{fresh && gasFlagUnverified(latest) && <small className="inc-gas-flag-note">* Flag {latest?.sensors?.zeh100.flags ?? "—"} · data mentah</small>}
         </div>
         <div className="inc-furan-prediction" aria-label="Prediksi risiko furan dari analisis suhu dan gas">
           <div className="inc-furan-topline"><span>PREDIKSI RISIKO FURAN</span></div>
@@ -241,11 +240,12 @@ export default function IncineratorVisual({ latest, fresh, riskIndex, riskPaused
         </div>
         <div className="inc-gas-device-temperature" aria-label="Suhu pada sensor gas">
           <div className="inc-gas-device-temperature-label"><Thermometer size={15} aria-hidden="true"/><span>SUHU SENSOR GAS</span></div>
-          <div className="inc-gas-device-temperature-value">{readable(fresh && gasHealth === "ready" ? latest?.gasModuleC : null, 1)}<small>°C</small></div>
+          <div className="inc-gas-device-temperature-value">{readable(fresh && latest?.sensors?.zeh100.online && latest.sensors.zeh100.dataValid && !latest.sensors.zeh100.warmupLike ? latest.gasModuleC : null, 1)}<small>°C</small></div>
         </div>
       </Panel>
     </div>
     {mobileArtworkReady && <IncineratorMobile latest={latest} fresh={fresh} riskIndex={riskIndex} riskPaused={riskPaused}/>}
+    {fresh && gasFlagUnverified(latest) && <p className="inc-visual-note inc-gas-flag-note" role="alert">* Flag ZEH100: {latest?.sensors?.zeh100.flags ?? "belum tersedia"}. Angka gas adalah data mentah; status alarm/fault internal belum terverifikasi. Indeks furan dijeda; cek LED dan /status.</p>}
     <p className="inc-visual-note">Status menunjukkan kondisi sensor dari perangkat. Prediksi risiko furan adalah perkiraan dari suhu dan gas, bukan hasil pengukuran langsung.</p>
   </section>;
 }
