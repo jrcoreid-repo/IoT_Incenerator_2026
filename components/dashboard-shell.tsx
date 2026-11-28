@@ -84,11 +84,15 @@ function historyTick(value: number) {
   return date.toLocaleDateString("id-ID",{day:"2-digit",month:"2-digit"})+" "+date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",hour12:false});
 }
 // Round only presentation, never the samples or the analysis inputs.
-function historyGasValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 0) : "—";
+function historyGasValue(value: unknown, _name?: unknown, item?: unknown) {
+  const entry=item as {dataKey?: string;payload?: {estimatedKeys?: string[]}} | undefined;
+  const estimated=!!entry?.dataKey && entry.payload?.estimatedKeys?.includes(entry.dataKey);
+  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 0)+(estimated?" (perkiraan)":"") : "—";
 }
-function historyEnvironmentValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 1) : "—";
+function historyEnvironmentValue(value: unknown, _name?: unknown, item?: unknown) {
+  const entry=item as {dataKey?: string;payload?: {estimatedKeys?: string[]}} | undefined;
+  const estimated=!!entry?.dataKey && entry.payload?.estimatedKeys?.includes(entry.dataKey);
+  return typeof value === "number" && Number.isFinite(value) ? formatNumber(value, 1)+(estimated?" (perkiraan)":"") : "—";
 }
 function historyTooltipTime(value: unknown) {
   return new Date(Number(value)).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"medium"});

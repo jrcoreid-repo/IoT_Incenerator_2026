@@ -94,3 +94,24 @@ test("furan pause and individual missing sensor values stay null; time gaps brea
   assert.equal(plotted[4].furnaceTrend,200);
   assert.deepEqual(buildTrendPlot([]),[]);
 });
+
+test("short gaps are interpolated only for sensor charts and marked as estimates",()=>{
+  const raw=[{...gasPoint(0,10),ambient:20,furanIndex:80},{...gasPoint(1,null),ambient:null,furanIndex:null},{...gasPoint(2,30),ambient:24,furanIndex:20}];
+  const before=JSON.stringify(raw), plotted=buildTrendPlot(raw);
+  assert.equal(plotted[1].coTrend,20);
+  assert.equal(plotted[1].ambientTrend,22);
+  assert.equal(plotted[1].furanTrend,null);
+  assert.ok(plotted[1].estimatedKeys.includes("coTrend"));
+  assert.ok(plotted[1].estimatedKeys.includes("ambientTrend"));
+  assert.deepEqual(plotted[0].estimatedKeys,[]);
+  assert.equal(JSON.stringify(raw),before);
+});
+test("short time gaps bridge but device boundaries, long gaps and open ends remain empty",()=>{
+  const raw=[gasPoint(0,0),gasPoint(1,0),gasPoint(10,90),gasPoint(11,90),gasPoint(12,100,"B"),gasPoint(13,null,"B")];
+  const plot=buildTrendPlot(raw);
+  assert.equal(plot[2].coTrend,45);
+  assert.ok(plot[2].estimatedKeys.includes("coTrend"));
+  assert.equal(plot[5].coTrend,null);
+  assert.equal(plot.at(-1).coTrend,null);
+  assert.equal(buildTrendPlot([gasPoint(0,0),gasPoint(1,0),gasPoint(100,90),gasPoint(101,90)])[2].coTrend,null);
+});

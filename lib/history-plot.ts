@@ -41,18 +41,46 @@ export function seriesTrends(points: PlotPoint[],limit=plotGapLimit(points)) {
 /** Backward-compatible export for the original gas filter tests. */
 export const gasTrends = seriesTrends;
 
-/** Chart-only values and explicit break markers. Never send these to the
- * telemetry store, raw export, or rule-based analysis. */
+const bridgeKeys = ["coTrend","h2Trend","vocTrend","furnaceTrend","stackTrend","ambientTrend","humidityTrend"] as const;
+type BridgeKey = typeof bridgeKeys[number];
+type TrendRow = ReturnType<typeof seriesTrends>[number] & { estimatedKeys: BridgeKey[]; segment: number };
+
+/** Chart-only bounded interpolation between observed endpoints.
+ * Never extrapolate, cross devices, or fill a paused furan analysis. */
 export function buildTrendPlot(points: PlotPoint[]) {
   const limit=plotGapLimit(points);
+  const bridgeLimit=Math.min(900_000,Math.max(120_000,limit*1.6));
   const trends=seriesTrends(points,limit);
-  return trends.flatMap((point,i)=>{
-    const prev=trends[i-1];
-    if(!prev || !plotBreak(points[i-1],points[i],limit) || point.timeMs<=prev.timeMs) return [point];
-    return [{
-      timeMs:prev.timeMs+(point.timeMs-prev.timeMs)/2,
-      coTrend:null,h2Trend:null,vocTrend:null,furnaceTrend:null,stackTrend:null,
-      ambientTrend:null,humidityTrend:null,furanTrend:null
-    },point];
-  });
+  const rows: TrendRow[]=[];
+  let segment=0;
+  for(let i=0;i<trends.length;i++){
+    const point=trends[i],prev=trends[i-1];
+    const boundary=!!prev && (points[i-1].deviceId!==points[i].deviceId || !Number.isFinite(point.timeMs-prev.timeMs) || point.timeMs<=prev.timeMs);
+    if(prev && plotBreak(points[i-1],points[i],limit) && point.timeMs>prev.timeMs){
+      rows.push({timeMs:prev.timeMs+(point.timeMs-prev.timeMs)/2,
+        coTrend:null,h2Trend:null,vocTrend:null,furnaceTrend:null,stackTrend:null,
+        ambientTrend:null,humidityTrend:null,furanTrend:null,estimatedKeys:[],segment:boundary?-1:segment});
+    }
+    if(boundary) segment++;
+    rows.push({...point,estimatedKeys:[],segment});
+  }
+  for(const key of bridgeKeys){
+    let left=-1;
+    for(let right=0;right<rows.length;right++){
+      if(!valid(rows[right][key])) continue;
+      if(left>=0 && right>left+1){
+        const a=rows[left],b=rows[right],duration=b.timeMs-a.timeMs;
+        if(a.segment===b.segment && duration>0 && duration<=bridgeLimit &&
+          rows.slice(left+1,right).every(p=>p.segment===a.segment && p.timeMs>a.timeMs && p.timeMs<b.timeMs)){
+          for(let j=left+1;j<right;j++){
+            const p=rows[j];
+            p[key]=a[key]!+(b[key]!-a[key]!)*(p.timeMs-a.timeMs)/duration;
+            p.estimatedKeys.push(key);
+          }
+        }
+      }
+      left=right;
+    }
+  }
+  return rows.map(({segment: _segment,...row})=>row);
 }
