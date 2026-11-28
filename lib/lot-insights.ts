@@ -1,0 +1,251 @@
+import type { Telemetry } from "./telemetry";
+import { gasHealth, gasReading, type LotResult, type Thresholds } from "./logic-tree";
+
+// Informasi operator berbasis aturan, BUKAN sensor furan, prediksi laboratorium,
+// penilaian kesehatan paparan, atau sistem keselamatan pembakaran.
+export type InsightTone = "info" | "attention" | "alert" | "unknown";
+export type OperatorInsight = {
+  id: string;
+  label: string;
+  status: string;
+  tone: InsightTone;
+  meaning: string;
+  explanation: string;
+  action: string;
+};
+export type OperatorReport = {
+  headline: string;
+  subheading: string;
+  note: string;
+  time: string | null;
+  insights: OperatorInsight[];
+  actions: string[];
+};
+
+const num = (n: number | null | undefined): n is number => typeof n === "number" && Number.isFinite(n);
+const fmt = (n: number, unit: string) => n.toLocaleString("id-ID", { maximumFractionDigits: 1 }) + unit;
+const make = (id: string, label: string, status: string, tone: InsightTone,
+  meaning: string, explanation: string, action: string): OperatorInsight =>
+  ({ id, label, status, tone, meaning, explanation, action });
+const sourceIsVirtual = (id: string) => /^ESP32-(VIRTUAL|TEST|DUMMY)/i.test(id);
+
+function comparableDelta(current: Telemetry, previous: Telemetry | null): number | null {
+  if (!previous || previous.deviceId !== current.deviceId || !num(previous.furnace) || !num(current.furnace)) return null;
+  const gap = Date.parse(current.receivedAt) - Date.parse(previous.receivedAt);
+  return Number.isFinite(gap) && gap >= 0 && gap <= 60000 ? current.furnace - previous.furnace : null;
+}
+
+export function explainReadings(
+  current: Telemetry | null,
+  previous: Telemetry | null,
+  lot: LotResult,
+  thresholds: Thresholds,
+  fresh: boolean
+): OperatorReport {
+  if (!current || !fresh) {
+    return {
+      headline: current ? "Belum ada data terbaru dari alat." : "Menunggu data dari alat.",
+      subheading: current
+        ? "Data terakhir yang tampil sudah lama. Kondisi alat saat ini belum bisa dipastikan."
+        : "Dashboard masih menunggu pembacaan sensor. Nilai suhu dan gas belum tersedia.",
+      note: "Analisis dilanjutkan setelah data baru diterima. Grafik sebelumnya adalah riwayat, bukan kondisi saat ini.",
+      time: current?.receivedAt ?? null,
+      insights: [make("connection", "Sambungan alat", "BELUM ADA DATA TERBARU", "unknown",
+        "Server belum menerima data terbaru dari perangkat JRAIoT.",
+        "Perangkat mungkin mati atau koneksi Wi-Fi/internet sedang terputus. Periksa langsung di lapangan.",
+        "Periksa daya alat dan sambungan internet.")],
+      actions: ["Cek daya dan jaringan JRAIoT.", "Hubungi petugas jika data belum kembali."]
+    };
+  }
+
+  const diag = current.sensors;
+  const cwtOK = !diag || diag.cwt.online;
+  const stackOK = !diag || (diag.ebyte.online && diag.ebyte.ch4Connected);
+  const furnaceOK = !diag || (diag.ebyte.online && diag.ebyte.ch5Connected);
+  const gasOK = !diag || (diag.zeh100.online && diag.zeh100.dataValid && !diag.zeh100.warmupLike);
+  const furnace = furnaceOK ? current.furnace : null;
+  const stack = stackOK ? current.stack : null;
+  const ambient = cwtOK ? current.ambient : null;
+  const humidity = cwtOK ? current.humidity : null;
+  const co = gasReading(current, "co");
+  const voc = gasReading(current, "voc");
+  const h2 = gasReading(current, "h2");
+  const delta = comparableDelta(current, previous);
+  const idle = num(furnace) && furnace < thresholds.transitionTemp;
+  const warmup = diag?.zeh100.online && diag.zeh100.warmupLike === true;
+  const virtual = sourceIsVirtual(current.deviceId);
+  const items: OperatorInsight[] = [];
+  const actions: string[] = [];
+  const add = (action: string) => { if (!actions.includes(action)) actions.push(action); };
+
+  // 1. Tungku
+  if (!num(furnace)) {
+    items.push(make("furnace", "Tungku", "BELUM TERBACA", "unknown",
+      "Kita belum tahu suhu tungku karena sensornya tidak memberikan angka yang valid.",
+      "Tanpa suhu tungku, kondisi proses pembakaran tidak bisa dinilai.",
+      "Periksa sensor suhu tungku dan kabelnya."));
+    add("Periksa sambungan sensor suhu tungku.");
+  } else if (idle) {
+    items.push(make("furnace", "Tungku", "BELUM ADA TANDA PANAS PEMBAKARAN", "info",
+      "Tungku terbaca " + fmt(furnace, "°C") + ", masih di bawah batas awal pantauan " + fmt(thresholds.transitionTemp, "°C") + ".",
+      num(ambient) && Math.abs(furnace - ambient) < 15
+        ? "Suhunya dekat dengan udara sekitar " + fmt(ambient, "°C") + ". Ini cocok dengan mesin yang belum dipanaskan."
+        : "Suhu rendah tidak membuktikan api pasti padam; keadaan fisik tetap perlu dipastikan.",
+      "Jika mesin tidak dipakai, cukup pantau. Jika seharusnya menyala, cek kondisi tungku dan probe."));
+  } else if (furnace < thresholds.activeTemp) {
+    items.push(make("furnace", "Tungku", "SEDANG MEMANAS / PERALIHAN", "attention",
+      "Suhu tungku " + fmt(furnace, "°C") + ", sudah melewati batas awal tetapi belum batas aktif " + fmt(thresholds.activeTemp, "°C") + ".",
+      "Ini tahap proses berdasarkan suhu, bukan bukti pembakaran sudah sempurna.",
+      "Pantau kenaikan suhu dan ikuti prosedur pengoperasian."));
+  } else {
+    items.push(make("furnace", "Tungku", "SUHU PEMBAKARAN TERDETEKSI", "info",
+      "Tungku menunjukkan " + fmt(furnace, "°C") + ", di atas ambang pemantauan aktif.",
+      "Tungku panas tidak berarti gas buang sudah aman atau pembakaran sempurna.",
+      "Pantau tren suhu dan parameter gas bersama-sama."));
+  }
+
+  // 2. Tren suhu, hanya dari dua pembacaan berdekatan dengan device ID sama.
+  if (delta === null || !num(furnace)) {
+    items.push(make("trend", "Perubahan suhu", "BELUM BISA DIBANDINGKAN", "unknown",
+      "Belum ada dua data yang cukup dekat untuk melihat arah kenaikan atau penurunan.",
+      "Perbandingan hanya dilakukan dari perangkat sama, dengan jarak waktu paling lama satu menit.",
+      "Tunggu data berikutnya dan perhatikan grafik."));
+  } else {
+    const state = delta <= -25 ? "TURUN CEPAT" : delta >= 25 ? "NAIK CEPAT" : "BERUBAH PERLAHAN";
+    items.push(make("trend", "Perubahan suhu", state, Math.abs(delta) >= 25 ? "attention" : "info",
+      "Dari kiriman sebelumnya suhu tungku " + (delta >= 0 ? "naik " : "turun ") + fmt(Math.abs(delta), "°C") + ".",
+      "Dua titik saja belum membuktikan kondisi stabil dalam jangka panjang.",
+      Math.abs(delta) >= 25 ? "Periksa perubahan proses dan posisi termokopel." : "Perhatikan tren beberapa menit berikutnya."));
+    if (delta <= -25) add("Periksa penyebab penurunan suhu tungku yang mendadak.");
+  }
+
+  // 3. Cerobong
+  if (!num(stack)) {
+    items.push(make("stack", "Cerobong", "BELUM TERBACA", "unknown",
+      "Suhu cerobong belum tersedia.",
+      "Tanpa pembacaan ini, suhu cerobong belum bisa dipantau.",
+      "Periksa sensor suhu cerobong dan kabelnya."));
+    add("Hubungi petugas jika suhu cerobong tetap tidak muncul.");
+  } else if (num(furnace) && stack > furnace + 60) {
+    items.push(make("stack", "Cerobong", "SELISIH TIDAK BIASA", "attention",
+      "Cerobong " + fmt(stack, "°C") + ", lebih panas 60°C atau lebih dari tungku.",
+      "Ini perlu pengecekan posisi probe atau kondisi aliran panas; belum tentu sensornya rusak.",
+      "Pastikan probe tungku dan cerobong tidak tertukar."));
+    add("Periksa perbedaan suhu tungku dan cerobong serta letak probe.");
+  } else if (idle && stack >= thresholds.transitionTemp) {
+    items.push(make("stack", "Cerobong", "MASIH PANAS", "attention",
+      "Cerobong " + fmt(stack, "°C") + " walau tungku sudah turun.",
+      "Bisa terjadi pada tahap pendinginan. Masih panas bukan bukti furan tertentu.",
+      "Pantau pendinginan dan jangan menyentuh permukaan panas."));
+    add("Pantau cerobong yang masih panas sesuai prosedur keselamatan.");
+  } else {
+    items.push(make("stack", "Cerobong", "TERBACA", "info",
+      "Suhu cerobong sekarang " + fmt(stack, "°C") + ".",
+      "Angka ini menunjukkan panas jalur buang, tidak mengukur kandungan zat berbahaya.",
+      "Lihat perkembangannya dibanding suhu tungku."));
+  }
+
+  // 4. CO dan VOC, tanpa klaim mengukur furan.
+  if (warmup || (diag && !gasOK)) {
+    items.push(make("gas", "Gas CO dan VOC", warmup ? "MENYIAPKAN PEMBACAAN" : "SENSOR BELUM SIAP", "unknown",
+      "Sensor gas belum siap memberikan pembacaan.",
+      "Nilai yang kosong atau nol ketika sensor belum siap tidak boleh dianggap gas benar-benar nol.",
+      "Tunggu pembacaan terbaru atau hubungi petugas."));
+    add("Tunggu sensor gas siap.");
+  } else if (!num(co) || !num(voc)) {
+    items.push(make("gas", "Gas CO dan VOC", "DATA BELUM LENGKAP", "unknown",
+      "CO atau VOC belum tersedia.",
+      "CO membantu memantau pembakaran, VOC mewakili kelompok senyawa organik. Keduanya bukan sensor furan.",
+      "Tunggu nilai CO dan VOC yang valid."));
+    add("Periksa gas CO dan VOC bila masih tidak terbaca.");
+  } else {
+    const severe = gasHealth(current, fresh) === "alarm" || co >= thresholds.coWarning * 2 || voc >= thresholds.vocWarning * 2;
+    const elevated = severe || co >= thresholds.coWarning || voc >= thresholds.vocWarning;
+    items.push(make("gas", "Gas CO dan VOC",
+      severe ? "NAIK TAJAM" : elevated ? "MELEWATI BATAS PANTAU" : "DALAM BATAS PEMANTAUAN",
+      severe ? "alert" : elevated ? "attention" : "info",
+      "CO " + fmt(co, " ppm") + " (batas " + fmt(thresholds.coWarning, " ppm") +
+      "), VOC " + fmt(voc, " ppm") + " (batas " + fmt(thresholds.vocWarning, " ppm") + ").",
+      severe ? "Ada pembacaan yang mencapai batas peringatan tinggi. Segera ikuti prosedur keselamatan." :
+        elevated ? "Ada gas di atas batas pemantauan yang disetel, bukan otomatis melanggar batas emisi resmi." :
+        "Gas berada di bawah batas internal. Nilai CO/VOC nol tidak membuktikan furan atau emisi lain nol.",
+      elevated ? "Ikuti SOP pemeriksaan gas; jangan jadikan dashboard satu-satunya dasar keputusan keselamatan." :
+        "Lihat tren gas secara berkala."));
+    if (elevated) add("Periksa CO/VOC yang melewati batas internal sesuai SOP.");
+  }
+
+  // 5. Suhu dan kelembapan lingkungan plus hidrogen (no calibrated limit).
+  const envFlag = (num(ambient) && ambient >= 50) || (num(humidity) && humidity >= 90);
+  items.push(make("environment", "Lingkungan dan H₂", envFlag ? "LINGKUNGAN PERLU DICEK" : "INFORMASI PENDUKUNG",
+    envFlag ? "attention" : num(ambient) && num(humidity) ? "info" : "unknown",
+    "Udara sekitar: " + (num(ambient) ? fmt(ambient, "°C") : "belum terbaca") +
+    "; kelembapan: " + (num(humidity) ? fmt(humidity, "%") : "belum terbaca") +
+    "; gas H₂: " + (num(h2) ? fmt(h2, " ppm") : "belum terbaca") + ".",
+    "Suhu/kelembapan membantu memantau lingkungan panel. H₂ hanya ditampilkan sebagai angka; belum dipakai menyimpulkan furan atau ambang aman.",
+    envFlag ? "Periksa kondisi panas dan lembap sekitar panel." : "Pastikan sensor lingkungan tetap terbaca."));
+  if (envFlag) add("Periksa panas atau kelembapan tinggi di sekitar panel.");
+
+  // 6. Report sensor quality; communication error counters are cumulative.
+  if (diag) {
+    const missing = [
+      !diag.cwt.online ? "sensor lingkungan" : null,
+      !diag.ebyte.online ? "sensor suhu" : null,
+      !diag.ebyte.ch4Connected ? "sensor cerobong" : null,
+      !diag.ebyte.ch5Connected ? "sensor tungku" : null,
+      !diag.zeh100.online ? "sensor gas" : null,
+      diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null
+    ].filter((v): v is string => v !== null);
+    items.push(make("sensors", "Kondisi sensor", missing.length ? "PERLU DICEK" : "SEMUA STATUS TERBACA",
+      missing.length ? "attention" : "info",
+      missing.length ? "Yang perlu diperiksa: " + missing.join(", ") + "." : "Status sensor sudah diterima.",
+      "Status ini menunjukkan apakah data sensor tersedia, bukan jaminan sensor sudah terkalibrasi.",
+      missing.length ? "Periksa bagian yang disebut dan lihat apakah error terus bertambah." :
+        "Lanjutkan pemantauan. Status online hanya berarti komunikasi/data tersedia, bukan verifikasi kalibrasi atau kondisi internal modul gas."));
+    if (missing.length) add("Hubungi petugas untuk memeriksa sensor.");
+  } else {
+    items.push(make("sensors", "Kondisi sensor", "DETAIL BELUM TERSEDIA", "unknown",
+      "Ada angka masuk, tetapi perangkat JRAIoT belum menyertakan status masing-masing sensor.",
+      "Tanpa diagnostik, kita tidak dapat memastikan koneksi setiap sensor hanya dari adanya sebuah angka.",
+      "Hubungi petugas jika status sensor tetap tidak tersedia."));
+  }
+
+  // 7. Furan score is an experimental process index, never a measurement.
+  items.push(make("furan", "Indikator proses furan",
+    lot.furanIndex === null ? "TIDAK DINILAI" : "INDEKS EKSPERIMEN",
+    lot.furanIndex === null ? "unknown" : lot.furanIndex >= thresholds.riskWarning ? "attention" : "info",
+    lot.furanIndex === null
+      ? idle ? "Tungku belum menunjukkan suhu pembakaran, jadi sistem sengaja tidak memberi skor furan."
+        : "Parameter belum mencukupi untuk menghitung indikator proses."
+      : "Skor internal " + lot.furanIndex + "/100 dihitung dari suhu, CO, VOC, dan perubahannya.",
+    "Tidak ada sensor furan langsung. Skor ini bukan kadar furan, bukan persentase kemungkinan emisi, dan tidak membuktikan aman/tidak aman. Skor kosong juga bukan berarti furan nol.",
+    "Untuk keputusan emisi, gunakan pengambilan sampel dan analisis laboratorium yang sesuai."));
+
+  // 8. Data source and completeness
+  const count = ["furnace", "stack", "ambient", "humidity", "co", "h2", "voc", "smoke"]
+    .filter(k => num(current[k as keyof Telemetry] as number | null | undefined)).length;
+  items.push(make("quality", "Asal dan kelengkapan data",
+    virtual ? "DATA SIMULASI" : count < 7 ? "BELUM LENGKAP" : "KIRIMAN DITERIMA",
+    virtual ? "attention" : count < 7 ? "unknown" : "info",
+    count + " dari 8 parameter numerik tersedia. " + (virtual ? "Sumber: perangkat simulasi." : "Sumber: perangkat JRAIoT."),
+    virtual ? "Identitas ini menunjukkan data simulasi, bukan hasil penelitian lapangan." :
+      "Waktu diambil saat server menerima data. Sensor asap numerik belum tersedia; nilai kosong tidak berarti tidak ada asap.",
+    virtual ? "Hentikan sender virtual sebelum pencatatan lapangan." :
+      "Pastikan waktu terbaru, status sensor, dan kalibrasi sebelum memakai data."));
+  if (virtual) add("Hentikan sender simulasi agar tidak tercampur dengan data nyata.");
+
+  const hasCritical = lot.events.some(e => e.severity === "critical");
+  const headline = hasCritical ? "Ada pembacaan yang perlu segera diperiksa petugas." :
+    lot.events.length ? "Ada kondisi yang perlu dicek dari pembacaan terbaru." :
+    idle ? "Suhu tungku masih rendah; pembakaran belum terindikasi dari suhu." :
+    "Alat sedang mengirim data; lihat suhu dan gas secara bersamaan.";
+  if (!actions.length) add("Terus pantau tren dan pastikan kiriman berikutnya tetap masuk.");
+  return {
+    headline,
+    subheading: virtual ? "PERHATIAN: Data ini berasal dari simulasi, bukan sensor lapangan." :
+      "Ini penjelasan sederhana dari angka terbaru, bukan instruksi otomatis menyalakan atau mematikan mesin.",
+    note: "Batas suhu dan gas adalah setelan operator, bukan standar emisi resmi. Penilaian keselamatan harus berdasarkan pemeriksaan lapangan dan prosedur yang sesuai.",
+    time: current.receivedAt,
+    insights: items,
+    actions: actions.slice(0, 5)
+  };
+}

@@ -1,0 +1,27 @@
+name: EG118 Firmware Compile
+on:
+  push:
+    branches: [design/minimal-operator-2026]
+    paths:
+      - 'firmware/eg118_field_v1_0_0/**'
+      - '.github/workflows/eg118-firmware.yml'
+  pull_request:
+    paths:
+      - 'firmware/eg118_field_v1_0_0/**'
+      - '.github/workflows/eg118-firmware.yml'
+jobs:
+  arduino-esp32s3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install ESP32 board core
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+      - name: Create local placeholder config (NO secrets)
+        run: cp firmware/eg118_field_v1_0_0/config.example.h firmware/eg118_field_v1_0_0/config.h
+      - name: Compile for ESP32-S3
+        run: arduino-cli compile --fqbn esp32:esp32:esp32s3 firmware/eg118_field_v1_0_0

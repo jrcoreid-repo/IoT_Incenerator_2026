@@ -1,5 +1,9 @@
-import DashboardShell from "@/components/dashboard-shell";
+import { redirect } from "next/navigation";
+import { currentSession } from "@/lib/current-session";
 
-export default function HomePage() {
-  return <DashboardShell mode="client" />;
+export const dynamic = "force-dynamic";
+export default async function HomePage() {
+  const session = await currentSession();
+  if (!session) redirect("/login");
+  redirect(session.role === "admin" ? "/admin" : "/dashboard");
 }
