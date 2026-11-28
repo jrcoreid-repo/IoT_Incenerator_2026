@@ -385,7 +385,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
   const display = (key: SensorKey, digits = 1) => formatNumber(key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) : latest?.[key], digits);
   const sensorActive = (...keys: SensorKey[]) => fresh && keys.some(key => key === "co" || key === "h2" || key === "voc" ? gasReading(latest, key) !== null : latest?.[key] != null);
   const gasState = gasHealth(latest, fresh);
-  const gasStateLabel = gasState === "alarm" ? "ALARM" : gasState === "offline" ? "OFFLINE" : gasState === "warmup" ? "WARMING UP" : gasState === "waiting" ? "BELUM SIAP" : gasState === "unknown" ? "BELUM TERKONFIRMASI" : "DATA READY";
+  const gasStateLabel = gasState === "alarm" ? "Peringatan aktif" : gasState === "offline" ? "Tidak terhubung" : gasState === "warmup" ? "Menyiapkan pembacaan" : gasState === "waiting" ? "Menunggu pembacaan" : gasState === "unknown" ? "Status belum tersedia" : "Pembacaan tersedia";
   const virtualSource = latest?.deviceId.startsWith("ESP32-VIRTUAL") ?? false;
   const connectionLabel = !storageReady ? "PENYIMPANAN BELUM SIAP" : offline ? "OFFLINE · DATA TERAKHIR" : webIssue ? "GANGGUAN WEB · DATA TERAKHIR" : fresh ? (virtualSource ? "SIMULASI AKTIF" : "PEMANTAUAN AKTIF") : "MENUNGGU DATA SENSOR";
   // Hanya nilai suhu tungku yang valid dan terbaru menentukan status membakar/tidak.
@@ -531,7 +531,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
                   <div className="furan-track" role="meter" aria-label="Skor prediksi risiko furan dari analisis suhu dan gas" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fresh && lot.furanIndex !== null ? lot.furanIndex : undefined} aria-valuetext={!fresh ? "Analisis tidak tersedia, menunggu data sensor terbaru" : furanPaused ? "Pembakaran tidak aktif; indeks furan tidak dinilai" : undefined}>
                     <span className={"risk-fill risk-" + risk.tone} style={{ width: (fresh && lot.furanIndex !== null ? lot.furanIndex : 0) + "%" }} />
                   </div>
-                  <div className="prediction-note"><strong>{!fresh ? "ANALISIS DIJEDA" : furanPaused ? "TIDAK MEMBAKAR · ANALISIS DIJEDA" : lot.furanIndex === null ? "DATA BELUM LENGKAP" : "HASIL PEMANTAUAN"}</strong><span>{!fresh ? "Menunggu data sensor terbaru" : furanPaused ? "Suhu tungku di bawah ambang transisi; bukan berarti emisi furan nol" : lot.furanIndex === null ? "Menunggu suhu tungku, CO, dan VOC" : "Indikator proses dari suhu dan gas"}</span></div>
+                  <div className="prediction-note"><strong>{!fresh ? "ANALISIS DIJEDA" : furanPaused ? "TIDAK MEMBAKAR · ANALISIS DIJEDA" : lot.furanIndex === null ? "DATA BELUM LENGKAP" : "HASIL PEMANTAUAN"}</strong><span>{!fresh ? "Menunggu data sensor terbaru" : furanPaused ? "Tungku belum cukup panas untuk analisis. Ini bukan berarti furan nol." : lot.furanIndex === null ? "Menunggu suhu tungku, CO, dan VOC" : "Indikator proses dari suhu dan gas"}</span></div>
                 </div>
               </article>
             </section>
@@ -563,7 +563,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <div className="device-grid">
                 <DevicePill name={virtualSource ? "Pengirim virtual" : "Alat pengirim data"} active={fresh} status={fresh ? "Data diterima" : offline ? "OFFLINE" : "Menunggu koneksi"} />
                 <DevicePill name="Sensor suhu" active={sensorActive("furnace","stack")} status={sensorActive("furnace","stack") ? "Pembacaan tersedia" : "Belum terbaca"} />
-                <DevicePill name="Sensor gas" active={sensorActive("co","voc","h2")} status={gasStateLabel} />
+                <DevicePill name="Sensor gas" active={gasState === "ready" && sensorActive("co","voc","h2")} status={gasStateLabel} />
                 <DevicePill name="Sensor lingkungan" active={sensorActive("ambient","humidity")} status={sensorActive("ambient","humidity") ? "Pembacaan tersedia" : "Belum terbaca"} />
                 <DevicePill name="Penyimpanan" active={storageReady} status={storageReady ? "Endpoint tersedia" : "Konfigurasi diperlukan"} />
               </div>
@@ -691,7 +691,7 @@ export default function DashboardShell({ mode = "admin", username = "" }: { mode
               <h3>Kondisi yang terdeteksi</h3>
               <div className="rule-list">{lot.rules.map(rule => <span className="rule-tag" key={rule}>{readableRule(rule)}</span>)}</div>
             </div>
-            <div className="prototype-note">JrAI Model adalah model analisis berbasis aturan dan data sensor. Skor proses furan masih percobaan: bukan kadar furan, bukan persentase kemungkinan emisi, dan bukan keputusan aman atau berbahaya. Evaluasi emisi resmi memerlukan pengukuran sesuai metode laboratorium.</div>
+            <div className="prototype-note">JrAI Model membantu memantau pembakaran. Skor furan bukan hasil pengukuran kadar furan. Pemeriksaan emisi tetap memerlukan uji laboratorium.</div>
           </div>
         </section>}
 

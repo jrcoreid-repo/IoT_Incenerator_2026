@@ -1,5 +1,5 @@
 import type { Telemetry } from "./telemetry";
-import { gasReading, type LotResult, type Thresholds } from "./logic-tree";
+import { gasHealth, gasReading, type LotResult, type Thresholds } from "./logic-tree";
 
 // Informasi operator berbasis aturan, BUKAN sensor furan, prediksi laboratorium,
 // penilaian kesehatan paparan, atau sistem keselamatan pembakaran.
@@ -53,8 +53,8 @@ export function explainReadings(
       insights: [make("connection", "Sambungan alat", "BELUM ADA DATA TERBARU", "unknown",
         "Server belum menerima data terbaru dari perangkat JRAIoT.",
         "Perangkat mungkin mati atau koneksi Wi-Fi/internet sedang terputus. Periksa langsung di lapangan.",
-        "Cek daya JRAIoT, jaringan Wi-Fi, dan apakah pengiriman data berhasil dengan kode HTTP 201.")],
-      actions: ["Cek daya dan jaringan JRAIoT.", "Buka /status pada AP diagnostik JRAIoT untuk melihat kegagalan Wi-Fi/HTTPS."]
+        "Periksa daya alat dan sambungan internet.")],
+      actions: ["Cek daya dan jaringan JRAIoT.", "Hubungi petugas jika data belum kembali."]
     };
   }
 
@@ -83,8 +83,8 @@ export function explainReadings(
     items.push(make("furnace", "Tungku", "BELUM TERBACA", "unknown",
       "Kita belum tahu suhu tungku karena sensornya tidak memberikan angka yang valid.",
       "Tanpa suhu tungku, kondisi proses pembakaran tidak bisa dinilai.",
-      "Periksa termokopel CH5 dan modul Ebyte."));
-    add("Cek termokopel tungku CH5 dan pastikan koneksi RS485 normal.");
+      "Periksa sensor suhu tungku dan kabelnya."));
+    add("Periksa sambungan sensor suhu tungku.");
   } else if (idle) {
     items.push(make("furnace", "Tungku", "BELUM ADA TANDA PANAS PEMBAKARAN", "info",
       "Tungku terbaca " + fmt(furnace, "°C") + ", masih di bawah batas awal pantauan " + fmt(thresholds.transitionTemp, "°C") + ".",
@@ -123,9 +123,9 @@ export function explainReadings(
   if (!num(stack)) {
     items.push(make("stack", "Cerobong", "BELUM TERBACA", "unknown",
       "Suhu cerobong belum tersedia.",
-      "Termokopel cerobong ada pada CH4; tanpa angka ini panas pada jalur keluaran belum bisa dipantau.",
-      "Cek termokopel CH4 dan sambungan Ebyte."));
-    add("Cek probe cerobong CH4 jika suhu tetap tidak muncul.");
+      "Tanpa pembacaan ini, suhu cerobong belum bisa dipantau.",
+      "Periksa sensor suhu cerobong dan kabelnya."));
+    add("Hubungi petugas jika suhu cerobong tetap tidak muncul.");
   } else if (num(furnace) && stack > furnace + 60) {
     items.push(make("stack", "Cerobong", "SELISIH TIDAK BIASA", "attention",
       "Cerobong " + fmt(stack, "°C") + ", lebih panas 60°C atau lebih dari tungku.",
@@ -147,11 +147,11 @@ export function explainReadings(
 
   // 4. CO dan VOC, tanpa klaim mengukur furan.
   if (warmup || (diag && !gasOK)) {
-    items.push(make("gas", "Gas CO dan VOC", warmup ? "MASIH WARM-UP" : "SENSOR BELUM SIAP", "unknown",
-      "Modul gas belum menghasilkan pembacaan yang dinyatakan siap.",
-      "Nilai yang kosong atau nol ketika modul belum siap tidak boleh dianggap gas benar-benar nol.",
-      "Tunggu pembacaan ZEH100 valid dan periksa kabel RS485."));
-    add("Pastikan ZEH100 selesai warm-up dan status dataValid sudah benar.");
+    items.push(make("gas", "Gas CO dan VOC", warmup ? "MENYIAPKAN PEMBACAAN" : "SENSOR BELUM SIAP", "unknown",
+      "Sensor gas belum siap memberikan pembacaan.",
+      "Nilai yang kosong atau nol ketika sensor belum siap tidak boleh dianggap gas benar-benar nol.",
+      "Tunggu pembacaan terbaru atau hubungi petugas."));
+    add("Tunggu sensor gas siap.");
   } else if (!num(co) || !num(voc)) {
     items.push(make("gas", "Gas CO dan VOC", "DATA BELUM LENGKAP", "unknown",
       "CO atau VOC belum tersedia.",
@@ -159,14 +159,14 @@ export function explainReadings(
       "Tunggu nilai CO dan VOC yang valid."));
     add("Periksa gas CO dan VOC bila masih tidak terbaca.");
   } else {
-    const severe = co >= thresholds.coWarning * 2 || voc >= thresholds.vocWarning * 2;
-    const elevated = co >= thresholds.coWarning || voc >= thresholds.vocWarning;
+    const severe = gasHealth(current, fresh) === "alarm" || co >= thresholds.coWarning * 2 || voc >= thresholds.vocWarning * 2;
+    const elevated = severe || co >= thresholds.coWarning || voc >= thresholds.vocWarning;
     items.push(make("gas", "Gas CO dan VOC",
-      severe ? "NAIK TAJAM" : elevated ? "MELEWATI BATAS PANTAU" : "DI BAWAH AMBANG INTERNAL",
+      severe ? "NAIK TAJAM" : elevated ? "MELEWATI BATAS PANTAU" : "DALAM BATAS PEMANTAUAN",
       severe ? "alert" : elevated ? "attention" : "info",
       "CO " + fmt(co, " ppm") + " (batas " + fmt(thresholds.coWarning, " ppm") +
       "), VOC " + fmt(voc, " ppm") + " (batas " + fmt(thresholds.vocWarning, " ppm") + ").",
-      severe ? "Ada pembacaan melebihi dua kali ambang internal, perlu pemeriksaan oleh petugas." :
+      severe ? "Ada pembacaan yang mencapai batas peringatan tinggi. Segera ikuti prosedur keselamatan." :
         elevated ? "Ada gas di atas batas pemantauan yang disetel, bukan otomatis melanggar batas emisi resmi." :
         "Gas berada di bawah batas internal. Nilai CO/VOC nol tidak membuktikan furan atau emisi lain nol.",
       elevated ? "Ikuti SOP pemeriksaan gas; jangan jadikan dashboard satu-satunya dasar keputusan keselamatan." :
@@ -188,26 +188,25 @@ export function explainReadings(
   // 6. Report sensor quality; communication error counters are cumulative.
   if (diag) {
     const missing = [
-      !diag.cwt.online ? "CWT lingkungan" : null,
-      !diag.ebyte.online ? "modul Ebyte" : null,
-      !diag.ebyte.ch4Connected ? "probe CH4" : null,
-      !diag.ebyte.ch5Connected ? "probe CH5" : null,
-      !diag.zeh100.online ? "ZEH100" : null,
+      !diag.cwt.online ? "sensor lingkungan" : null,
+      !diag.ebyte.online ? "sensor suhu" : null,
+      !diag.ebyte.ch4Connected ? "sensor cerobong" : null,
+      !diag.ebyte.ch5Connected ? "sensor tungku" : null,
+      !diag.zeh100.online ? "sensor gas" : null,
       diag.zeh100.online && !diag.zeh100.dataValid ? "data gas belum siap" : null
     ].filter((v): v is string => v !== null);
     items.push(make("sensors", "Kondisi sensor", missing.length ? "PERLU DICEK" : "SEMUA STATUS TERBACA",
       missing.length ? "attention" : "info",
-      missing.length ? "Yang perlu diperiksa: " + missing.join(", ") + "." : "CWT, Ebyte CH4/CH5 dan ZEH100 melaporkan data siap.",
-      "Error komunikasi sejak boot (kumulatif): CWT " + diag.cwt.errors + ", Ebyte " + diag.ebyte.errors +
-        ", ZEH100 " + diag.zeh100.errors + ". Angka error tidak selalu berarti sensor sedang rusak.",
+      missing.length ? "Yang perlu diperiksa: " + missing.join(", ") + "." : "Status sensor sudah diterima.",
+      "Status ini menunjukkan apakah data sensor tersedia, bukan jaminan sensor sudah terkalibrasi.",
       missing.length ? "Periksa bagian yang disebut dan lihat apakah error terus bertambah." :
         "Lanjutkan pemantauan. Status online hanya berarti komunikasi/data tersedia, bukan verifikasi kalibrasi atau kondisi internal modul gas."));
-    if (missing.length) add("Cek status sensor melalui /status pada JRAIoT.");
+    if (missing.length) add("Hubungi petugas untuk memeriksa sensor.");
   } else {
     items.push(make("sensors", "Kondisi sensor", "DETAIL BELUM TERSEDIA", "unknown",
       "Ada angka masuk, tetapi perangkat JRAIoT belum menyertakan status masing-masing sensor.",
       "Tanpa diagnostik, kita tidak dapat memastikan koneksi setiap sensor hanya dari adanya sebuah angka.",
-      "Gunakan firmware yang menyertakan status cwt, ebyte dan zeh100."));
+      "Hubungi petugas jika status sensor tetap tidak tersedia."));
   }
 
   // 7. Furan score is an experimental process index, never a measurement.

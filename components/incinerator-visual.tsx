@@ -54,7 +54,7 @@ function panelStyle(kind: PanelName) {
   };
 }
 const STATUS: Record<Health, string> = {
-  ready: "READY", warmup: "WARMING UP", waiting: "BELUM SIAP", alarm: "ALARM", fault: "FAULT", offline: "OFFLINE", unknown: "BELUM TERKONFIRMASI"
+  ready: "TERBACA", warmup: "MENYIAPKAN DATA", waiting: "MENUNGGU DATA", alarm: "PERINGATAN AKTIF", fault: "PERLU DIPERIKSA", offline: "TIDAK TERHUBUNG", unknown: "STATUS BELUM TERSEDIA"
 };
 
 function readable(value: number | null | undefined, digits = 1) {
@@ -75,7 +75,7 @@ function sensorHealth(kind: "cwt" | "ch4" | "ch5" | "zeh", data: Telemetry | nul
 
 function Status({ health, gas = false }: { health: Health; gas?: boolean }) {
   const Icon = health === "ready" ? ShieldCheck : (health === "fault" || health === "alarm") ? ShieldAlert : health === "warmup" ? Activity : AlertTriangle;
-  return <div className={"inc-health inc-health-" + health}><Icon size={12} aria-hidden="true" /><span>{gas && health === "ready" ? "DATA READY" : STATUS[health]}</span></div>;
+  return <div className={"inc-health inc-health-" + health}><Icon size={12} aria-hidden="true" /><span>{gas && health === "ready" ? "PEMBACAAN TERSEDIA" : STATUS[health]}</span></div>;
 }
 function Reading({ label, value, unit, icon: Icon, digits = 1 }: {
   label: string; value: number | null | undefined; unit: string; icon: IconType; digits?: number;
@@ -91,7 +91,7 @@ function Panel({ kind, children }: { kind: PanelName; children: React.ReactNode 
   </div>;
 }
 function MobileStatus({ health, name }: { health: Health; name: string }) {
-  return <span className={"inc-mobile-status inc-mobile-" + health}>{name} · {name === "GAS" && health === "ready" ? "DATA READY" : STATUS[health]}</span>;
+  return <span className={"inc-mobile-status inc-mobile-" + health}>{name} · {name === "GAS" && health === "ready" ? "PEMBACAAN TERSEDIA" : STATUS[health]}</span>;
 }
 function IncineratorMobile({ latest, fresh, riskIndex, riskPaused }: {
   latest: Telemetry | null; fresh: boolean; riskIndex: number | null; riskPaused: boolean;

@@ -67,7 +67,7 @@ export function evaluateLoT(
     return {
       process: current ? "DATA TIDAK TERBARU" : "MENUNGGU SENSOR",
       severity: "unknown", furanIndex: null, furanLevel: "—",
-      summary: current ? "Data terakhir sudah melewati batas kesegaran. Pemeriksaan otomatis dihentikan sampai pembacaan baru diterima." : "Belum ada data dari alat. Periksa apakah perangkat sudah terhubung dan mengirim pembacaan.",
+      summary: current ? "Belum ada data terbaru dari alat. Pemeriksaan otomatis dihentikan sampai pembacaan baru diterima." : "Belum ada data dari alat. Periksa apakah perangkat sudah terhubung dan mengirim pembacaan.",
       recommendations: ["Periksa daya perangkat, koneksi jaringan, dan pengiriman data."],
       rules: ["CONNECTION_REQUIRED"], events: [], validSensorCount: 0
     };
@@ -121,15 +121,15 @@ export function evaluateLoT(
   }
 
   if (gasHealth(current, true) === "alarm") {
-    warn("GAS_MODULE_ALARM_THRESHOLD", "Pembacaan mencapai ambang alarm modul",
-      "CO, H₂, VOC atau suhu modul mencapai ambang alarm yang dipublikasikan Winsen; bukan batas aman paparan.", true,
+    warn("GAS_MODULE_ALARM_THRESHOLD", "Alarm sensor gas",
+      "Pembacaan gas atau suhu sensor mencapai batas peringatan. Segera ikuti prosedur keselamatan.", true,
       "Ikuti SOP keselamatan dan verifikasi dengan alat referensi.");
   }
   if (numberAvailable(gasCo)) {
     if (gasCo >= thresholds.coWarning * 2) {
-      warn("CO_HIGH", "CO meningkat tajam", `CO ${gasCo.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa kondisi pembakaran dan jalur keluaran gas dengan prosedur keselamatan yang berlaku.");
+      warn("CO_HIGH", "Kadar CO tinggi", `CO ${gasCo.toFixed(1)} ppm mencapai batas peringatan tinggi.`, true, "Periksa kondisi pembakaran dan jalur keluaran gas dengan prosedur keselamatan yang berlaku.");
     } else if (gasCo >= thresholds.coWarning) {
-      warn("CO_WARNING", "CO di atas ambang", `CO ${gasCo.toFixed(1)} ppm melebihi ambang internal.`, false, "Pantau kenaikan CO dan verifikasi proses pembakaran.");
+      warn("CO_WARNING", "Kadar CO meningkat", `CO ${gasCo.toFixed(1)} ppm melewati batas pemantauan.`, false, "Pantau kenaikan CO dan verifikasi proses pembakaran.");
     } else rules.push("CO_BELOW_INTERNAL_THRESHOLD");
   } else {
     rules.push("CO_MISSING");
@@ -138,9 +138,9 @@ export function evaluateLoT(
 
   if (numberAvailable(gasVoc)) {
     if (gasVoc >= thresholds.vocWarning * 2) {
-      warn("VOC_HIGH", "VOC meningkat tajam", `VOC ${gasVoc.toFixed(1)} ppm melebihi dua kali ambang internal.`, true, "Periksa tren gas organik dan kondisi pengoperasian.");
+      warn("VOC_HIGH", "Kadar VOC tinggi", `VOC ${gasVoc.toFixed(1)} ppm mencapai batas peringatan tinggi.`, true, "Periksa tren gas organik dan kondisi pengoperasian.");
     } else if (gasVoc >= thresholds.vocWarning) {
-      warn("VOC_WARNING", "VOC di atas ambang", `VOC ${gasVoc.toFixed(1)} ppm melebihi ambang internal.`, false, "Periksa pola kenaikan VOC pada grafik.");
+      warn("VOC_WARNING", "Kadar VOC meningkat", `VOC ${gasVoc.toFixed(1)} ppm melewati batas pemantauan.`, false, "Periksa pola kenaikan VOC pada grafik.");
     } else rules.push("VOC_BELOW_INTERNAL_THRESHOLD");
   } else {
     rules.push("VOC_MISSING");
@@ -197,7 +197,7 @@ export function evaluateLoT(
     if (numberAvailable(current.smoke) && current.smoke >= 0.08) { points += 12; rules.push("FURAN_SMOKE_RISE"); }
     furanIndex = clamp(points);
     if (furanIndex >= thresholds.riskWarning) {
-      warn("FURAN_INDEX_WARNING", "Indeks proses perlu diperiksa", `Indeks indikator furan ${furanIndex}/100 melewati ambang internal.`, false, "Periksa tren suhu, CO, dan VOC; validasi emisi menggunakan metode laboratorium.");
+      warn("FURAN_INDEX_WARNING", "Indeks proses perlu diperiksa", `Skor pemantauan furan ${furanIndex}/100 perlu diperhatikan.`, false, "Periksa tren suhu, CO, dan VOC; validasi emisi menggunakan metode laboratorium.");
     }
   } else {
     rules.push("FURAN_UNAVAILABLE");
@@ -209,12 +209,12 @@ export function evaluateLoT(
   }
   const severity: Severity = events.some(event => event.severity === "critical") ? "critical" : events.length > 0 ? "warning" : !numberAvailable(furnace) || !numberAvailable(gasCo) || !numberAvailable(gasVoc) ? "unknown" : "normal";
   const summary = severity === "critical"
-    ? "Terdapat pembacaan gas yang meningkat tajam. Periksa proses melalui prosedur operasi dan keselamatan yang berlaku."
+    ? "Ada peringatan yang perlu segera ditangani. Periksa proses melalui prosedur operasi dan keselamatan yang berlaku."
     : severity === "warning"
       ? "Beberapa parameter memerlukan pemeriksaan. Rincian kondisi dan tindakan tercantum di bawah."
       : severity === "unknown"
         ? "Parameter penting belum lengkap. Pemeriksaan kondisi gas belum bisa disimpulkan."
-        : "Parameter yang tersedia berada di bawah ambang peringatan internal. Lanjutkan pemantauan suhu dan gas secara berkala.";
+        : "Tidak ada peringatan pada pembacaan yang tersedia. Lanjutkan pemantauan suhu dan gas secara berkala.";
   return {
     process, severity, furanIndex,
     furanLevel: furanIndex === null ? (furnaceIdle ? "TIDAK DINILAI" : "TIDAK TERSEDIA") : level(furanIndex),

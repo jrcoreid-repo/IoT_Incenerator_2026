@@ -68,7 +68,7 @@ test("ZEH warmup makes gas unavailable even if previous numeric values are prese
   sensors.zeh100.warmupLike=true;
   const {lot,info}=report(sample({furnace:220,stack:180,sensors,co:0,voc:0,h2:0}));
   assert.equal(lot.furanIndex,null);
-  assert.equal(byId(info,"gas").status,"MASIH WARM-UP");
+  assert.equal(byId(info,"gas").status,"MENYIAPKAN PEMBACAAN");
   assert.match(byId(info,"gas").explanation,/tidak boleh dianggap/i);
 });
 
